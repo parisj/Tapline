@@ -1,0 +1,12 @@
+[model]
+artifact_path = "/models/model.onnx"
+device = "cuda:0"     # or "cpu"
+batch_size = 16
+
+[preprocessing]
+resize_width = 640
+resize_height = 640
+normalize = true
+
+[postprocessing]
+score_threshold = 0.5

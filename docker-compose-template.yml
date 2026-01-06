@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: visioeval-postgres
+    environment:
+      POSTGRES_DB: [DATABASE_NAME]
+      POSTGRES_USER: [USER_NAME]
+      POSTGRES_PASSWORD: [USER_PASSWORD]
+    ports:
+      - "5432:5432"
+    volumes:
+      - visioeval_pgdata:/var/lib/postgresql/data
+volumes:
+  visioeval_pgdata:
