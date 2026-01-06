@@ -6,7 +6,6 @@ It has a strong natural fit for **computer vision** and **machine learning**, bu
 
 This repository intentionally focuses on **pipeline infrastructure and analysis primitives**. Domain-specific algorithms are expected to live in **separate repositories** or be contributed via pull requests. VisioEval provides the execution, aggregation, and analysis framework around those algorithms.
 
----
 
 ## **Why VisioEval Exists**
 
@@ -26,7 +25,6 @@ Evaluation systems often start small and grow until they become fragile:
 - **Persistence separates summaries from numeric artifacts**
 - **Read-only consumers** (dashboards/clients) query the DB
 
----
 
 ## **What VisioEval Solves**
 
@@ -40,7 +38,6 @@ VisioEval provides a foundation for:
 - multiple consumers (local dashboards or hosted services)
 - clean extension points for algorithms and analysis logic
 
----
 
 ## **Core Concepts**
 
@@ -55,7 +52,6 @@ A **job** represents processing of a single input item. Jobs exist to:
 
 Each algorithm instance is **created once per worker** and reused across jobs.
 
----
 
 ### **Algorithm**
 
@@ -91,7 +87,6 @@ MetricValue(
 
 Each metric explicitly declares **how it should be analyzed**, not how it is visualized.
 
----
 
 ### **AnalysisKind**
 
@@ -111,7 +106,6 @@ class AnalysisKind(IntFlag):
 
 Multiple analysis kinds can be combined per metric.
 
----
 
 ## **Algorithm Registry (Routing Without Hardcoding)**
 
@@ -158,7 +152,6 @@ def build_default_registry() -> AlgorithmRegistry:
 
 This keeps the system extensible and makes algorithm selection a configuration concern.
 
----
 
 ## **Analyzer Pipeline (AnalysisKind → Analyzer Implementation)**
 
@@ -213,7 +206,6 @@ This design is intentionally simple:
 - Implementing the analyzer is a **module change**
 - Wiring it up is a **single-line change** in `ANALYSIS_PIPELINE`
 
----
 
 ## **Built-in Analyzers**
 
@@ -250,7 +242,6 @@ Each analyzer returns:
 - a **compact JSON summary** for fast filtering/grouping
 - an optional **binary artifact** for later recomposition across larger time ranges
 
----
 
 ## **Artifacts (Binary, Time-Windowed, Merge-Friendly)**
 
@@ -265,13 +256,9 @@ They are designed to:
 
 Artifacts are **time-windowed** and can be recombined by visualization/query layers to interpret data across custom ranges.
 
----
-
 ## **Pipeline Configuration**
 
 VisioEval is fully configuration-driven using TOML files.
-
----
 
 ### **`src/config/pipeline.toml`**
 
@@ -302,7 +289,6 @@ path1 = "/home/elliot/repos/VisioEval/paths_test/path1"
 
 This file is the **single source of truth** for directory keys and their real filesystem paths.
 
----
 
 ### **`src/config/routes.toml`**
 
@@ -322,7 +308,6 @@ settings = "algorithms/model_template.toml"
 
 The `directory_key` must match the key in `[directories]`.
 
----
 
 ### **Algorithm Settings Files**
 
@@ -354,7 +339,6 @@ normalize = true
 score_threshold = 0.5
 ```
 
----
 
 ## **Reference Algorithm: `analysis_probe`**
 
@@ -382,7 +366,6 @@ class AnalysisProbeAlgo(Algorithm):
 
 This is a test/probe algorithm, not a production CV model.
 
----
 
 ## **Persistence Model**
 
@@ -397,7 +380,6 @@ The database stores:
 
 This split keeps queries fast while preserving numeric fidelity for later time-range recomposition.
 
----
 
 ## **Logging and Observability**
 
@@ -408,7 +390,6 @@ All modules use a shared logging approach. This provides visibility into:
 - worker execution and failures
 - evaluation windows and persistence operations
 
----
 
 ## **Project Status**
 
@@ -421,7 +402,6 @@ VisioEval is under active development.
 
 No performance claims are made at this stage.
 
----
 
 ## **Roadmap**
 
@@ -430,7 +410,6 @@ No performance claims are made at this stage.
 - richer analysis types (quantiles/sketches, robust stats)
 - operational tooling (migrations, admin helpers, monitoring)
 
----
 
 ## **Contributing**
 
