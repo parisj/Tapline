@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pixi
+        uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          # Optional: pin pixi version for reproducibility
+          # pixi-version: "0.35.0"
+          cache: true
+
+      - name: Run tests
+        run: pixi run test
