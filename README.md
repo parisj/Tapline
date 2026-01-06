@@ -40,6 +40,16 @@ VisioEval provides a foundation for:
 
 
 ## **Core Concepts**
+<p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/0f8d68a1-b047-46cd-969c-90db5706cac7"
+    alt="VisioEval Architecture"
+    height="900"
+  />
+</p>
+
+
+
 
 ### **Job**
 
