@@ -1,0 +1,36 @@
+# MinIO configuration for VisioEval artifact storage
+
+[connection]
+endpoint = "localhost:9000"
+access_key = "minioadmin"
+secret_key = "minioadmin123"
+secure = false                  # Use HTTPS in production
+region = "us-east-1"
+
+[buckets]
+# Content-addressed artifact storage (algorithm outputs)
+artifacts = "artifacts"
+
+# Input file storage (optional, for audit trail)
+inputs = "inputs"
+
+# Aggregate artifacts from Flink (histograms, plots, etc.)
+aggregates = "aggregates"
+
+[storage]
+# Content-addressed path format: bucket/ab/cd/{full_hash}
+# Uses first 4 chars of hash for directory sharding
+path_prefix_length = 4
+
+# Maximum object size in bytes (100MB default)
+max_object_size = 104857600
+
+# Retry configuration
+max_retries = 3
+retry_delay_sec = 0.5
+
+[lifecycle]
+# Retention policy (0 = infinite)
+artifacts_retention_days = 0
+inputs_retention_days = 30
+aggregates_retention_days = 90

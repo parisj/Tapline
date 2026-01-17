@@ -36,6 +36,20 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# databases
+*.db
+docker-compose.yml
+
+#Test Paths
+paths_test/
+
+#Kgen
+kgen.*
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -54,6 +68,7 @@ cover/
 # Translations
 *.mo
 *.pot
+
 
 # Django stuff:
 *.log

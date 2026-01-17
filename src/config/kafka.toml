@@ -1,0 +1,48 @@
+# Kafka configuration for VisioEval streaming architecture
+
+[broker]
+bootstrap_servers = "localhost:9092"
+client_id = "visioeval"
+
+[producer]
+acks = "all"                    # Wait for all replicas
+retries = 3
+retry_backoff_ms = 100
+linger_ms = 5                   # Batch for 5ms before sending
+batch_size = 16384              # 16KB batch size
+compression_type = "lz4"        # Fast compression
+enable_idempotence = true       # Exactly-once semantics
+
+[consumer]
+group_id = "visioeval-workers"
+auto_offset_reset = "earliest"  # Start from beginning if no offset
+enable_auto_commit = false      # Manual commit after processing
+session_timeout_ms = 30000
+heartbeat_interval_ms = 10000
+max_poll_interval_ms = 300000   # 5 min for slow jobs
+# Note: max_poll_records is not supported by librdkafka (confluent-kafka)
+# Batch size is controlled via fetch.max.bytes instead
+
+[topics]
+# Job lifecycle events (partitioned by source_id for ordering)
+jobs = "visio.jobs"
+jobs_partitions = 32
+
+# Algorithm results (partitioned by source_id)
+results = "visio.results"
+results_partitions = 32
+
+# Metrics for Flink aggregation (partitioned by algo_name)
+metrics = "visio.metrics"
+metrics_partitions = 32
+
+# Append-only audit log (single partition for total ordering)
+audit_log = "visio.audit-log"
+audit_log_partitions = 1
+
+# Aggregation results from Flink
+aggregates = "visio.aggregates"
+aggregates_partitions = 16
+
+[schema_registry]
+url = "http://localhost:8085"

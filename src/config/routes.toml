@@ -1,0 +1,26 @@
+# ============================================================================
+# Directory → Algorithm routing configuration
+#
+# Each [route.<directory_key>] defines:
+# - which algorithm to run
+# - which algorithm version
+# - which settings file to load
+#
+# [route.pathXX]
+# algorithm = "name_algo"
+# version = "X.X.X"
+# settings = "algorithms/pathXX"
+#
+# The directory_key MUST match the key used by the DirectoryObserver.
+# ============================================================================
+
+[route.path0]
+algorithm = "analysis_probe"
+version = "1.0.0"
+settings = "algorithms/algo_template.toml"
+
+[route.path1]
+algorithm = "model_inference"
+version = "0.1.0"
+settings = "algorithms/model_template.toml"
+

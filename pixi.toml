@@ -1,0 +1,27 @@
+[workspace]
+channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name = "VisioEval"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[pypi-dependencies]
+pytest = ">=8"
+pytest-cov = ">=5"
+confluent-kafka = ">=2.3"
+minio = ">=7.2"
+apache-flink = ">=1.18"
+
+[dependencies]
+python = ">=3.12,<3.13"
+python-dotenv = ">=1.2.1,<2"
+numpy = ">=1.24.0,<2.2"
+pytest = ">=9.0.2,<10"
+ruff = ">=0.14.10,<0.15"
+psycopg = ">=3.3.2,<4"
+
+[tasks]
+run = "python -m src.app.main"
+run-streaming = "PIPELINE_MODE=streaming python -m src.app.main"
+test = "pytest -q --cov=src --cov-report=term-missing"
+lint = "ruff check ."
+format = "ruff format ."
