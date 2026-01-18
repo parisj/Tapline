@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+# Constants
+_MIN_PREFIX_LENGTH = 2
+
 
 @dataclass(frozen=True)
 class ObjectRef:
@@ -43,6 +46,7 @@ class ObjectRef:
 
         Returns:
             ObjectRef with computed key path
+
         """
         key = hash_to_key(content_hash, prefix_length)
         return cls(
@@ -95,16 +99,15 @@ def hash_to_key(content_hash: str, prefix_length: int = 4) -> str:
 
     Returns:
         Key path with directory sharding
+
     """
-    if prefix_length < 2 or prefix_length > len(content_hash):
+    if prefix_length < _MIN_PREFIX_LENGTH or prefix_length > len(content_hash):
         prefix_length = 4
 
     # Ensure even prefix for balanced sharding
     prefix_length = prefix_length - (prefix_length % 2)
 
-    parts = []
-    for i in range(0, prefix_length, 2):
-        parts.append(content_hash[i : i + 2])
+    parts = [content_hash[i : i + 2] for i in range(0, prefix_length, 2)]
     parts.append(content_hash)
 
     return "/".join(parts)
@@ -121,6 +124,7 @@ def key_to_hash(key: str) -> str:
 
     Returns:
         Original content hash
+
     """
     parts = key.split("/")
     return parts[-1] if parts else key

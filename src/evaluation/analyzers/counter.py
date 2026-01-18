@@ -42,7 +42,7 @@ class CounterAnalyzer(Analyzer):
             "summary": {
                 "count": int(sum(counter.values())),
                 "missing": missing,
-                "unique": int(len(counter)),
+                "unique": len(counter),
                 "top_k": top_k,
                 "sort": str(sort_mode),
             },

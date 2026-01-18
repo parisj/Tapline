@@ -11,8 +11,6 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
-from src.domain.events import EventType
-from src.domain.jobs import Job
 from src.ingest.readiness import wait_for_file_ready
 from src.utils.hashing import compute_fingerprint
 from src.utils.logging import get_logger
@@ -155,7 +153,7 @@ class KafkaDirectoryObserver:
     def _compute_file_hash(self, path: Path) -> str:
         """Compute SHA-256 hash of file contents for audit trail."""
         sha256 = hashlib.sha256()
-        with open(path, "rb") as f:
+        with path.open("rb") as f:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()

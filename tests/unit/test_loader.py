@@ -60,8 +60,8 @@ def test_load_runtime_config_success_minimal_valid(tmp_path: Path)-> None:
 
     # directories: only non-empty strings, converted to Path (note: value isn't stripped in code)
     assert "inbox" in cfg.directories
-    assert cfg.directories["inbox"] == Path("/tmp/inbox")  # noqa: S108
-    assert cfg.directories["out"] == Path("/tmp/out")  # noqa: S108
+    assert cfg.directories["inbox"] == Path("/tmp/inbox")
+    assert cfg.directories["out"] == Path("/tmp/out")
 
 
 def test_load_runtime_config_requires_each_top_level_table(tmp_path: Path)-> None:

@@ -13,12 +13,8 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from pathlib import Path
-from typing import Any
 
-import pytest
-
-from src.domain.events import EventEnvelope, EventType
+from src.domain.events import EventType
 
 
 class TestJobLifecycle:
@@ -29,10 +25,10 @@ class TestJobLifecycle:
         skip_without_infrastructure,
         kafka_config,
         test_image_bytes: bytes,
-    ):
+    ) -> None:
         """Test that JOB_CREATED events are properly published to Kafka."""
-        from src.streaming.producer import EventProducer
         from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -83,10 +79,10 @@ class TestJobLifecycle:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that job lifecycle events are published in correct sequence."""
-        from src.streaming.producer import EventProducer
         from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -158,10 +154,10 @@ class TestJobLifecycle:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that RESULT_PRODUCED events contain correct data."""
-        from src.streaming.producer import EventProducer
         from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -209,10 +205,10 @@ class TestJobLifecycle:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that METRIC_EMITTED events contain metric data."""
-        from src.streaming.producer import EventProducer
         from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -263,10 +259,10 @@ class TestJobLifecycle:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that JOB_FAILED events contain error information."""
-        from src.streaming.producer import EventProducer
         from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -318,9 +314,10 @@ class TestCorrelationIdPropagation:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that correlation IDs are injected into Kafka message headers."""
         from confluent_kafka import Consumer, Producer
+
         from src.observability.correlation import generate_correlation_id, set_correlation_id
 
         # Set a known correlation ID
@@ -376,11 +373,11 @@ class TestEventHashChain:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that events have content hashes for integrity verification."""
-        from src.streaming.producer import EventProducer
-        from src.streaming.consumer import EventConsumer
         from src.domain.events import compute_content_hash
+        from src.streaming.consumer import EventConsumer
+        from src.streaming.producer import EventProducer
 
         producer = EventProducer(kafka_config)
         consumer = EventConsumer(
@@ -432,7 +429,7 @@ class TestConsumerGroupBehavior:
         self,
         skip_without_infrastructure,
         kafka_config,
-    ):
+    ) -> None:
         """Test that multiple consumers in same group get different partitions."""
         from src.streaming.consumer import EventConsumer
 
@@ -454,7 +451,7 @@ class TestConsumerGroupBehavior:
             assigned1 = threading.Event()
             assigned2 = threading.Event()
 
-            def poll_consumer(consumer, assigned_event):
+            def poll_consumer(consumer, assigned_event) -> None:
                 for _ in range(10):
                     consumer.poll(timeout=1.0)
                     if consumer.get_assignment():

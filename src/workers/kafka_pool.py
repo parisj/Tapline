@@ -7,20 +7,18 @@ Each worker consumes from the jobs topic and processes jobs.
 from __future__ import annotations
 
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.domain.events import EventType
-from src.domain.results import MetricValue, metrics_to_jsonable
+from src.domain.results import MetricValue
 from src.utils.logging import get_logger
 from src.workers.lifecycle import AlgoLifecycle
 from src.workers.offload import ExecutionContext, LocalWorkerStrategy
 
 if TYPE_CHECKING:
     from src.dispatch.dispatcher import Dispatcher
-    from src.domain.jobs import Job
     from src.storage.minio_service import MinioStorageService
     from src.streaming.config import KafkaConfig
     from src.streaming.consumer import EventConsumer
@@ -84,6 +82,7 @@ class KafkaWorkerPool:
         Args:
             wait_for_ready: If True, wait for workers to have partitions assigned
             ready_timeout: Maximum time to wait for workers to be ready
+
         """
         from src.streaming.consumer import EventConsumer
 

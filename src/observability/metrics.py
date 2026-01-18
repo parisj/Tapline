@@ -6,15 +6,15 @@ import threading
 from typing import TYPE_CHECKING
 
 from prometheus_client import (
+    GC_COLLECTOR,
+    PLATFORM_COLLECTOR,
+    PROCESS_COLLECTOR,
+    REGISTRY,
     Counter,
     Gauge,
     Histogram,
     Info,
     start_http_server,
-    REGISTRY,
-    GC_COLLECTOR,
-    PLATFORM_COLLECTOR,
-    PROCESS_COLLECTOR,
 )
 
 from src.utils.logging import get_logger
@@ -221,6 +221,7 @@ def configure_metrics(config: ObservabilityConfig) -> bool:
 
     Returns:
         True if metrics server started, False otherwise
+
     """
     global _metrics_server_started
 
@@ -251,7 +252,7 @@ def configure_metrics(config: ObservabilityConfig) -> bool:
             )
             return True
         except OSError as e:
-            logger.error("Failed to start metrics server: %s", e)
+            logger.exception("Failed to start metrics server: %s", e)
             return False
 
 
@@ -260,7 +261,8 @@ def set_build_info(version: str, mode: str, **extra: str) -> None:
 
     Args:
         version: Application version
-        mode: Pipeline mode (legacy/streaming)
+        mode: Pipeline mode
         **extra: Additional info fields
+
     """
     BUILD_INFO.info({"version": version, "mode": mode, **extra})

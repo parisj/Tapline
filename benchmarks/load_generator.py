@@ -12,14 +12,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import io
-import os
 import random
 import statistics
+import struct
 import sys
 import tempfile
 import threading
 import time
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +30,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Constants for latency percentile calculations
+_MIN_SAMPLES_FOR_PERCENTILE = 2
+_CRC_MASK = 0xFFFFFFFF
 
 
 @dataclass
@@ -57,29 +61,34 @@ class BenchmarkResult:
 
     @property
     def avg_latency_ms(self) -> float:
+        """Calculate average latency in milliseconds."""
         if not self.latencies_ms:
             return 0.0
         return statistics.mean(self.latencies_ms)
 
     @property
     def p50_latency_ms(self) -> float:
+        """Calculate P50 (median) latency in milliseconds."""
         if not self.latencies_ms:
             return 0.0
         return statistics.median(self.latencies_ms)
 
     @property
     def p95_latency_ms(self) -> float:
-        if len(self.latencies_ms) < 2:
+        """Calculate P95 latency in milliseconds."""
+        if len(self.latencies_ms) < _MIN_SAMPLES_FOR_PERCENTILE:
             return self.avg_latency_ms
         return statistics.quantiles(self.latencies_ms, n=20)[18]
 
     @property
     def p99_latency_ms(self) -> float:
-        if len(self.latencies_ms) < 2:
+        """Calculate P99 latency in milliseconds."""
+        if len(self.latencies_ms) < _MIN_SAMPLES_FOR_PERCENTILE:
             return self.avg_latency_ms
         return statistics.quantiles(self.latencies_ms, n=100)[98]
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert result to dictionary."""
         return {
             "total_files_created": self.total_files_created,
             "actual_rps": self.actual_rps,
@@ -91,18 +100,29 @@ class BenchmarkResult:
         }
 
 
+def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    """Create a PNG chunk with CRC."""
+    chunk = chunk_type + data
+    return (
+        struct.pack(">I", len(data))
+        + chunk
+        + struct.pack(">I", zlib.crc32(chunk) & _CRC_MASK)
+    )
+
+
 def generate_png_bytes(width: int = 640, height: int = 480) -> bytes:
     """Generate a minimal valid PNG file.
 
     Creates a simple solid-color PNG without requiring PIL.
+
+    Args:
+        width: Image width in pixels.
+        height: Image height in pixels.
+
+    Returns:
+        PNG file as bytes.
+
     """
-    import struct
-    import zlib
-
-    def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
-        chunk = chunk_type + data
-        return struct.pack(">I", len(data)) + chunk + struct.pack(">I", zlib.crc32(chunk) & 0xFFFFFFFF)
-
     # Random color for each image
     r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
 
@@ -119,9 +139,9 @@ def generate_png_bytes(width: int = 640, height: int = 480) -> bytes:
 
     # Build PNG
     png = b"\x89PNG\r\n\x1a\n"
-    png += png_chunk(b"IHDR", ihdr_data)
-    png += png_chunk(b"IDAT", compressed)
-    png += png_chunk(b"IEND", b"")
+    png += _png_chunk(b"IHDR", ihdr_data)
+    png += _png_chunk(b"IDAT", compressed)
+    png += _png_chunk(b"IEND", b"")
 
     return png
 
@@ -130,11 +150,22 @@ class LoadGenerator:
     """Generates load by creating files at target RPS."""
 
     def __init__(self, config: BenchmarkConfig) -> None:
+        """Initialize load generator.
+
+        Args:
+            config: Benchmark configuration.
+
+        """
         self.config = config
         self._stop = threading.Event()
         self._files_created = 0
         self._creation_times: dict[str, float] = {}
         self._lock = threading.Lock()
+
+    def _log(self, message: str) -> None:
+        """Log a message to stdout."""
+        sys.stdout.write(message + "\n")
+        sys.stdout.flush()
 
     def _create_file(self, index: int) -> str:
         """Create a single test file."""
@@ -154,16 +185,27 @@ class LoadGenerator:
         return filename
 
     def run(self) -> BenchmarkResult:
-        """Run the load generation benchmark."""
+        """Run the load generation benchmark.
+
+        Returns:
+            BenchmarkResult with metrics.
+
+        """
         result = BenchmarkResult()
 
         # Ensure directory exists
         self.config.directory.mkdir(parents=True, exist_ok=True)
 
-        print(f"Starting load generator: {self.config.target_rps} RPS for {self.config.duration_sec}s")
-        print(f"Directory: {self.config.directory}")
-        print(f"Warmup: {self.config.warmup_sec}s, Cooldown: {self.config.cooldown_sec}s")
-        print()
+        self._log(
+            f"Starting load generator: {self.config.target_rps} RPS "
+            f"for {self.config.duration_sec}s",
+        )
+        self._log(f"Directory: {self.config.directory}")
+        self._log(
+            f"Warmup: {self.config.warmup_sec}s, "
+            f"Cooldown: {self.config.cooldown_sec}s",
+        )
+        self._log("")
 
         # Calculate interval between files
         interval = 1.0 / self.config.target_rps if self.config.target_rps > 0 else 1.0
@@ -174,14 +216,14 @@ class LoadGenerator:
         index = 0
 
         # Warmup phase
-        print("Warmup phase...")
+        self._log("Warmup phase...")
         while time.perf_counter() < warmup_end and not self._stop.is_set():
             self._create_file(index)
             index += 1
             time.sleep(interval)
 
         # Measurement phase
-        print("Measurement phase...")
+        self._log("Measurement phase...")
         measurement_start = time.perf_counter()
         measurement_files = 0
 
@@ -199,26 +241,28 @@ class LoadGenerator:
         measurement_end = time.perf_counter()
 
         # Cooldown
-        print(f"Cooldown phase ({self.config.cooldown_sec}s)...")
+        self._log(f"Cooldown phase ({self.config.cooldown_sec}s)...")
         time.sleep(self.config.cooldown_sec)
 
         # Calculate results
         result.total_files_created = self._files_created
         result.duration_sec = measurement_end - measurement_start
-        result.actual_rps = measurement_files / result.duration_sec if result.duration_sec > 0 else 0
+        result.actual_rps = (
+            measurement_files / result.duration_sec if result.duration_sec > 0 else 0
+        )
 
-        print()
-        print("=" * 60)
-        print("BENCHMARK RESULTS")
-        print("=" * 60)
-        print(f"Files created:     {result.total_files_created}")
-        print(f"Duration:          {result.duration_sec:.2f}s")
-        print(f"Target RPS:        {self.config.target_rps}")
-        print(f"Actual RPS:        {result.actual_rps:.2f}")
-        print()
-        print("Note: Latency measurement requires Kafka event tracking")
-        print("      Use Grafana dashboard for end-to-end latency metrics")
-        print("=" * 60)
+        self._log("")
+        self._log("=" * 60)
+        self._log("BENCHMARK RESULTS")
+        self._log("=" * 60)
+        self._log(f"Files created:     {result.total_files_created}")
+        self._log(f"Duration:          {result.duration_sec:.2f}s")
+        self._log(f"Target RPS:        {self.config.target_rps}")
+        self._log(f"Actual RPS:        {result.actual_rps:.2f}")
+        self._log("")
+        self._log("Note: Latency measurement requires Kafka event tracking")
+        self._log("      Use Grafana dashboard for end-to-end latency metrics")
+        self._log("=" * 60)
 
         return result
 
@@ -228,6 +272,7 @@ class LoadGenerator:
 
 
 def main() -> None:
+    """Run the load generator benchmark."""
     parser = argparse.ArgumentParser(
         description="VisioEval Load Generator",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -281,7 +326,7 @@ def main() -> None:
     if args.directory is None:
         temp_dir = tempfile.mkdtemp(prefix="visioeval_bench_")
         args.directory = Path(temp_dir)
-        print(f"Using temp directory: {temp_dir}")
+        sys.stdout.write(f"Using temp directory: {temp_dir}\n")
 
     config = BenchmarkConfig(
         target_rps=args.rps,
@@ -296,9 +341,9 @@ def main() -> None:
     generator = LoadGenerator(config)
 
     try:
-        result = generator.run()
+        generator.run()
     except KeyboardInterrupt:
-        print("\nBenchmark interrupted by user")
+        sys.stdout.write("\nBenchmark interrupted by user\n")
         generator.stop()
 
 

@@ -6,7 +6,7 @@ import pytest
 class TestMinioStorageIntegration:
     """Integration tests for MinIO storage operations."""
 
-    def test_store_and_retrieve(self, minio_storage, sample_image_bytes):
+    def test_store_and_retrieve(self, minio_storage, sample_image_bytes) -> None:
         """Test basic store and retrieve cycle."""
         ref = minio_storage.store(
             data=sample_image_bytes,
@@ -20,7 +20,7 @@ class TestMinioStorageIntegration:
         retrieved = minio_storage.retrieve(ref)
         assert retrieved == sample_image_bytes
 
-    def test_deduplication(self, minio_storage, sample_image_bytes):
+    def test_deduplication(self, minio_storage, sample_image_bytes) -> None:
         """Test that storing same data twice returns same reference."""
         ref1 = minio_storage.store(
             data=sample_image_bytes,
@@ -35,7 +35,7 @@ class TestMinioStorageIntegration:
         assert ref1.content_hash == ref2.content_hash
         assert ref1.key == ref2.key
 
-    def test_exists_check(self, minio_storage, sample_image_bytes):
+    def test_exists_check(self, minio_storage, sample_image_bytes) -> None:
         """Test existence checking."""
         ref = minio_storage.store(
             data=sample_image_bytes,
@@ -45,7 +45,7 @@ class TestMinioStorageIntegration:
         assert minio_storage.exists(minio_storage.buckets["artifacts"], ref.content_hash)
         assert not minio_storage.exists(minio_storage.buckets["artifacts"], "nonexistent")
 
-    def test_retrieve_nonexistent_raises(self, minio_storage):
+    def test_retrieve_nonexistent_raises(self, minio_storage) -> None:
         """Test that retrieving nonexistent object raises error."""
         with pytest.raises(FileNotFoundError):
             minio_storage.retrieve_by_hash(
@@ -53,7 +53,7 @@ class TestMinioStorageIntegration:
                 content_hash="nonexistent123456789012345678901234567890",
             )
 
-    def test_store_with_metadata(self, minio_storage, sample_image_bytes):
+    def test_store_with_metadata(self, minio_storage, sample_image_bytes) -> None:
         """Test storing with custom metadata."""
         ref = minio_storage.store(
             data=sample_image_bytes,
@@ -67,7 +67,7 @@ class TestMinioStorageIntegration:
         assert info["size"] == len(sample_image_bytes)
         # Metadata keys are prefixed with x-amz-meta- by MinIO
 
-    def test_list_objects(self, minio_storage, sample_image_bytes):
+    def test_list_objects(self, minio_storage, sample_image_bytes) -> None:
         """Test listing objects in bucket."""
         # Store a few objects
         refs = []
@@ -88,7 +88,7 @@ class TestMinioStorageIntegration:
         for ref in refs:
             assert ref.key in keys
 
-    def test_delete_object(self, minio_storage, sample_image_bytes):
+    def test_delete_object(self, minio_storage, sample_image_bytes) -> None:
         """Test deleting an object."""
         ref = minio_storage.store(
             data=sample_image_bytes,
@@ -102,7 +102,7 @@ class TestMinioStorageIntegration:
 
         assert not minio_storage.exists_ref(ref)
 
-    def test_different_buckets(self, minio_storage, sample_image_bytes):
+    def test_different_buckets(self, minio_storage, sample_image_bytes) -> None:
         """Test storing in different buckets."""
         ref_artifacts = minio_storage.store(
             data=sample_image_bytes,

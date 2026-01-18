@@ -7,9 +7,12 @@ including Kafka message headers.
 from __future__ import annotations
 
 import uuid
-from contextvars import ContextVar, Token
 from contextlib import contextmanager
-from typing import Iterator
+from contextvars import ContextVar, Token
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Context variable for correlation ID
 _correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
@@ -20,6 +23,7 @@ def generate_correlation_id() -> str:
 
     Returns:
         UUID string
+
     """
     return str(uuid.uuid4())
 
@@ -29,6 +33,7 @@ def get_correlation_id() -> str | None:
 
     Returns:
         Current correlation ID or None if not set
+
     """
     return _correlation_id.get()
 
@@ -38,6 +43,7 @@ def get_or_create_correlation_id() -> str:
 
     Returns:
         Existing or new correlation ID
+
     """
     cid = _correlation_id.get()
     if cid is None:
@@ -54,6 +60,7 @@ def set_correlation_id(cid: str) -> Token[str | None]:
 
     Returns:
         Token that can be used to reset the value
+
     """
     return _correlation_id.set(cid)
 
@@ -63,6 +70,7 @@ def reset_correlation_id(token: Token[str | None]) -> None:
 
     Args:
         token: Token from set_correlation_id
+
     """
     _correlation_id.reset(token)
 
@@ -81,6 +89,7 @@ def correlation_context(cid: str | None = None) -> Iterator[str]:
         with correlation_context("req-123") as cid:
             process_request()
             # All code here has access to cid via get_correlation_id()
+
     """
     if cid is None:
         cid = generate_correlation_id()
@@ -111,6 +120,7 @@ def inject_correlation_header(
 
     Returns:
         Headers dict with correlation ID added
+
     """
     if headers is None:
         headers = {}
@@ -132,6 +142,7 @@ def extract_correlation_header(
 
     Returns:
         Correlation ID or None if not found
+
     """
     if headers is None:
         return None
@@ -156,6 +167,7 @@ def propagate_from_kafka_headers(
 
     Returns:
         The correlation ID (extracted or generated)
+
     """
     cid = extract_correlation_header(headers, header_name)
     if cid is None:

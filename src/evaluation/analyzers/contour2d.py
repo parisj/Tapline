@@ -8,6 +8,9 @@ import numpy as np
 from src.domain.results import Artifact
 from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
+# Constants
+_POINT_LENGTH = 2  # Expected length for (x, y) coordinate pairs
+
 
 class ContourAnalyzer(Analyzer):
     """2D density grid for contour plotting (stored as NPZ artifact)."""
@@ -35,8 +38,15 @@ class ContourAnalyzer(Analyzer):
         rx = meta.get("range_x")
         ry = meta.get("range_y")
 
-        xmin, xmax = (float(rx[0]), float(rx[1])) if isinstance(rx, (list, tuple)) and len(rx) == 2 else (float(xs.min()), float(xs.max()))
-        ymin, ymax = (float(ry[0]), float(ry[1])) if isinstance(ry, (list, tuple)) and len(ry) == 2 else (float(ys.min()), float(ys.max()))
+        if isinstance(rx, (list, tuple)) and len(rx) == _POINT_LENGTH:
+            xmin, xmax = float(rx[0]), float(rx[1])
+        else:
+            xmin, xmax = float(xs.min()), float(xs.max())
+
+        if isinstance(ry, (list, tuple)) and len(ry) == _POINT_LENGTH:
+            ymin, ymax = float(ry[0]), float(ry[1])
+        else:
+            ymin, ymax = float(ys.min()), float(ys.max())
 
         # Handle degenerate ranges
         if xmin == xmax or ymin == ymax:
@@ -87,9 +97,9 @@ class ContourAnalyzer(Analyzer):
         }
 
 
-def _parse_point(v: Any) -> tuple[float, float] | None:
+def _parse_point(v: object) -> tuple[float, float] | None:
     try:
-        if isinstance(v, (list, tuple)) and len(v) == 2:
+        if isinstance(v, (list, tuple)) and len(v) == _POINT_LENGTH:
             return float(v[0]), float(v[1])
         if isinstance(v, dict) and "x" in v and "y" in v:
             return float(v["x"]), float(v["y"])

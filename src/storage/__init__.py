@@ -7,8 +7,8 @@ Provides content-addressed storage for artifacts with:
 """
 
 from src.storage.config import MinioConfig, load_minio_config
-from src.storage.models import ObjectRef
 from src.storage.minio_service import MinioStorageService
+from src.storage.models import ObjectRef
 
 __all__ = [
     "MinioConfig",

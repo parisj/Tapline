@@ -23,11 +23,9 @@ python-dotenv = ">=1.2.1,<2"
 numpy = ">=1.24.0,<2.2"
 pytest = ">=9.0.2,<10"
 ruff = ">=0.14.10,<0.15"
-psycopg = ">=3.3.2,<4"
 
 [tasks]
 run = "python -m src.app.main"
-run-streaming = "PIPELINE_MODE=streaming python -m src.app.main"
 run-flink-agg = "python -m src.app.flink_aggregation"
 run-flink-job = "python src/flink/jobs/submit_job.py"
 test = "pytest -q --cov=src --cov-report=term-missing"

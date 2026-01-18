@@ -25,27 +25,25 @@ import os
 import sys
 from pathlib import Path
 
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from pyflink.common import Row, Types, WatermarkStrategy
+from dotenv import load_dotenv
+from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
-from pyflink.common.time import Duration
-from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
+from pyflink.datastream import RuntimeExecutionMode, StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import (
-    KafkaSource,
-    KafkaSink,
-    KafkaRecordSerializationSchema,
     DeliveryGuarantee,
     KafkaOffsetsInitializer,
+    KafkaRecordSerializationSchema,
+    KafkaSink,
+    KafkaSource,
 )
 from pyflink.datastream.functions import MapFunction, ProcessWindowFunction
-from pyflink.datastream.window import TumblingProcessingTimeWindows, Time
+from pyflink.datastream.window import Time, TumblingProcessingTimeWindows
 
-from dotenv import load_dotenv
 
-load_dotenv()
+def _setup_path() -> None:
+    """Add project root to path for imports."""
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
 
 
 class MetricParser(MapFunction):
@@ -83,7 +81,7 @@ class MetricParser(MapFunction):
 class MetricWindowAggregator(ProcessWindowFunction):
     """Aggregate metrics within a time window and compute statistics."""
 
-    def process(self, key: str, context: ProcessWindowFunction.Context, elements):
+    def process(self, _key: str, context: ProcessWindowFunction.Context, elements: list[str]) -> None:
         """Process all elements in the window and emit aggregate."""
         values = []
         algo_name = "unknown"
@@ -169,7 +167,7 @@ def get_key(value: str) -> str:
         return "unknown"
 
 
-def create_job():
+def create_job() -> StreamExecutionEnvironment:
     """Create and configure the Flink job."""
     # Get configuration from environment
     kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
@@ -179,13 +177,6 @@ def create_job():
     window_size_sec = int(os.getenv("FLINK_WINDOW_SIZE_SEC", "60"))
     parallelism = int(os.getenv("FLINK_PARALLELISM", "4"))
 
-    print(f"Configuring Flink job:")
-    print(f"  Kafka: {kafka_bootstrap}")
-    print(f"  Consumer Group: {kafka_group_id}")
-    print(f"  Metrics Topic: {metrics_topic}")
-    print(f"  Aggregates Topic: {aggregates_topic}")
-    print(f"  Window Size: {window_size_sec}s")
-    print(f"  Parallelism: {parallelism}")
 
     # Create execution environment
     env = StreamExecutionEnvironment.get_execution_environment()
@@ -225,7 +216,7 @@ def create_job():
             KafkaRecordSerializationSchema.builder()
             .set_topic(aggregates_topic)
             .set_value_serialization_schema(SimpleStringSchema())
-            .build()
+            .build(),
         )
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build()
@@ -236,7 +227,7 @@ def create_job():
         env.from_source(
             kafka_source,
             WatermarkStrategy.for_monotonous_timestamps(),
-            "Kafka Metrics Source"
+            "Kafka Metrics Source",
         )
         .map(MetricParser())
         .filter(lambda x: x is not None)
@@ -250,15 +241,13 @@ def create_job():
     return env
 
 
-def main():
+def main() -> None:
     """Main entry point."""
-    print("=" * 60)
-    print("VisioEval Metric Aggregation - Flink Job")
-    print("=" * 60)
+    _setup_path()
+    load_dotenv()
 
     env = create_job()
 
-    print("\nSubmitting job to Flink cluster...")
     env.execute("VisioEval-MetricAggregation")
 
 

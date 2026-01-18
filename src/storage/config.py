@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+from src.config.base import get_section, load_toml
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -41,12 +41,12 @@ class MinioConfig:
 
 def load_minio_config(path: Path) -> MinioConfig:
     """Load MinIO configuration from TOML file."""
-    doc = tomllib.loads(path.read_text(encoding="utf-8"))
+    doc = load_toml(path)
 
-    connection = doc.get("connection", {})
-    buckets = doc.get("buckets", {})
-    storage = doc.get("storage", {})
-    lifecycle = doc.get("lifecycle", {})
+    connection = get_section(doc, "connection")
+    buckets = get_section(doc, "buckets")
+    storage = get_section(doc, "storage")
+    lifecycle = get_section(doc, "lifecycle")
 
     return MinioConfig(
         # Connection

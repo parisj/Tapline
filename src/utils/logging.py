@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -44,7 +44,7 @@ class StructuredLogFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_dict: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -84,33 +84,36 @@ class StructuredLogFormatter(logging.Formatter):
         if record.exc_info:
             log_dict["exception"] = self.formatException(record.exc_info)
 
-        # Add any extra fields from the record
-        for key, value in record.__dict__.items():
-            if key not in {
-                "name",
-                "msg",
-                "args",
-                "created",
-                "filename",
-                "funcName",
-                "levelname",
-                "levelno",
-                "lineno",
-                "module",
-                "msecs",
-                "pathname",
-                "process",
-                "processName",
-                "relativeCreated",
-                "stack_info",
-                "exc_info",
-                "exc_text",
-                "thread",
-                "threadName",
-                "taskName",
-                "message",
-            }:
-                log_dict[key] = value
+        # Standard fields to exclude from extra logging
+        _standard_fields = {
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "taskName",
+            "message",
+        }
+
+        # Add any extra fields from the record using comprehension
+        log_dict.update(
+            {k: v for k, v in record.__dict__.items() if k not in _standard_fields},
+        )
 
         return json.dumps(log_dict, default=str)
 
@@ -166,6 +169,7 @@ def configure_logging(config: ObservabilityConfig | None = None) -> None:
 
     Args:
         config: Observability config. If None, uses environment variables.
+
     """
     level = os.getenv("LOG_LEVEL", "INFO").upper()
     log_file = os.getenv("LOG_FILE")
@@ -238,6 +242,7 @@ def get_logger(name: str = "pipeline") -> logging.Logger:
 
     Returns:
         Logger instance
+
     """
     return logging.getLogger(name)
 
@@ -257,5 +262,6 @@ def log_with_context(
         level: Log level (e.g., logging.INFO)
         msg: Log message
         **context: Additional context fields
+
     """
     logger.log(level, msg, extra=context)

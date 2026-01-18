@@ -10,9 +10,85 @@ requires-python = ">=3.11"
 [tool.setuptools]
 packages = ["VisioEval"]
 
-[tool.ruff.lint]
-select = ["ALL"]
-
 [tool.ruff]
 line-length = 120
-ignore = ["D100", "D101", "D102", "D103", "D107", "S101"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Docstrings - class/method/function level (we require package docstrings)
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__
+    "D205",    # 1 blank line required between summary line and description
+    "D401",    # First line of docstring should be in imperative mood
+    # Testing
+    "S101",    # Use of assert detected
+    # Complexity
+    "C901",    # Function is too complex
+    "PLR0913", # Too many arguments to function call
+    "PLR0915", # Too many statements
+    # Exception handling style
+    "TRY300",  # Consider moving this statement to an else block
+    "TRY301",  # Abstract raise to an inner function
+    "TRY401",  # Redundant exception object included in logging
+    "BLE001",  # Do not catch blind exception
+    # Boolean arguments (common pattern in APIs)
+    "FBT001",  # Boolean-typed positional argument in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    # Global statements (used for lazy initialization)
+    "PLW0603", # Using the global statement
+    # Misc style preferences
+    "G004",    # Logging statement uses f-string
+    "S110",    # try-except-pass detected
+    "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "SLF001",  # Private member accessed
+    "PYI036",  # Star-args in __exit__ should be annotated with object
+    "N806",    # Variable in function should be lowercase
+    # Subprocess without shell=True
+    "S603",    # subprocess call without shell=True
+    "S108",    # Probable insecure usage of temp file
+    # DTZ - datetime without tzinfo (common in many codebases)
+    "DTZ001",  # datetime.datetime() called without tzinfo
+    "DTZ005",  # datetime.now() called without tz
+    "DTZ006",  # datetime.fromtimestamp() called without tz
+    "DTZ901",  # datetime.utcnow() is deprecated
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # Asserts allowed in tests
+    "D",       # Docstrings not required in tests
+    "PLR2004", # Magic values OK in tests
+    "ANN001",  # Type annotations not required in tests
+    "ANN201",  # Return type annotations not required in tests
+    "ANN401",  # Any type OK in tests
+    "ARG",     # Unused arguments OK in tests (fixtures)
+    "RUF043",  # Regex patterns OK in tests
+]
+"benchmarks/**/*.py" = [
+    "T201",    # Print statements allowed in benchmarks
+    "S324",    # SHA1 usage for fingerprinting (not security)
+    "PLR2004", # Magic values OK in benchmarks
+    "ANN",     # Type annotations not required in benchmarks
+]
+"src/algorithms/**/*.py" = [
+    "S324",    # SHA1 usage for fingerprinting (not security)
+]
+# Base classes and protocols have unused args by design
+"src/algorithms/base.py" = ["ARG002"]
+"src/audit/chain.py" = ["ARG002"]
+"src/evaluation/analyzers/*.py" = ["ARG002"]
+# Conditional imports for optional dependencies
+"src/streaming/producer.py" = ["PLC0415", "ANN401", "E402", "ARG002"]
+"src/streaming/consumer.py" = ["ARG002"]
+"src/flink/jobs/*.py" = ["ARG002", "ANN"]
+"src/observability/*.py" = ["ANN401", "PLC0415"]
+"src/query/state_reader.py" = ["ARG002"]
+"src/utils/logging.py" = ["PLC0415", "ANN401"]
+"src/workers/*.py" = ["PLC0415", "ANN401", "ARG005", "ARG002"]
+"tests/e2e/*.py" = ["PLC0415"]
+"tests/integration/*.py" = ["PLC0415"]

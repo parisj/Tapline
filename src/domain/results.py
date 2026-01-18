@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.domain.evaluation import AnalysisKind
+    from src.storage.minio_service import MinioStorageService
     from src.storage.models import ObjectRef
 
 
@@ -23,7 +24,7 @@ class Artifact:
     data: bytes | None = None
     object_ref: ObjectRef | None = None
 
-    def get_data(self, storage_service: Any = None) -> bytes:
+    def get_data(self, storage_service: MinioStorageService | None = None) -> bytes:
         """Get artifact data, fetching from storage if needed.
 
         Args:
@@ -34,12 +35,14 @@ class Artifact:
 
         Raises:
             ValueError: If no data and no storage service provided
+
         """
         if self.data is not None:
             return self.data
         if self.object_ref is not None and storage_service is not None:
             return storage_service.retrieve(self.object_ref)
-        raise ValueError("Artifact has no data and no storage service provided")
+        msg = "Artifact has no data and no storage service provided"
+        raise ValueError(msg)
 
     @property
     def has_data(self) -> bool:

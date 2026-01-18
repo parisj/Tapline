@@ -7,8 +7,11 @@ from typing import Any
 
 import numpy as np
 
-from src.evaluation.analyzers.base import Analyzer
 from src.domain.results import Artifact
+from src.evaluation.analyzers.base import Analyzer
+
+# Constants
+_MIN_SAMPLES_FOR_VARIANCE = 2
 
 
 class SummaryAnalyzer(Analyzer):
@@ -56,7 +59,7 @@ class SummaryAnalyzer(Analyzer):
         vmax = max(nums)
 
         # Use sample variance/std if n>=2 else 0
-        if len(nums) >= 2:
+        if len(nums) >= _MIN_SAMPLES_FOR_VARIANCE:
             variance = statistics.variance(nums)
             std = statistics.stdev(nums)
         else:

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from opentelemetry import trace
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
@@ -33,6 +34,7 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
 
     Returns:
         TracerProvider if enabled, None otherwise
+
     """
     global _tracer_provider, _initialized
 
@@ -63,12 +65,12 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
             exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=True)
             _tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
             logger.info(
-                "OTLP tracing exporter configured: endpoint=%s", config.otlp_endpoint
+                "OTLP tracing exporter configured: endpoint=%s", config.otlp_endpoint,
             )
         except ImportError:
             logger.warning("OTLP exporter not available, falling back to console")
             _tracer_provider.add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter())
+                BatchSpanProcessor(ConsoleSpanExporter()),
             )
     elif config.tracing_exporter == "console":
         _tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
@@ -99,6 +101,7 @@ def get_tracer(name: str) -> trace.Tracer:
 
     Returns:
         Tracer instance
+
     """
     return trace.get_tracer(name)
 
@@ -124,6 +127,7 @@ def traced(
         @traced(attributes={"component": "worker"})
         def do_work() -> None:
             ...
+
     """
 
     def decorator(func: F) -> F:
@@ -142,7 +146,7 @@ def traced(
 
                 return func(*args, **kwargs)
 
-        return wrapper  # type: ignore
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -157,6 +161,7 @@ def get_current_trace_context() -> dict[str, str]:
 
     Returns:
         Dict with trace_id and span_id if available
+
     """
     span = trace.get_current_span()
     ctx = span.get_span_context()

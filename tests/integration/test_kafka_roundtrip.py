@@ -1,6 +1,5 @@
 """Integration tests for Kafka produce/consume cycle."""
 
-import pytest
 import time
 
 from src.domain.events import EventType
@@ -9,7 +8,7 @@ from src.domain.events import EventType
 class TestKafkaRoundtripIntegration:
     """Integration tests for Kafka event streaming."""
 
-    def test_publish_job_created(self, kafka_producer):
+    def test_publish_job_created(self, kafka_producer) -> None:
         """Test publishing a JOB_CREATED event."""
         event = kafka_producer.publish_job_created(
             source_id="test-source",
@@ -28,7 +27,7 @@ class TestKafkaRoundtripIntegration:
         remaining = kafka_producer.flush(timeout=5.0)
         assert remaining == 0
 
-    def test_publish_job_lifecycle(self, kafka_producer):
+    def test_publish_job_lifecycle(self, kafka_producer) -> None:
         """Test publishing full job lifecycle events."""
         source_id = "test-source"
         job_id = "lifecycle-job-123"
@@ -65,7 +64,7 @@ class TestKafkaRoundtripIntegration:
 
         kafka_producer.flush(timeout=5.0)
 
-    def test_publish_metrics(self, kafka_producer):
+    def test_publish_metrics(self, kafka_producer) -> None:
         """Test publishing metric events."""
         events = []
         for i in range(5):
@@ -86,9 +85,9 @@ class TestKafkaRoundtripIntegration:
         for event in events:
             assert event.source_id == "analysis_probe"
 
-    def test_delivery_stats(self, kafka_producer):
+    def test_delivery_stats(self, kafka_producer) -> None:
         """Test that delivery statistics are tracked."""
-        initial_delivered, initial_failed = kafka_producer.delivery_stats
+        initial_delivered, _initial_failed = kafka_producer.delivery_stats
 
         kafka_producer.publish_job_created(
             source_id="stats-test",
@@ -103,7 +102,7 @@ class TestKafkaRoundtripIntegration:
         # Give time for delivery callback
         time.sleep(0.5)
 
-        final_delivered, final_failed = kafka_producer.delivery_stats
+        final_delivered, _final_failed = kafka_producer.delivery_stats
 
         # At least one more message delivered (possibly more from audit log)
         assert final_delivered > initial_delivered

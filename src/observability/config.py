@@ -5,10 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+from src.config.base import get_section, load_toml_or_empty
 
 
 @dataclass(frozen=True)
@@ -52,19 +49,17 @@ def load_observability_config(path: Path | None = None) -> ObservabilityConfig:
 
     Returns:
         ObservabilityConfig with loaded settings
+
     """
     if path is None:
         path = Path(__file__).parent.parent / "config" / "observability.toml"
 
-    if path.exists():
-        doc = tomllib.loads(path.read_text(encoding="utf-8"))
-    else:
-        doc = {}
+    doc = load_toml_or_empty(path)
 
-    tracing = doc.get("tracing", {})
-    metrics = doc.get("metrics", {})
-    logging_cfg = doc.get("logging", {})
-    correlation = doc.get("correlation", {})
+    tracing = get_section(doc, "tracing")
+    metrics = get_section(doc, "metrics")
+    logging_cfg = get_section(doc, "logging")
+    correlation = get_section(doc, "correlation")
 
     return ObservabilityConfig(
         # Tracing
@@ -82,7 +77,7 @@ def load_observability_config(path: Path | None = None) -> ObservabilityConfig:
             metrics.get(
                 "histogram_buckets",
                 [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
-            )
+            ),
         ),
         # Logging
         log_format=logging_cfg.get("format", "json"),
@@ -94,8 +89,3 @@ def load_observability_config(path: Path | None = None) -> ObservabilityConfig:
         kafka_correlation_header=correlation.get("kafka_header_name", "x-correlation-id"),
         propagate_correlation_to_kafka=correlation.get("propagate_to_kafka", True),
     )
-
-
-def get_default_config() -> ObservabilityConfig:
-    """Get default observability configuration (no file required)."""
-    return load_observability_config(None)

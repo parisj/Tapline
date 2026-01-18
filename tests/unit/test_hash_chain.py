@@ -1,9 +1,7 @@
 """Unit tests for hash chain tracking and verification."""
 
-import pytest
 
 from src.audit.chain import (
-    ChainState,
     HashChainTracker,
     HashChainVerifier,
     NullSignatureProvider,
@@ -13,12 +11,12 @@ from src.domain.events import EventEnvelope, EventType
 
 
 class TestHashChainTracker:
-    def test_initial_state_empty(self):
+    def test_initial_state_empty(self) -> None:
         tracker = HashChainTracker()
         assert tracker.get_prev_hash("partition-1") is None
         assert tracker.get_state("partition-1") is None
 
-    def test_update_creates_state(self):
+    def test_update_creates_state(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-abc")
 
@@ -28,7 +26,7 @@ class TestHashChainTracker:
         assert state.last_hash == "hash-abc"
         assert state.event_count == 1
 
-    def test_update_increments_count(self):
+    def test_update_increments_count(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-1")
         tracker.update("partition-1", "hash-2")
@@ -38,14 +36,14 @@ class TestHashChainTracker:
         assert state.event_count == 3
         assert state.last_hash == "hash-3"
 
-    def test_get_prev_hash_returns_last(self):
+    def test_get_prev_hash_returns_last(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-1")
         tracker.update("partition-1", "hash-2")
 
         assert tracker.get_prev_hash("partition-1") == "hash-2"
 
-    def test_multiple_partitions(self):
+    def test_multiple_partitions(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-a")
         tracker.update("partition-2", "hash-b")
@@ -53,7 +51,7 @@ class TestHashChainTracker:
         assert tracker.get_prev_hash("partition-1") == "hash-a"
         assert tracker.get_prev_hash("partition-2") == "hash-b"
 
-    def test_get_all_partitions(self):
+    def test_get_all_partitions(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-a")
         tracker.update("partition-2", "hash-b")
@@ -62,7 +60,7 @@ class TestHashChainTracker:
         partitions = tracker.get_all_partitions()
         assert set(partitions) == {"partition-1", "partition-2", "partition-3"}
 
-    def test_reset_single_partition(self):
+    def test_reset_single_partition(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-a")
         tracker.update("partition-2", "hash-b")
@@ -72,7 +70,7 @@ class TestHashChainTracker:
         assert tracker.get_state("partition-1") is None
         assert tracker.get_state("partition-2") is not None
 
-    def test_reset_all_partitions(self):
+    def test_reset_all_partitions(self) -> None:
         tracker = HashChainTracker()
         tracker.update("partition-1", "hash-a")
         tracker.update("partition-2", "hash-b")
@@ -83,30 +81,30 @@ class TestHashChainTracker:
 
 
 class TestNullSignatureProvider:
-    def test_sign_returns_empty(self):
+    def test_sign_returns_empty(self) -> None:
         provider = NullSignatureProvider()
         sig = provider.sign(b"test data")
         assert sig == ""
 
-    def test_verify_always_true(self):
+    def test_verify_always_true(self) -> None:
         provider = NullSignatureProvider()
         assert provider.verify(b"data", "") is True
         assert provider.verify(b"data", "any-signature") is True
 
-    def test_key_id(self):
+    def test_key_id(self) -> None:
         provider = NullSignatureProvider()
         assert provider.key_id == "null"
 
 
 class TestHashChainVerifier:
-    def test_verify_empty_chain(self):
+    def test_verify_empty_chain(self) -> None:
         verifier = HashChainVerifier()
         result = verifier.verify_chain([])
         assert result.valid is True
         assert result.event_count == 0
         assert len(result.errors) == 0
 
-    def test_verify_single_event(self):
+    def test_verify_single_event(self) -> None:
         verifier = HashChainVerifier()
         event = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
@@ -118,7 +116,7 @@ class TestHashChainVerifier:
         assert result.valid is True
         assert result.event_count == 1
 
-    def test_verify_valid_chain(self):
+    def test_verify_valid_chain(self) -> None:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
@@ -147,7 +145,7 @@ class TestHashChainVerifier:
         assert result.event_count == 3
         assert len(result.errors) == 0
 
-    def test_verify_broken_chain(self):
+    def test_verify_broken_chain(self) -> None:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
@@ -169,7 +167,7 @@ class TestHashChainVerifier:
         assert len(result.errors) == 1
         assert "prev_hash mismatch" in result.errors[0]
 
-    def test_verify_single_valid(self):
+    def test_verify_single_valid(self) -> None:
         verifier = HashChainVerifier()
         event = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
@@ -179,7 +177,7 @@ class TestHashChainVerifier:
 
         assert verifier.verify_single(event) is True
 
-    def test_verify_single_with_expected_prev(self):
+    def test_verify_single_with_expected_prev(self) -> None:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
@@ -200,20 +198,20 @@ class TestHashChainVerifier:
 
 
 class TestVerifyEventChain:
-    def test_convenience_function(self):
+    def test_convenience_function(self) -> None:
         events = [
             EventEnvelope.create(
                 event_type=EventType.JOB_CREATED,
                 source_id="source-1",
                 payload={"job_id": "job-123"},
-            )
+            ),
         ]
 
         result = verify_event_chain(events)
         assert result.valid is True
         assert bool(result) is True
 
-    def test_result_bool_false_on_invalid(self):
+    def test_result_bool_false_on_invalid(self) -> None:
         event1 = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
             source_id="source-1",

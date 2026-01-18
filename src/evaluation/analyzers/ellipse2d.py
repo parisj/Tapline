@@ -9,6 +9,10 @@ import numpy as np
 from src.domain.results import Artifact
 from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
+# Constants
+_POINT_LENGTH = 2  # Expected length for (x, y) coordinate pairs
+_MIN_POINTS_FOR_COV = 2  # Minimum points for covariance calculation
+
 
 class CovEllipseAnalyzer(Analyzer):
     """2D covariance ellipse stored as NPZ artifact."""
@@ -41,7 +45,7 @@ class CovEllipseAnalyzer(Analyzer):
         mx = float(arr[:, 0].mean())
         my = float(arr[:, 1].mean())
 
-        cov = np.cov(arr.T, ddof=ddof) if n >= 2 else np.zeros((2, 2), dtype=float)
+        cov = np.cov(arr.T, ddof=ddof) if n >= _MIN_POINTS_FOR_COV else np.zeros((2, 2), dtype=float)
 
         vals, vecs = np.linalg.eigh(cov)
         order = np.argsort(vals)[::-1]
@@ -104,19 +108,22 @@ class CovEllipseAnalyzer(Analyzer):
         }
 
 
-def _parse_point(v: Any) -> tuple[float, float] | None:
+def _parse_point(v: object) -> tuple[float, float] | None:
     if v is None:
         return None
     try:
-        if isinstance(v, (list, tuple)) and len(v) == 2:
-            x = float(v[0]); y = float(v[1])
+        if isinstance(v, (list, tuple)) and len(v) == _POINT_LENGTH:
+            x = float(v[0])
+            y = float(v[1])
             return (x, y) if math.isfinite(x) and math.isfinite(y) else None
         if isinstance(v, dict):
             if "x" in v and "y" in v:
-                x = float(v["x"]); y = float(v["y"])
+                x = float(v["x"])
+                y = float(v["y"])
                 return (x, y) if math.isfinite(x) and math.isfinite(y) else None
-            if "xy" in v and isinstance(v["xy"], (list, tuple)) and len(v["xy"]) == 2:
-                x = float(v["xy"][0]); y = float(v["xy"][1])
+            if "xy" in v and isinstance(v["xy"], (list, tuple)) and len(v["xy"]) == _POINT_LENGTH:
+                x = float(v["xy"][0])
+                y = float(v["xy"][1])
                 return (x, y) if math.isfinite(x) and math.isfinite(y) else None
     except (TypeError, ValueError):
         return None

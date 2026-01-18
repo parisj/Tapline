@@ -13,8 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -81,9 +81,10 @@ class EventEnvelope:
 
         Returns:
             New EventEnvelope with computed content_hash
+
         """
         if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.now(UTC)
 
         content_hash = compute_content_hash(payload)
 
@@ -145,6 +146,7 @@ def compute_content_hash(payload: dict[str, Any]) -> str:
 
     Returns:
         Hex-encoded SHA-256 hash
+
     """
     canonical = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -162,6 +164,7 @@ def compute_chain_hash(content_hash: str, prev_hash: str | None) -> str:
 
     Returns:
         Hex-encoded chain hash
+
     """
     data = content_hash + (prev_hash or "")
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
@@ -250,7 +253,7 @@ def metric_emitted_payload(
     algo_name: str,
     algo_version: str,
     metric_name: str,
-    value: Any,
+    value: float | str | None,
     analysis_mask: int,
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:

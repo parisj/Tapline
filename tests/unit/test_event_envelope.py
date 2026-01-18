@@ -1,6 +1,6 @@
 """Unit tests for event envelope and event types."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -19,23 +19,23 @@ from src.domain.events import (
 
 
 class TestComputeContentHash:
-    def test_deterministic(self):
+    def test_deterministic(self) -> None:
         payload = {"key": "value", "nested": {"a": 1}}
         hash1 = compute_content_hash(payload)
         hash2 = compute_content_hash(payload)
         assert hash1 == hash2
 
-    def test_order_independent(self):
+    def test_order_independent(self) -> None:
         payload1 = {"a": 1, "b": 2}
         payload2 = {"b": 2, "a": 1}
         assert compute_content_hash(payload1) == compute_content_hash(payload2)
 
-    def test_different_payloads_different_hashes(self):
+    def test_different_payloads_different_hashes(self) -> None:
         payload1 = {"key": "value1"}
         payload2 = {"key": "value2"}
         assert compute_content_hash(payload1) != compute_content_hash(payload2)
 
-    def test_returns_hex_string(self):
+    def test_returns_hex_string(self) -> None:
         payload = {"test": True}
         hash_val = compute_content_hash(payload)
         assert isinstance(hash_val, str)
@@ -43,20 +43,20 @@ class TestComputeContentHash:
 
 
 class TestComputeChainHash:
-    def test_with_prev_hash(self):
+    def test_with_prev_hash(self) -> None:
         content_hash = "abc123"
         prev_hash = "def456"
         chain_hash = compute_chain_hash(content_hash, prev_hash)
         assert isinstance(chain_hash, str)
         assert len(chain_hash) == 64
 
-    def test_without_prev_hash(self):
+    def test_without_prev_hash(self) -> None:
         content_hash = "abc123"
         chain_hash = compute_chain_hash(content_hash, None)
         assert isinstance(chain_hash, str)
         assert len(chain_hash) == 64
 
-    def test_different_prev_hash_different_result(self):
+    def test_different_prev_hash_different_result(self) -> None:
         content_hash = "abc123"
         hash1 = compute_chain_hash(content_hash, "prev1")
         hash2 = compute_chain_hash(content_hash, "prev2")
@@ -64,7 +64,7 @@ class TestComputeChainHash:
 
 
 class TestEventEnvelope:
-    def test_create_event(self):
+    def test_create_event(self) -> None:
         event = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
             source_id="source-1",
@@ -78,7 +78,7 @@ class TestEventEnvelope:
         assert event.prev_hash is None
         assert event.signature is None
 
-    def test_create_event_with_prev_hash(self):
+    def test_create_event_with_prev_hash(self) -> None:
         event = EventEnvelope.create(
             event_type=EventType.JOB_STARTED,
             source_id="source-1",
@@ -88,8 +88,8 @@ class TestEventEnvelope:
 
         assert event.prev_hash == "previous-hash-value"
 
-    def test_create_event_with_timestamp(self):
-        ts = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    def test_create_event_with_timestamp(self) -> None:
+        ts = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
         event = EventEnvelope.create(
             event_type=EventType.JOB_COMPLETED,
             source_id="source-1",
@@ -99,7 +99,7 @@ class TestEventEnvelope:
 
         assert event.timestamp == ts
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         event = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
             source_id="source-1",
@@ -114,7 +114,7 @@ class TestEventEnvelope:
         assert "timestamp" in data
         assert "content_hash" in data
 
-    def test_from_dict(self):
+    def test_from_dict(self) -> None:
         original = EventEnvelope.create(
             event_type=EventType.JOB_FAILED,
             source_id="source-1",
@@ -130,7 +130,7 @@ class TestEventEnvelope:
         assert restored.payload == original.payload
         assert restored.content_hash == original.content_hash
 
-    def test_to_json_and_back(self):
+    def test_to_json_and_back(self) -> None:
         original = EventEnvelope.create(
             event_type=EventType.RESULT_PRODUCED,
             source_id="source-1",
@@ -143,7 +143,7 @@ class TestEventEnvelope:
         assert restored.event_id == original.event_id
         assert restored.payload == original.payload
 
-    def test_immutability(self):
+    def test_immutability(self) -> None:
         event = EventEnvelope.create(
             event_type=EventType.JOB_CREATED,
             source_id="source-1",
@@ -155,7 +155,7 @@ class TestEventEnvelope:
 
 
 class TestPayloadFactories:
-    def test_job_created_payload(self):
+    def test_job_created_payload(self) -> None:
         payload = job_created_payload(
             job_id="job-123",
             directory_key="path0",
@@ -170,7 +170,7 @@ class TestPayloadFactories:
         assert payload["fingerprint"] == "fp123"
         assert payload["file_hash"] == "hash456"
 
-    def test_job_started_payload(self):
+    def test_job_started_payload(self) -> None:
         payload = job_started_payload(
             job_id="job-123",
             algo_name="analysis_probe",
@@ -181,7 +181,7 @@ class TestPayloadFactories:
         assert payload["algo_name"] == "analysis_probe"
         assert payload["algo_version"] == "1.0.0"
 
-    def test_job_completed_payload(self):
+    def test_job_completed_payload(self) -> None:
         payload = job_completed_payload(
             job_id="job-123",
             algo_name="analysis_probe",
@@ -192,7 +192,7 @@ class TestPayloadFactories:
         assert payload["job_id"] == "job-123"
         assert payload["duration_ms"] == 150.5
 
-    def test_job_failed_payload(self):
+    def test_job_failed_payload(self) -> None:
         payload = job_failed_payload(
             job_id="job-123",
             algo_name="analysis_probe",
@@ -205,7 +205,7 @@ class TestPayloadFactories:
         assert payload["error"] == "Something went wrong"
         assert payload["error_type"] == "RuntimeError"
 
-    def test_result_produced_payload(self):
+    def test_result_produced_payload(self) -> None:
         payload = result_produced_payload(
             job_id="job-123",
             algo_name="analysis_probe",
@@ -218,7 +218,7 @@ class TestPayloadFactories:
         assert payload["metric_count"] == 5
         assert payload["artifact_refs"] == ["hash1", "hash2"]
 
-    def test_metric_emitted_payload(self):
+    def test_metric_emitted_payload(self) -> None:
         payload = metric_emitted_payload(
             job_id="job-123",
             algo_name="analysis_probe",

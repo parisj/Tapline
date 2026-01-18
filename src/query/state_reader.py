@@ -10,18 +10,19 @@ This replaces PostgreSQL queries with streaming-native approaches.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING
 
 from src.domain.events import EventEnvelope, EventType
+from src.streaming.consumer import EventConsumer
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from src.storage.minio_service import MinioStorageService
     from src.streaming.config import KafkaConfig
-    from src.streaming.consumer import EventConsumer
 
 logger = get_logger(__name__)
 
@@ -89,6 +90,7 @@ class StateReader:
 
         Returns:
             JobStatus or None if not found
+
         """
         return self._job_states.get(job_id)
 
@@ -105,6 +107,7 @@ class StateReader:
 
         Returns:
             List of JobStatus objects
+
         """
         jobs = list(self._job_states.values())
 
@@ -127,6 +130,7 @@ class StateReader:
 
         Returns:
             Artifact bytes or None if not found
+
         """
         try:
             return self._storage.retrieve_by_hash(
@@ -144,12 +148,13 @@ class StateReader:
 
         Returns:
             ArtifactInfo or None if not found
+
         """
         return self._artifact_index.get(content_hash)
 
     def list_artifacts(
         self,
-        job_id: str | None = None,
+        _job_id: str | None = None,
         limit: int = 100,
     ) -> list[ArtifactInfo]:
         """List artifacts with optional job filter.
@@ -160,6 +165,7 @@ class StateReader:
 
         Returns:
             List of ArtifactInfo objects
+
         """
         artifacts = list(self._artifact_index.values())
 
@@ -171,7 +177,7 @@ class StateReader:
     def consume_events(
         self,
         topics: list[str] | None = None,
-        from_beginning: bool = True,
+        _from_beginning: bool = True,
         max_events: int | None = None,
     ) -> Iterator[EventEnvelope]:
         """Consume events from Kafka topics.
@@ -185,9 +191,8 @@ class StateReader:
 
         Yields:
             EventEnvelope objects
-        """
-        from src.streaming.consumer import EventConsumer
 
+        """
         if topics is None:
             topics = [
                 self._kafka_config.topic_jobs,
@@ -220,6 +225,7 @@ class StateReader:
 
         Returns:
             Number of events processed
+
         """
         count = 0
         for _ in self.consume_events(max_events=max_events):

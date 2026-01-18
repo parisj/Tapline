@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.domain.results import Artifact
 from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
 

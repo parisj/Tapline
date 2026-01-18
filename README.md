@@ -11,19 +11,19 @@ This repository intentionally focuses on **pipeline infrastructure and analysis 
 
 Evaluation systems often start small and grow until they become fragile:
 
-- ingestion logic tightly coupled to algorithms  
-- aggregation mixed with execution  
-- ad-hoc scripts for metrics and plots  
-- no separation between raw data and interpretation  
-- difficult to scale across teams and machines  
+- ingestion logic tightly coupled to algorithms
+- aggregation mixed with execution
+- ad-hoc scripts for metrics and plots
+- no separation between raw data and interpretation
+- difficult to scale across teams and machines
 
 **VisioEval enforces separation of concerns**:
 
 - **Algorithms compute metrics only** (per job)
-- **Analyzers interpret metrics** (per time window)
+- **Analyzers interpret metrics** (per time window via Flink)
 - **Configuration routes data to algorithms**
-- **Persistence separates summaries from numeric artifacts**
-- **Read-only consumers** (dashboards/clients) query the DB
+- **Content-addressed storage separates artifacts from events**
+- **Read-only consumers** (dashboards/clients) query via Kafka topics
 
 
 ## **What VisioEval Solves**
@@ -33,8 +33,8 @@ VisioEval provides a foundation for:
 - continuous evaluation of incoming data
 - deterministic and reproducible metric computation
 - multi-worker parallel execution
-- time-windowed aggregation and analysis
-- lossless numeric artifact storage for later recomposition
+- time-windowed aggregation and analysis via Flink
+- content-addressed artifact storage for deduplication
 - multiple consumers (local dashboards or hosted services)
 - clean extension points for algorithms and analysis logic
 
@@ -53,10 +53,10 @@ VisioEval provides a foundation for:
 
 A **job** represents processing of a single input item. Jobs exist to:
 
-- enable parallel execution  
-- track lifecycle state (created → started → completed/failed)  
-- isolate failures  
-- support deterministic replay  
+- enable parallel execution
+- track lifecycle state (created -> started -> completed/failed)
+- isolate failures
+- support deterministic replay
 
 Each algorithm instance is **created once per worker** and reused across jobs.
 
@@ -119,7 +119,7 @@ Multiple analysis kinds can be combined per metric.
 
 VisioEval includes an **AlgorithmRegistry** so `routes.toml` can stay declarative and `app/main.py` does not need to hardcode which class to instantiate.
 
-- Algorithms are registered as **(name, version) → factory**
+- Algorithms are registered as **(name, version) -> factory**
 - The dispatcher resolves routes by reading `routes.toml` and asking the registry for the matching algorithm instance
 
 ```python
@@ -148,7 +148,7 @@ class AlgorithmRegistry:
         return self._factories[key]()
 ```
 
-A default registry can be provided for the “built-in” algorithms that exist in this repo:
+A default registry can be provided for the "built-in" algorithms that exist in this repo:
 
 ```python
 def build_default_registry() -> AlgorithmRegistry:
@@ -161,9 +161,9 @@ def build_default_registry() -> AlgorithmRegistry:
 This keeps the system extensible and makes algorithm selection a configuration concern.
 
 
-## **Analyzer Pipeline (AnalysisKind → Analyzer Implementation)**
+## **Analyzer Pipeline (AnalysisKind -> Analyzer Implementation)**
 
-Metrics declare **what** analysis they need via `AnalysisKind`. The evaluator applies that by using a central mapping from analysis kind to analyzers.
+Metrics declare **what** analysis they need via `AnalysisKind`. The Flink jobs apply aggregation by using analysis kind mappings.
 
 This mapping lives in:
 
@@ -217,32 +217,32 @@ This design is intentionally simple:
 
 ## **Built-in Analyzers**
 
-This repository implements the analysis logic. Algorithms only emit metrics — analyzers interpret them over time.
+This repository implements the analysis logic. Algorithms only emit metrics -- analyzers interpret them over time.
 
 Currently included analyzers:
 
 ### **Summary**
-- count, missing, mean, median, min, max, std, variance  
+- count, missing, mean, median, min, max, std, variance
 - **NPZ artifact** of raw numeric values
 
 ### **Rate**
-- count, missing, yes/no, rate, confidence interval  
+- count, missing, yes/no, rate, confidence interval
 - **NPZ artifact**
 
 ### **Distribution / Histogram**
-- bins, edges, counts, mean, std  
+- bins, edges, counts, mean, std
 - **NPZ artifact**
 
 ### **Outliers (1D)**
-- z-score based outlier detection (for example 3σ)  
+- z-score based outlier detection (for example 3 sigma)
 - **NPZ artifact**
 
 ### **Ellipse 2D**
-- covariance ellipse parameters  
+- covariance ellipse parameters
 - **NPZ artifact**
 
 ### **Contour 2D**
-- 2D density grid for contour plotting  
+- 2D density grid for contour plotting
 - **NPZ artifact**
 
 Each analyzer returns:
@@ -253,7 +253,7 @@ Each analyzer returns:
 
 ## **Artifacts (Binary, Time-Windowed, Merge-Friendly)**
 
-Artifacts are stored as **binary blobs (`BYTEA`) in PostgreSQL**.
+Artifacts are stored in **MinIO** as content-addressed objects.
 
 They are designed to:
 
@@ -300,7 +300,7 @@ This file is the **single source of truth** for directory keys and their real fi
 
 ### **`src/config/routes.toml`**
 
-Defines **directory → algorithm** routing, including the algorithm settings file.
+Defines **directory -> algorithm** routing, including the algorithm settings file.
 
 ```toml
 [route.path0]
@@ -375,24 +375,9 @@ class AnalysisProbeAlgo(Algorithm):
 This is a test/probe algorithm, not a production CV model.
 
 
-## **Pipeline Modes**
+## **Streaming Architecture**
 
-VisioEval supports two operational modes:
-
-### **Legacy Mode** (`PIPELINE_MODE=legacy`)
-
-PostgreSQL-based persistence. The database stores:
-
-- job lifecycle state
-- raw algorithm results (`metrics_json` as **JSONB**)
-- aggregation summaries (**JSONB**)
-- aggregation artifacts (**BYTEA**)
-
-This split keeps queries fast while preserving numeric fidelity for later time-range recomposition.
-
-### **Streaming Mode** (`PIPELINE_MODE=streaming`)
-
-Kafka/Flink/MinIO-based architecture for scalable event streaming:
+VisioEval uses a Kafka/Flink/MinIO-based architecture for scalable event streaming:
 
 - **Kafka** - Event backbone with topics for jobs, results, metrics, and audit logs
 - **Flink** - Distributed stream processing with time-windowed aggregation (SQL or PyFlink)
@@ -404,8 +389,8 @@ Kafka/Flink/MinIO-based architecture for scalable event streaming:
 # Start infrastructure
 docker-compose up -d
 
-# Run in streaming mode
-pixi run run-streaming
+# Run pipeline
+pixi run run
 
 # Submit Flink aggregation job
 pixi run run-flink-job
@@ -494,8 +479,17 @@ pixi run run-flink-agg    # Run standalone Python aggregation
 |-----------|---------|-------|
 | Python | 3.12 | Pinned due to PyFlink/grpcio compatibility |
 | NumPy | 1.24-2.1 | Constrained by apache-beam |
-| PostgreSQL | 14+ | Legacy mode only |
-| Docker | 20+ | Streaming mode infrastructure |
+| Docker | 20+ | Infrastructure services |
+
+
+## **Environment Variables**
+
+Required in `.env`:
+
+- `KAFKA_BOOTSTRAP_SERVERS` - Kafka broker address
+- `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
+- `FLINK_JOBMANAGER` - Flink REST endpoint
+- `LOG_LEVEL` (INFO), `LOG_FILE`
 
 
 ## **Logging**
@@ -524,8 +518,8 @@ No performance claims are made at this stage.
 
 ## **Roadmap**
 
-- ~~observability stack (Prometheus, Grafana, Jaeger)~~ ✓
-- ~~distributed Flink aggregation~~ ✓
+- ~~observability stack (Prometheus, Grafana, Jaeger)~~ done
+- ~~distributed Flink aggregation~~ done
 - read-only query layer for dashboards
 - visualization module (Bokeh or equivalent)
 - richer analysis types (quantiles/sketches, robust stats)

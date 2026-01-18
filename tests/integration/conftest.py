@@ -9,12 +9,13 @@ Provides test infrastructure:
 from __future__ import annotations
 
 import os
-import time
-from pathlib import Path
-from typing import Generator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass

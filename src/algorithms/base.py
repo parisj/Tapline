@@ -28,7 +28,7 @@ class Algorithm(abc.ABC):
     def version(self) -> str:
         raise NotImplementedError
 
-    def initialize(self, settings: Mapping[str, Any]) -> None:  # noqa: ARG002
+    def initialize(self, _settings: Mapping[str, Any]) -> None:
         """Load model weights, allocate resources, build CV kernels, etc.
 
         Called once per worker instance.

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import signal
-import threading
-from typing import Any, Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import threading
+    from types import FrameType
 
 
 def install_signal_handlers(stop_event: threading.Event) -> None:
     """Set stop_event on SIGINT/SIGTERM."""
-    def _handler(*_: Any) -> None:
+    def _handler(_signum: int, _frame: FrameType | None) -> None:
         stop_event.set()
 
     signal.signal(signal.SIGINT, _handler)

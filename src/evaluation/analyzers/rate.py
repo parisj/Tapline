@@ -7,7 +7,13 @@ from typing import Any
 import numpy as np
 
 from src.domain.results import Artifact
-from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
+from src.evaluation.analyzers.base import Analyzer
+
+# Confidence level thresholds for z-score lookup
+_CONFIDENCE_99 = 0.99
+_CONFIDENCE_975 = 0.975
+_CONFIDENCE_95 = 0.95
+_CONFIDENCE_90 = 0.90
 
 
 class RateAnalyzer(Analyzer):
@@ -70,7 +76,7 @@ class RateAnalyzer(Analyzer):
         }
 
 
-def _parse_bool(v: Any) -> bool | None:
+def _parse_bool(v: object) -> bool | None:
     if v is None:
         return None
     if isinstance(v, bool):
@@ -99,12 +105,12 @@ def _wilson_interval(*, yes: int, n: int, confidence: float) -> tuple[float, flo
 
 def _z_for_confidence(confidence: float) -> float:
     # Small lookup table; good enough for operational dashboards.
-    if confidence >= 0.99:
+    if confidence >= _CONFIDENCE_99:
         return 2.575829
-    if confidence >= 0.975:
+    if confidence >= _CONFIDENCE_975:
         return 1.959964
-    if confidence >= 0.95:
+    if confidence >= _CONFIDENCE_95:
         return 1.959964
-    if confidence >= 0.90:
+    if confidence >= _CONFIDENCE_90:
         return 1.644854
     return 1.281552  # ~80%

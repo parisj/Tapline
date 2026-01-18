@@ -14,20 +14,22 @@ from __future__ import annotations
 import argparse
 import statistics
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# Add project root to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from dotenv import load_dotenv
 
-load_dotenv()
-
-from src.streaming.config import load_kafka_config
 from src.domain.events import EventEnvelope, EventType
+from src.streaming.config import load_kafka_config
+from src.streaming.consumer import EventConsumer
+from src.streaming.producer import EventProducer
+
+# Constants for benchmark thresholds
+_MIN_SAMPLES_FOR_PERCENTILE = 2
+_PROGRESS_INTERVAL = 1000
 
 
 @dataclass
@@ -42,29 +44,34 @@ class KafkaBenchmarkResult:
 
     @property
     def produce_throughput_msg_sec(self) -> float:
+        """Calculate producer throughput in messages per second."""
         if self.produce_duration_sec <= 0:
             return 0.0
         return self.messages_sent / self.produce_duration_sec
 
     @property
     def consume_throughput_msg_sec(self) -> float:
+        """Calculate consumer throughput in messages per second."""
         if self.consume_duration_sec <= 0:
             return 0.0
         return self.messages_received / self.consume_duration_sec
 
     @property
     def avg_latency_ms(self) -> float:
+        """Calculate average latency in milliseconds."""
         if not self.roundtrip_latencies_ms:
             return 0.0
         return statistics.mean(self.roundtrip_latencies_ms)
 
     @property
     def p99_latency_ms(self) -> float:
-        if len(self.roundtrip_latencies_ms) < 2:
+        """Calculate P99 latency in milliseconds."""
+        if len(self.roundtrip_latencies_ms) < _MIN_SAMPLES_FOR_PERCENTILE:
             return self.avg_latency_ms
         return statistics.quantiles(self.roundtrip_latencies_ms, n=100)[98]
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert result to dictionary."""
         return {
             "messages_sent": self.messages_sent,
             "messages_received": self.messages_received,
@@ -81,25 +88,44 @@ class KafkaBenchmark:
     """Benchmark Kafka produce/consume performance."""
 
     def __init__(self, config_path: Path | None = None) -> None:
+        """Initialize benchmark with config path.
+
+        Args:
+            config_path: Path to Kafka config file.
+
+        """
         self.config_path = config_path or Path("src/config/kafka.toml")
+
+    def _create_producer(self) -> EventProducer:
+        """Create an EventProducer instance."""
+        config = load_kafka_config(self.config_path)
+        return EventProducer(config)
+
+    def _create_consumer(self, topics: list[str], group_id: str) -> EventConsumer:
+        """Create an EventConsumer instance."""
+        config = load_kafka_config(self.config_path)
+        return EventConsumer(config, topics=topics, group_id=group_id)
+
+    def _log(self, message: str) -> None:
+        """Log a message to stdout."""
+        sys.stdout.write(message + "\n")
+        sys.stdout.flush()
 
     def benchmark_producer(self, message_count: int) -> dict[str, Any]:
         """Benchmark raw producer throughput.
 
         Args:
-            message_count: Number of messages to produce
+            message_count: Number of messages to produce.
 
         Returns:
-            Dict with throughput metrics
-        """
-        from src.streaming.producer import EventProducer
+            Dict with throughput metrics.
 
-        config = load_kafka_config(self.config_path)
+        """
         topic = f"bench-producer-{int(time.time())}"
 
-        print(f"Benchmarking producer: {message_count} messages to {topic}")
+        self._log(f"Benchmarking producer: {message_count} messages to {topic}")
 
-        producer = EventProducer(config)
+        producer = self._create_producer()
 
         start = time.perf_counter()
 
@@ -112,8 +138,8 @@ class KafkaBenchmark:
             producer.publish(topic, event)
 
             # Progress indicator
-            if (i + 1) % 1000 == 0:
-                print(f"  Produced {i + 1}/{message_count}")
+            if (i + 1) % _PROGRESS_INTERVAL == 0:
+                self._log(f"  Produced {i + 1}/{message_count}")
 
         # Wait for all messages to be delivered
         producer.flush(timeout=30.0)
@@ -124,9 +150,9 @@ class KafkaBenchmark:
         duration = end - start
         throughput = message_count / duration
 
-        print(f"Producer benchmark complete:")
-        print(f"  Duration: {duration:.2f}s")
-        print(f"  Throughput: {throughput:.0f} msg/s")
+        self._log("Producer benchmark complete:")
+        self._log(f"  Duration: {duration:.2f}s")
+        self._log(f"  Throughput: {throughput:.0f} msg/s")
 
         return {
             "messages": message_count,
@@ -134,30 +160,31 @@ class KafkaBenchmark:
             "throughput_msg_sec": throughput,
         }
 
-    def benchmark_consumer(self, message_count: int, timeout_sec: float = 60.0) -> dict[str, Any]:
+    def benchmark_consumer(
+        self,
+        message_count: int,
+        timeout_sec: float = 60.0,
+    ) -> dict[str, Any]:
         """Benchmark consumer throughput.
 
         First produces messages, then measures consume rate.
 
         Args:
-            message_count: Number of messages to consume
-            timeout_sec: Maximum time to wait for messages
+            message_count: Number of messages to consume.
+            timeout_sec: Maximum time to wait for messages.
 
         Returns:
-            Dict with throughput metrics
-        """
-        from src.streaming.producer import EventProducer
-        from src.streaming.consumer import EventConsumer
+            Dict with throughput metrics.
 
-        config = load_kafka_config(self.config_path)
+        """
         topic = f"bench-consumer-{int(time.time())}"
         group_id = f"bench-group-{int(time.time())}"
 
-        print(f"Benchmarking consumer: {message_count} messages from {topic}")
+        self._log(f"Benchmarking consumer: {message_count} messages from {topic}")
 
         # First, produce messages
-        print("  Producing test messages...")
-        producer = EventProducer(config)
+        self._log("  Producing test messages...")
+        producer = self._create_producer()
 
         for i in range(message_count):
             event = EventEnvelope.create(
@@ -169,18 +196,18 @@ class KafkaBenchmark:
 
         producer.flush()
         producer.close()
-        print(f"  Produced {message_count} messages")
+        self._log(f"  Produced {message_count} messages")
 
         # Now benchmark consumption
-        print("  Consuming messages...")
-        consumer = EventConsumer(config, topics=[topic], group_id=group_id)
+        self._log("  Consuming messages...")
+        consumer = self._create_consumer(topics=[topic], group_id=group_id)
 
         consumed = 0
         start = time.perf_counter()
 
         while consumed < message_count:
             if time.perf_counter() - start > timeout_sec:
-                print(f"  Timeout after {consumed} messages")
+                self._log(f"  Timeout after {consumed} messages")
                 break
 
             event = consumer.poll(timeout=1.0)
@@ -188,8 +215,8 @@ class KafkaBenchmark:
                 consumed += 1
                 consumer.commit()
 
-                if consumed % 1000 == 0:
-                    print(f"  Consumed {consumed}/{message_count}")
+                if consumed % _PROGRESS_INTERVAL == 0:
+                    self._log(f"  Consumed {consumed}/{message_count}")
 
         end = time.perf_counter()
         consumer.close()
@@ -197,10 +224,10 @@ class KafkaBenchmark:
         duration = end - start
         throughput = consumed / duration if duration > 0 else 0
 
-        print(f"Consumer benchmark complete:")
-        print(f"  Consumed: {consumed}")
-        print(f"  Duration: {duration:.2f}s")
-        print(f"  Throughput: {throughput:.0f} msg/s")
+        self._log("Consumer benchmark complete:")
+        self._log(f"  Consumed: {consumed}")
+        self._log(f"  Duration: {duration:.2f}s")
+        self._log(f"  Throughput: {throughput:.0f} msg/s")
 
         return {
             "messages_consumed": consumed,
@@ -212,28 +239,24 @@ class KafkaBenchmark:
         """Benchmark full produce-consume cycle with latency measurement.
 
         Args:
-            message_count: Number of messages to benchmark
+            message_count: Number of messages to benchmark.
 
         Returns:
-            KafkaBenchmarkResult with latencies
-        """
-        from src.streaming.producer import EventProducer
-        from src.streaming.consumer import EventConsumer
-        import threading
+            KafkaBenchmarkResult with latencies.
 
-        config = load_kafka_config(self.config_path)
+        """
         topic = f"bench-roundtrip-{int(time.time())}"
         group_id = f"bench-group-{int(time.time())}"
 
-        print(f"Benchmarking roundtrip: {message_count} messages on {topic}")
+        self._log(f"Benchmarking roundtrip: {message_count} messages on {topic}")
 
         result = KafkaBenchmarkResult()
         send_times: dict[str, float] = {}
         receive_times: dict[str, float] = {}
         consumer_done = threading.Event()
 
-        def consume_messages():
-            consumer = EventConsumer(config, topics=[topic], group_id=group_id)
+        def consume_messages() -> None:
+            consumer = self._create_consumer(topics=[topic], group_id=group_id)
             received = 0
 
             while received < message_count:
@@ -255,7 +278,7 @@ class KafkaBenchmark:
         time.sleep(2.0)
 
         # Produce messages
-        producer = EventProducer(config)
+        producer = self._create_producer()
         produce_start = time.perf_counter()
 
         for i in range(message_count):
@@ -275,7 +298,9 @@ class KafkaBenchmark:
         result.messages_sent = message_count
         result.produce_duration_sec = produce_end - produce_start
 
-        print(f"  Produced {message_count} messages in {result.produce_duration_sec:.2f}s")
+        self._log(
+            f"  Produced {message_count} messages in {result.produce_duration_sec:.2f}s",
+        )
 
         # Wait for consumer
         consumer_done.wait(timeout=60.0)
@@ -290,25 +315,32 @@ class KafkaBenchmark:
                 result.roundtrip_latencies_ms.append(latency_ms)
 
         if result.roundtrip_latencies_ms:
-            result.consume_duration_sec = max(receive_times.values()) - min(receive_times.values())
+            result.consume_duration_sec = (
+                max(receive_times.values()) - min(receive_times.values())
+            )
 
-        print()
-        print("=" * 60)
-        print("ROUNDTRIP BENCHMARK RESULTS")
-        print("=" * 60)
-        print(f"Messages sent:       {result.messages_sent}")
-        print(f"Messages received:   {result.messages_received}")
-        print(f"Produce duration:    {result.produce_duration_sec:.2f}s")
-        print(f"Produce throughput:  {result.produce_throughput_msg_sec:.0f} msg/s")
-        print(f"Consume throughput:  {result.consume_throughput_msg_sec:.0f} msg/s")
-        print(f"Avg latency:         {result.avg_latency_ms:.2f}ms")
-        print(f"P99 latency:         {result.p99_latency_ms:.2f}ms")
-        print("=" * 60)
+        self._log("")
+        self._log("=" * 60)
+        self._log("ROUNDTRIP BENCHMARK RESULTS")
+        self._log("=" * 60)
+        self._log(f"Messages sent:       {result.messages_sent}")
+        self._log(f"Messages received:   {result.messages_received}")
+        self._log(f"Produce duration:    {result.produce_duration_sec:.2f}s")
+        self._log(f"Produce throughput:  {result.produce_throughput_msg_sec:.0f} msg/s")
+        self._log(f"Consume throughput:  {result.consume_throughput_msg_sec:.0f} msg/s")
+        self._log(f"Avg latency:         {result.avg_latency_ms:.2f}ms")
+        self._log(f"P99 latency:         {result.p99_latency_ms:.2f}ms")
+        self._log("=" * 60)
 
         return result
 
 
 def main() -> None:
+    """Run the Kafka benchmark."""
+    # Add project root to path for imports
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    load_dotenv()
+
     parser = argparse.ArgumentParser(
         description="Kafka Benchmark Tool",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -336,22 +368,22 @@ def main() -> None:
 
     benchmark = KafkaBenchmark(args.config)
 
-    if args.mode == "producer" or args.mode == "all":
-        print("\n" + "=" * 60)
-        print("PRODUCER BENCHMARK")
-        print("=" * 60)
+    if args.mode in ("producer", "all"):
+        sys.stdout.write("\n" + "=" * 60 + "\n")
+        sys.stdout.write("PRODUCER BENCHMARK\n")
+        sys.stdout.write("=" * 60 + "\n")
         benchmark.benchmark_producer(args.messages)
 
-    if args.mode == "consumer" or args.mode == "all":
-        print("\n" + "=" * 60)
-        print("CONSUMER BENCHMARK")
-        print("=" * 60)
+    if args.mode in ("consumer", "all"):
+        sys.stdout.write("\n" + "=" * 60 + "\n")
+        sys.stdout.write("CONSUMER BENCHMARK\n")
+        sys.stdout.write("=" * 60 + "\n")
         benchmark.benchmark_consumer(args.messages)
 
-    if args.mode == "roundtrip" or args.mode == "all":
-        print("\n" + "=" * 60)
-        print("ROUNDTRIP BENCHMARK")
-        print("=" * 60)
+    if args.mode in ("roundtrip", "all"):
+        sys.stdout.write("\n" + "=" * 60 + "\n")
+        sys.stdout.write("ROUNDTRIP BENCHMARK\n")
+        sys.stdout.write("=" * 60 + "\n")
         benchmark.benchmark_roundtrip(args.messages)
 
 

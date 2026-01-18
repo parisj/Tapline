@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+from src.config.base import get_section, load_toml
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -58,13 +57,13 @@ class KafkaConfig:
 
 def load_kafka_config(path: Path) -> KafkaConfig:
     """Load Kafka configuration from TOML file."""
-    doc = tomllib.loads(path.read_text(encoding="utf-8"))
+    doc = load_toml(path)
 
-    broker = doc.get("broker", {})
-    producer = doc.get("producer", {})
-    consumer = doc.get("consumer", {})
-    topics = doc.get("topics", {})
-    schema_registry = doc.get("schema_registry", {})
+    broker = get_section(doc, "broker")
+    producer = get_section(doc, "producer")
+    consumer = get_section(doc, "consumer")
+    topics = get_section(doc, "topics")
+    schema_registry = get_section(doc, "schema_registry")
 
     return KafkaConfig(
         # Broker

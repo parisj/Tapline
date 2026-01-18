@@ -12,33 +12,31 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Self
 
 from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
 
 from src.domain.events import EventEnvelope
+from src.observability.availability import get_tracer
+from src.observability.availability import is_available as _obs_available
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+    from types import TracebackType
+
     from src.streaming.config import KafkaConfig
 
 logger = get_logger(__name__)
 
-# Import observability components (optional - gracefully degrade if not available)
-try:
-    from src.observability.metrics import (
-        KAFKA_MESSAGES_CONSUMED,
-        KAFKA_CONSUME_ERRORS,
-    )
-    from src.observability.tracing import get_tracer
-    from src.observability.correlation import (
-        propagate_from_kafka_headers,
-        set_correlation_id,
-    )
+_OBSERVABILITY_AVAILABLE = _obs_available()
 
-    _OBSERVABILITY_AVAILABLE = True
-except ImportError:
-    _OBSERVABILITY_AVAILABLE = False
+if _OBSERVABILITY_AVAILABLE:
+    from src.observability.correlation import propagate_from_kafka_headers
+    from src.observability.metrics import (
+        KAFKA_CONSUME_ERRORS,
+        KAFKA_MESSAGES_CONSUMED,
+    )
 
 
 class EventConsumer:
@@ -70,7 +68,7 @@ class EventConsumer:
         config: KafkaConfig,
         topics: list[str],
         group_id: str | None = None,
-        on_assign_callback: Any | None = None,
+        on_assign_callback: Callable[[list[TopicPartition]], None] | None = None,
     ) -> None:
         self._config = config
         self._topics = topics
@@ -149,9 +147,11 @@ class EventConsumer:
 
         Returns:
             EventEnvelope if message received, None otherwise
+
         """
         if self._closed:
-            raise RuntimeError("Consumer is closed")
+            msg = "Consumer is closed"
+            raise RuntimeError(msg)
 
         msg = self._consumer.poll(timeout=timeout)
         if msg is None:
@@ -166,18 +166,17 @@ class EventConsumer:
                     msg.partition(),
                 )
                 return None
-            else:
-                self._errors += 1
-                logger.error("Consumer error: %s", error)
+            self._errors += 1
+            logger.error("Consumer error: %s", error)
 
-                # Record error metrics
-                if _OBSERVABILITY_AVAILABLE:
-                    KAFKA_CONSUME_ERRORS.labels(
-                        topic=msg.topic() or "unknown",
-                        error_type=str(error.code()),
-                    ).inc()
+            # Record error metrics
+            if _OBSERVABILITY_AVAILABLE:
+                KAFKA_CONSUME_ERRORS.labels(
+                    topic=msg.topic() or "unknown",
+                    error_type=str(error.code()),
+                ).inc()
 
-                raise KafkaException(error)
+            raise KafkaException(error)
 
         self._current_message = msg
         self._messages_consumed += 1
@@ -195,10 +194,9 @@ class EventConsumer:
 
         try:
             value = msg.value().decode("utf-8")
-            event = EventEnvelope.from_json(value)
-            return event
+            return EventEnvelope.from_json(value)
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Failed to deserialize message: topic=%s, partition=%s, error=%s",
                 msg.topic(),
                 msg.partition(),
@@ -227,6 +225,7 @@ class EventConsumer:
 
         Args:
             asynchronous: If True, commit asynchronously
+
         """
         if self._current_message is None:
             return
@@ -236,7 +235,7 @@ class EventConsumer:
             self._messages_committed += 1
             self._current_message = None
         except KafkaException as e:
-            logger.error("Failed to commit offset: %s", e)
+            logger.exception("Failed to commit offset: %s", e)
             raise
 
     def commit_offsets(
@@ -249,11 +248,12 @@ class EventConsumer:
         Args:
             offsets: List of TopicPartition with offsets
             asynchronous: If True, commit asynchronously
+
         """
         try:
             self._consumer.commit(offsets=offsets, asynchronous=asynchronous)
         except KafkaException as e:
-            logger.error("Failed to commit offsets: %s", e)
+            logger.exception("Failed to commit offsets: %s", e)
             raise
 
     def pause_current(self) -> None:
@@ -333,6 +333,7 @@ class EventConsumer:
 
         Returns:
             True if partitions were assigned, False if timeout
+
         """
         return self._partitions_assigned.wait(timeout=timeout)
 
@@ -381,10 +382,15 @@ class EventConsumer:
             "paused_partitions": len(self._paused_partitions),
         }
 
-    def __enter__(self) -> EventConsumer:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
 
 
@@ -436,9 +442,11 @@ class BatchEventConsumer:
 
         Returns:
             List of EventEnvelopes (may be empty if timeout)
+
         """
         if self._closed:
-            raise RuntimeError("Consumer is closed")
+            msg = "Consumer is closed"
+            raise RuntimeError(msg)
 
         batch: list[EventEnvelope] = []
         start_time = time.time()
@@ -462,7 +470,7 @@ class BatchEventConsumer:
                 event = EventEnvelope.from_json(value)
                 batch.append(event)
             except Exception as e:
-                logger.error("Failed to deserialize message: %s", e)
+                logger.exception("Failed to deserialize message: %s", e)
 
         return batch
 
@@ -471,7 +479,7 @@ class BatchEventConsumer:
         try:
             self._consumer.commit(asynchronous=False)
         except KafkaException as e:
-            logger.error("Failed to commit: %s", e)
+            logger.exception("Failed to commit: %s", e)
             raise
 
     def stop(self) -> None:
@@ -498,8 +506,13 @@ class BatchEventConsumer:
         self._consumer.close()
         logger.info("BatchEventConsumer closed")
 
-    def __enter__(self) -> BatchEventConsumer:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()

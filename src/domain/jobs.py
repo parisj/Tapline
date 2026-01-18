@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class Job:
     """A unit of work: a single image to be processed by one algorithm pipeline."""
+
     job_id: str
     directory_key: str
     path: str

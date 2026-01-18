@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import hashlib
 import threading
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from src.domain.events import compute_content_hash
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -58,10 +58,10 @@ class SignatureProvider(Protocol):
 class NullSignatureProvider:
     """No-op signature provider for development/testing."""
 
-    def sign(self, data: bytes) -> str:
+    def sign(self, _data: bytes) -> str:
         return ""
 
-    def verify(self, data: bytes, signature: str) -> bool:
+    def verify(self, _data: bytes, _signature: str) -> bool:
         return True
 
     @property
@@ -106,6 +106,7 @@ class HashChainTracker:
 
         Returns:
             Last content_hash in the partition, or None for genesis event
+
         """
         with self._lock:
             state = self._chains.get(partition_id)
@@ -117,6 +118,7 @@ class HashChainTracker:
         Args:
             partition_id: Partition identifier
             content_hash: Hash of the newly persisted event
+
         """
         with self._lock:
             state = self._chains.get(partition_id)
@@ -149,6 +151,7 @@ class HashChainTracker:
 
         Args:
             partition_id: Specific partition to reset, or None for all
+
         """
         with self._lock:
             if partition_id is None:
@@ -177,6 +180,7 @@ class HashChainVerifier:
 
         Returns:
             VerificationResult with status and any errors
+
         """
         if not events:
             return VerificationResult(valid=True, errors=[], event_count=0)
@@ -185,13 +189,11 @@ class HashChainVerifier:
 
         for i, event in enumerate(events):
             # Verify content hash
-            from src.domain.events import compute_content_hash
-
             expected_hash = compute_content_hash(event.payload)
             if event.content_hash != expected_hash:
                 errors.append(
                     f"Event {i} ({event.event_id}): content_hash mismatch. "
-                    f"Expected {expected_hash}, got {event.content_hash}"
+                    f"Expected {expected_hash}, got {event.content_hash}",
                 )
 
             # Verify chain linkage
@@ -208,7 +210,7 @@ class HashChainVerifier:
                 if event.prev_hash != expected_prev:
                     errors.append(
                         f"Event {i} ({event.event_id}): prev_hash mismatch. "
-                        f"Expected {expected_prev}, got {event.prev_hash}"
+                        f"Expected {expected_prev}, got {event.prev_hash}",
                     )
 
             # Verify signature if present
@@ -216,7 +218,7 @@ class HashChainVerifier:
                 data = (event.content_hash + (event.prev_hash or "")).encode()
                 if not self._signature_provider.verify(data, event.signature):
                     errors.append(
-                        f"Event {i} ({event.event_id}): invalid signature"
+                        f"Event {i} ({event.event_id}): invalid signature",
                     )
 
         return VerificationResult(
@@ -238,9 +240,8 @@ class HashChainVerifier:
 
         Returns:
             True if event is valid
-        """
-        from src.domain.events import compute_content_hash
 
+        """
         # Verify content hash
         expected_content = compute_content_hash(event.payload)
         if event.content_hash != expected_content:
@@ -251,15 +252,14 @@ class HashChainVerifier:
             return False
 
         # Verify chain linkage if expected_prev_hash provided
-        if expected_prev_hash is not None:
-            if event.prev_hash != expected_prev_hash:
-                logger.warning(
-                    "Event %s: prev_hash mismatch. Expected %s, got %s",
-                    event.event_id,
-                    expected_prev_hash,
-                    event.prev_hash,
-                )
-                return False
+        if expected_prev_hash is not None and event.prev_hash != expected_prev_hash:
+            logger.warning(
+                "Event %s: prev_hash mismatch. Expected %s, got %s",
+                event.event_id,
+                expected_prev_hash,
+                event.prev_hash,
+            )
+            return False
 
         return True
 
@@ -284,6 +284,7 @@ def verify_event_chain(events: list[EventEnvelope]) -> VerificationResult:
 
     Returns:
         VerificationResult with status and any errors
+
     """
     verifier = HashChainVerifier()
     return verifier.verify_chain(events)
@@ -300,9 +301,8 @@ def compute_event_hash(payload: dict, prev_hash: str | None) -> str:
 
     Returns:
         Combined hash of payload and chain
-    """
-    from src.domain.events import compute_content_hash
 
+    """
     content_hash = compute_content_hash(payload)
     chain_data = content_hash + (prev_hash or "")
     return hashlib.sha256(chain_data.encode()).hexdigest()

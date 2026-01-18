@@ -92,6 +92,7 @@ class MinioStorageService:
 
         Returns:
             ObjectRef pointing to stored object
+
         """
         content_hash = hashlib.sha256(data).hexdigest()
         key = hash_to_key(content_hash, self._config.path_prefix_length)
@@ -149,12 +150,14 @@ class MinioStorageService:
 
         Returns:
             ObjectRef pointing to stored object
+
         """
         # Verify hash matches
         actual_hash = hashlib.sha256(data).hexdigest()
         if actual_hash != content_hash:
+            msg = f"Hash mismatch: expected {content_hash}, got {actual_hash}"
             raise ValueError(
-                f"Hash mismatch: expected {content_hash}, got {actual_hash}"
+                msg,
             )
 
         key = hash_to_key(content_hash, self._config.path_prefix_length)
@@ -195,6 +198,7 @@ class MinioStorageService:
 
         Raises:
             FileNotFoundError: If object doesn't exist
+
         """
         return self.retrieve_by_key(ref.bucket, ref.key)
 
@@ -210,6 +214,7 @@ class MinioStorageService:
 
         Raises:
             FileNotFoundError: If object doesn't exist
+
         """
         key = hash_to_key(content_hash, self._config.path_prefix_length)
         return self.retrieve_by_key(bucket, key)
@@ -226,6 +231,7 @@ class MinioStorageService:
 
         Raises:
             FileNotFoundError: If object doesn't exist
+
         """
         try:
             response = self._client.get_object(bucket, key)
@@ -236,7 +242,8 @@ class MinioStorageService:
                 response.release_conn()
         except S3Error as e:
             if e.code == "NoSuchKey":
-                raise FileNotFoundError(f"Object not found: {bucket}/{key}") from e
+                msg = f"Object not found: {bucket}/{key}"
+                raise FileNotFoundError(msg) from e
             raise
 
     def exists(self, bucket: str, content_hash: str) -> bool:
@@ -248,6 +255,7 @@ class MinioStorageService:
 
         Returns:
             True if object exists
+
         """
         key = hash_to_key(content_hash, self._config.path_prefix_length)
         return self._object_exists(bucket, key)
@@ -260,6 +268,7 @@ class MinioStorageService:
 
         Returns:
             True if object exists
+
         """
         return self._object_exists(ref.bucket, ref.key)
 
@@ -271,6 +280,7 @@ class MinioStorageService:
 
         Returns:
             True if deleted, False if not found
+
         """
         try:
             self._client.remove_object(ref.bucket, ref.key)
@@ -289,6 +299,7 @@ class MinioStorageService:
 
         Returns:
             Object info dict or None if not found
+
         """
         try:
             stat = self._client.stat_object(ref.bucket, ref.key)
@@ -319,6 +330,7 @@ class MinioStorageService:
 
         Returns:
             List of object info dicts
+
         """
         objects = []
         for obj in self._client.list_objects(bucket, prefix=prefix, recursive=True):
@@ -377,8 +389,9 @@ class MinioStorageService:
                 if attempt < self._config.max_retries - 1:
                     time.sleep(self._config.retry_delay_sec * (attempt + 1))
 
+        msg = f"Failed to store object after {self._config.max_retries} attempts"
         raise RuntimeError(
-            f"Failed to store object after {self._config.max_retries} attempts"
+            msg,
         ) from last_error
 
     @property

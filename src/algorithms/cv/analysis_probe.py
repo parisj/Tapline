@@ -18,7 +18,7 @@ class AnalysisProbeAlgo(Algorithm):
     Purpose:
     - Emit metrics that exercise *all* analysis kinds
     - Provide deterministic outputs for unit & integration tests
-    - Validate evaluator routing and persistence
+    - Validate evaluator routing and storage
     """
 
     @property

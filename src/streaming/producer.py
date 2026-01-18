@@ -10,9 +10,9 @@ The EventProducer provides:
 
 from __future__ import annotations
 
-import time
 import threading
-from typing import TYPE_CHECKING, Any
+import time
+from typing import TYPE_CHECKING, Any, Self
 
 from confluent_kafka import Producer
 
@@ -25,22 +25,18 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Import observability components (optional - gracefully degrade if not available)
-try:
+# Import observability components
+from src.observability.availability import get_correlation_id, get_tracer
+from src.observability.availability import is_available as _obs_available
+
+_OBSERVABILITY_AVAILABLE = _obs_available()
+
+if _OBSERVABILITY_AVAILABLE:
     from src.observability.metrics import (
         KAFKA_MESSAGES_PRODUCED,
         KAFKA_PRODUCE_ERRORS,
         KAFKA_PRODUCE_LATENCY,
     )
-    from src.observability.tracing import get_tracer
-    from src.observability.correlation import (
-        inject_correlation_header,
-        get_correlation_id,
-    )
-
-    _OBSERVABILITY_AVAILABLE = True
-except ImportError:
-    _OBSERVABILITY_AVAILABLE = False
 
 
 class DeliveryReport:
@@ -165,9 +161,11 @@ class EventProducer:
             event: Event envelope to publish
             key: Partition key (defaults to event.source_id)
             headers: Optional message headers
+
         """
         if self._closed:
-            raise RuntimeError("Producer is closed")
+            msg = "Producer is closed"
+            raise RuntimeError(msg)
 
         # Create span for tracing
         span_ctx = None
@@ -237,6 +235,7 @@ class EventProducer:
             event: Event envelope to publish
             key: Partition key (defaults to event.source_id)
             headers: Optional message headers
+
         """
         # Publish to operational topic
         self.publish(topic, event, key=key, headers=headers)
@@ -277,6 +276,7 @@ class EventProducer:
 
         Returns:
             EventEnvelope with computed hashes and chain linkage
+
         """
         prev_hash = self._chain_tracker.get_prev_hash(source_id)
         return EventEnvelope.create(
@@ -441,8 +441,9 @@ class EventProducer:
         object_ref: str | None = None,
     ) -> EventEnvelope:
         """Publish AGGREGATE_COMPUTED event for Flink aggregation results."""
-        from src.domain.events import aggregate_computed_payload
         from datetime import datetime
+
+        from src.domain.events import aggregate_computed_payload
 
         # Parse ISO timestamps to unix for consistency
         try:
@@ -499,6 +500,7 @@ class EventProducer:
 
         Returns:
             Number of messages still in queue after flush
+
         """
         remaining = self._producer.flush(timeout=timeout)
         if remaining > 0:
@@ -516,6 +518,7 @@ class EventProducer:
 
         Returns:
             Number of events processed
+
         """
         return self._producer.poll(timeout=timeout)
 
@@ -547,7 +550,7 @@ class EventProducer:
             self._delivery_report.failed,
         )
 
-    def __enter__(self) -> EventProducer:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

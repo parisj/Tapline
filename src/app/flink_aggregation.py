@@ -14,17 +14,15 @@ from __future__ import annotations
 
 import atexit
 import json
+import signal
 import threading
 import time
-from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-
-load_dotenv()
 
 from src.domain.events import EventType
 from src.flink.config import FlinkConfig, load_flink_config
@@ -34,14 +32,21 @@ from src.observability.metrics import (
     configure_metrics,
 )
 from src.observability.tracing import configure_tracing, shutdown_tracing
-from src.storage.config import load_minio_config
+from src.storage.config import MinioConfig, load_minio_config
 from src.storage.minio_service import MinioStorageService
-from src.streaming.config import load_kafka_config
+from src.streaming.config import KafkaConfig, load_kafka_config
 from src.streaming.consumer import EventConsumer
 from src.streaming.producer import EventProducer
 from src.utils.logging import configure_logging, get_logger
 
+if TYPE_CHECKING:
+    from types import FrameType
+
 logger = get_logger("pipeline.app.flink_aggregation")
+
+# Constants
+_MIN_VALUES_FOR_STD = 2
+_LOG_INTERVAL_SEC = 30.0
 
 
 @dataclass
@@ -76,7 +81,7 @@ class MetricAggregate:
 
     @property
     def std(self) -> float:
-        if self.count < 2:
+        if self.count < _MIN_VALUES_FOR_STD:
             return 0.0
         mean = self.mean
         variance = sum((v - mean) ** 2 for v in self.values) / self.count
@@ -129,8 +134,7 @@ class TumblingWindowAggregator:
         self._storage = storage
         self._producer = producer
 
-        # Current window state
-        # Key: (algo_name, algo_version, metric_name)
+        # Current window state keyed by (algo_name, algo_version, metric_name)
         self._current_window: dict[tuple[str, str, str], MetricAggregate] = {}
         self._window_start: datetime | None = None
         self._window_end: datetime | None = None
@@ -152,7 +156,7 @@ class TumblingWindowAggregator:
                 return
 
             key = (algo_name, algo_version, metric_name)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             with self._lock:
                 # Initialize window if needed
@@ -184,9 +188,9 @@ class TumblingWindowAggregator:
         epoch_sec = int(now.timestamp())
         window_start_sec = (epoch_sec // self._window_size_sec) * self._window_size_sec
 
-        self._window_start = datetime.fromtimestamp(window_start_sec, tz=timezone.utc)
+        self._window_start = datetime.fromtimestamp(window_start_sec, tz=UTC)
         self._window_end = datetime.fromtimestamp(
-            window_start_sec + self._window_size_sec, tz=timezone.utc
+            window_start_sec + self._window_size_sec, tz=UTC,
         )
         self._current_window = {}
 
@@ -204,7 +208,7 @@ class TumblingWindowAggregator:
         window_start = self._window_start
         window_end = self._window_end
 
-        for key, aggregate in self._current_window.items():
+        for aggregate in self._current_window.values():
             if aggregate.count == 0:
                 continue
 
@@ -256,7 +260,7 @@ class TumblingWindowAggregator:
                 FLINK_AGGREGATIONS_PRODUCED.inc()
 
             except Exception as e:
-                logger.error("Failed to store aggregate: %s", e)
+                logger.exception("Failed to store aggregate: %s", e)
 
         logger.info(
             "Flushed window %s: %d aggregates",
@@ -276,8 +280,8 @@ class TumblingWindowAggregator:
 
 def run_aggregation_job(
     flink_config: FlinkConfig,
-    kafka_config: Any,
-    minio_config: Any,
+    kafka_config: KafkaConfig,
+    minio_config: MinioConfig,
     stop_event: threading.Event,
 ) -> None:
     """Run the metric aggregation job."""
@@ -322,7 +326,7 @@ def run_aggregation_job(
 
             # Periodic logging
             now = time.time()
-            if now - last_log_time >= 30.0:
+            if now - last_log_time >= _LOG_INTERVAL_SEC:
                 logger.info(
                     "Aggregation status: events_processed=%d, aggregates_produced=%d",
                     events_processed,
@@ -345,6 +349,8 @@ def run_aggregation_job(
 
 def main() -> None:
     """Main entry point for Flink aggregation job."""
+    load_dotenv()
+
     # Load configs
     obs_config = load_observability_config(Path("src/config/observability.toml"))
     flink_config = load_flink_config(Path("src/config/flink.toml"))
@@ -358,10 +364,10 @@ def main() -> None:
 
     # Start metrics server on different port to avoid conflict
     obs_config_metrics = obs_config
+    metrics_port = 8001
     if obs_config.metrics_enabled:
         # Use port 8001 for aggregation job
-        from dataclasses import replace
-        obs_config_metrics = replace(obs_config, metrics_port=8001)
+        obs_config_metrics = replace(obs_config, metrics_port=metrics_port)
         configure_metrics(obs_config_metrics)
         logger.info("Metrics server started on port %d", obs_config_metrics.metrics_port)
 
@@ -370,9 +376,7 @@ def main() -> None:
     stop_event = threading.Event()
 
     # Install signal handlers
-    import signal
-
-    def handle_signal(signum: int, frame: Any) -> None:
+    def handle_signal(signum: int, _frame: FrameType | None) -> None:
         logger.info("Received signal %d, stopping...", signum)
         stop_event.set()
 

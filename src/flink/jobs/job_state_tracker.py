@@ -10,10 +10,9 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
-from pyflink.common import Row, Types, WatermarkStrategy
-from pyflink.common.time import Duration
+from pyflink.common import Row, Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import (
     KeyedProcessFunction,
@@ -24,10 +23,14 @@ from pyflink.datastream.state import ValueStateDescriptor
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from pyflink.datastream.timerservice import TimerService
+
+    from collections.abc import Iterator
 
     from src.flink.config import FlinkConfig
     from src.streaming.config import KafkaConfig
+
+# Constants
+_MAX_EVENT_HISTORY = 100
 
 logger = get_logger(__name__)
 
@@ -116,7 +119,7 @@ class JobStateProcessor(KeyedProcessFunction):
     def process_element(
         self,
         value: Row,
-        ctx: KeyedProcessFunction.Context,
+        _ctx: KeyedProcessFunction.Context,
     ) -> Iterator[Row]:
         """Process job lifecycle event and update state."""
         event_type = value.event_type
@@ -125,10 +128,7 @@ class JobStateProcessor(KeyedProcessFunction):
 
         # Get current state
         state_json = self._state.value()
-        if state_json:
-            job_state = JobState.from_dict(json.loads(state_json))
-        else:
-            job_state = None
+        job_state = JobState.from_dict(json.loads(state_json)) if state_json else None
 
         # Process based on event type
         if event_type == "JOB_CREATED":
@@ -164,8 +164,8 @@ class JobStateProcessor(KeyedProcessFunction):
                 "type": event_type,
                 "timestamp": timestamp.isoformat() if timestamp else None,
             })
-            if len(job_state.events) > 100:
-                job_state.events = job_state.events[-100:]
+            if len(job_state.events) > _MAX_EVENT_HISTORY:
+                job_state.events = job_state.events[-_MAX_EVENT_HISTORY:]
 
             # Update state
             self._state.update(json.dumps(job_state.to_dict()))
@@ -210,10 +210,10 @@ class JobStateTrackerJob:
             env.enable_checkpointing(self._flink_config.checkpoint_interval_ms)
             checkpoint_config = env.get_checkpoint_config()
             checkpoint_config.set_min_pause_between_checkpoints(
-                self._flink_config.checkpoint_min_pause_ms
+                self._flink_config.checkpoint_min_pause_ms,
             )
             checkpoint_config.set_checkpoint_timeout(
-                self._flink_config.checkpoint_timeout_ms
+                self._flink_config.checkpoint_timeout_ms,
             )
 
         self._env = env
@@ -225,13 +225,13 @@ class JobStateTrackerJob:
             self.setup_environment()
 
         # Define row type for job events
-        job_event_type = Types.ROW_NAMED(
+        Types.ROW_NAMED(
             ["job_id", "event_type", "payload", "timestamp"],
             [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()],
         )
 
         # Define output row type
-        state_output_type = Types.ROW_NAMED(
+        Types.ROW_NAMED(
             ["job_id", "status", "state_json", "updated_at"],
             [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()],
         )

@@ -5,13 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from src.config.base import get_section, load_toml
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
 
 
 @dataclass(frozen=True)
@@ -58,17 +55,17 @@ class FlinkConfig:
     kafka_start_from_earliest: bool
 
 
-def load_flink_config(path: "Path") -> FlinkConfig:
+def load_flink_config(path: Path) -> FlinkConfig:
     """Load Flink configuration from TOML file."""
-    doc = tomllib.loads(path.read_text(encoding="utf-8"))
+    doc = load_toml(path)
 
-    connection = doc.get("connection", {})
-    execution = doc.get("execution", {})
-    checkpointing = doc.get("checkpointing", {})
-    state = doc.get("state", {})
-    windows = doc.get("windows", {})
-    watermarks = doc.get("watermarks", {})
-    kafka = doc.get("kafka", {})
+    connection = get_section(doc, "connection")
+    execution = get_section(doc, "execution")
+    checkpointing = get_section(doc, "checkpointing")
+    state = get_section(doc, "state")
+    windows = get_section(doc, "windows")
+    watermarks = get_section(doc, "watermarks")
+    kafka = get_section(doc, "kafka")
 
     return FlinkConfig(
         # Connection

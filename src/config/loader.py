@@ -14,19 +14,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from src.config.base import load_toml
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
 
 
 class ConfigError(ValueError):
     """Configuration validation error."""
 
-    pass
 
 
 @dataclass(frozen=True)
@@ -44,7 +40,7 @@ class RuntimeConfig:
 
 
 def load_runtime_config(path: Path) -> RuntimeConfig:
-    doc = tomllib.loads(path.read_text(encoding="utf-8"))
+    doc = load_toml(path)
 
     ingest = _require_table(doc, "ingest")
     readiness = _require_table(doc, "readiness")

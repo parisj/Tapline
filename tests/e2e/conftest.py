@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import os
 import struct
-import tempfile
-import time
 import zlib
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass
@@ -74,7 +74,7 @@ def infrastructure_available(e2e_config: E2ETestConfig) -> bool:
 
 
 @pytest.fixture
-def skip_without_infrastructure(infrastructure_available: bool):
+def skip_without_infrastructure(infrastructure_available: bool) -> None:
     """Skip test if infrastructure is not available."""
     if not infrastructure_available:
         pytest.skip("Required infrastructure (Kafka, MinIO) not available")
