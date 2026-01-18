@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import math
 from typing import TYPE_CHECKING, Any
 
 from src.algorithms.base import Algorithm
 from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, MetricValue
+from src.domain.results import AlgoResult, Artifact, MetricValue
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -109,4 +110,19 @@ class AnalysisProbeAlgo(Algorithm):
                     },
                 ),
             },
+            # Generate a JSON report artifact for MinIO storage
+            artifacts=(
+                Artifact(
+                    name="analysis_report.json",
+                    mime="application/json",
+                    data=json.dumps({
+                        "algorithm": "analysis_probe",
+                        "version": "0.1.0",
+                        "input_size_bytes": n_bytes,
+                        "score": score,
+                        "passed": passed,
+                        "center": {"x": x, "y": y},
+                    }, indent=2).encode("utf-8"),
+                ),
+            ),
         )

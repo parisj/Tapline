@@ -5,13 +5,14 @@ The EventConsumer provides:
 - Manual offset commit after processing
 - Partition-aware consumption
 - Backpressure integration
+- OpenTelemetry tracing and Prometheus metrics
 """
 
 from __future__ import annotations
 
 import threading
 import time
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
 
@@ -22,6 +23,22 @@ if TYPE_CHECKING:
     from src.streaming.config import KafkaConfig
 
 logger = get_logger(__name__)
+
+# Import observability components (optional - gracefully degrade if not available)
+try:
+    from src.observability.metrics import (
+        KAFKA_MESSAGES_CONSUMED,
+        KAFKA_CONSUME_ERRORS,
+    )
+    from src.observability.tracing import get_tracer
+    from src.observability.correlation import (
+        propagate_from_kafka_headers,
+        set_correlation_id,
+    )
+
+    _OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    _OBSERVABILITY_AVAILABLE = False
 
 
 class EventConsumer:
@@ -53,10 +70,12 @@ class EventConsumer:
         config: KafkaConfig,
         topics: list[str],
         group_id: str | None = None,
+        on_assign_callback: Any | None = None,
     ) -> None:
         self._config = config
         self._topics = topics
         self._group_id = group_id or config.consumer_group_id
+        self._on_assign_callback = on_assign_callback
 
         consumer_config = {
             "bootstrap.servers": config.bootstrap_servers,
@@ -76,11 +95,15 @@ class EventConsumer:
         self._stop = threading.Event()
         self._current_message = None
         self._paused_partitions: set[tuple[str, int]] = set()
+        self._partitions_assigned = threading.Event()
 
         # Statistics
         self._messages_consumed = 0
         self._messages_committed = 0
         self._errors = 0
+
+        # Get tracer if available
+        self._tracer = get_tracer(__name__) if _OBSERVABILITY_AVAILABLE else None
 
         logger.info(
             "EventConsumer initialized: group=%s, topics=%s",
@@ -93,13 +116,27 @@ class EventConsumer:
         partition_info = [(p.topic, p.partition) for p in partitions]
         logger.info("Partitions assigned: %s", partition_info)
 
+        # Signal that partitions have been assigned
+        self._partitions_assigned.set()
+
+        # Call external callback if provided
+        if self._on_assign_callback:
+            try:
+                self._on_assign_callback(partitions)
+            except Exception as e:
+                logger.warning("on_assign_callback failed: %s", e)
+
     def _on_revoke(self, consumer: Consumer, partitions: list[TopicPartition]) -> None:
         """Callback when partitions are revoked."""
-        # Commit pending offsets before revocation
-        try:
-            consumer.commit(asynchronous=False)
-        except KafkaException as e:
-            logger.warning("Failed to commit during revoke: %s", e)
+        # Only commit if we have consumed messages (avoids "No offset stored" warning)
+        if self._messages_consumed > self._messages_committed:
+            try:
+                consumer.commit(asynchronous=False)
+                self._messages_committed = self._messages_consumed
+            except KafkaException as e:
+                # Ignore "no offset stored" errors - they're expected when no messages consumed
+                if "_NO_OFFSET" not in str(e):
+                    logger.warning("Failed to commit during revoke: %s", e)
 
         partition_info = [(p.topic, p.partition) for p in partitions]
         logger.info("Partitions revoked: %s", partition_info)
@@ -132,10 +169,29 @@ class EventConsumer:
             else:
                 self._errors += 1
                 logger.error("Consumer error: %s", error)
+
+                # Record error metrics
+                if _OBSERVABILITY_AVAILABLE:
+                    KAFKA_CONSUME_ERRORS.labels(
+                        topic=msg.topic() or "unknown",
+                        error_type=str(error.code()),
+                    ).inc()
+
                 raise KafkaException(error)
 
         self._current_message = msg
         self._messages_consumed += 1
+
+        # Extract and propagate correlation ID from headers
+        if _OBSERVABILITY_AVAILABLE:
+            propagate_from_kafka_headers(msg.headers())
+
+        # Record metrics
+        if _OBSERVABILITY_AVAILABLE:
+            KAFKA_MESSAGES_CONSUMED.labels(
+                topic=msg.topic(),
+                consumer_group=self._group_id,
+            ).inc()
 
         try:
             value = msg.value().decode("utf-8")
@@ -149,6 +205,14 @@ class EventConsumer:
                 e,
             )
             self._errors += 1
+
+            # Record error metrics
+            if _OBSERVABILITY_AVAILABLE:
+                KAFKA_CONSUME_ERRORS.labels(
+                    topic=msg.topic() or "unknown",
+                    error_type="deserialization_error",
+                ).inc()
+
             raise
 
     def __iter__(self) -> Iterator[EventEnvelope]:
@@ -261,6 +325,17 @@ class EventConsumer:
         partitions = self._consumer.assignment()
         return [(p.topic, p.partition) for p in partitions]
 
+    def wait_for_assignment(self, timeout: float = 30.0) -> bool:
+        """Wait for partition assignment.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            True if partitions were assigned, False if timeout
+        """
+        return self._partitions_assigned.wait(timeout=timeout)
+
     def get_paused_partitions(self) -> set[tuple[str, int]]:
         """Get set of paused partitions."""
         return self._paused_partitions.copy()
@@ -277,11 +352,15 @@ class EventConsumer:
         self._closed = True
         self._stop.set()
 
-        # Final commit
-        try:
-            self._consumer.commit(asynchronous=False)
-        except KafkaException as e:
-            logger.warning("Failed final commit on close: %s", e)
+        # Final commit only if we have uncommitted messages
+        if self._messages_consumed > self._messages_committed:
+            try:
+                self._consumer.commit(asynchronous=False)
+                self._messages_committed = self._messages_consumed
+            except KafkaException as e:
+                # Ignore "no offset stored" errors
+                if "_NO_OFFSET" not in str(e):
+                    logger.warning("Failed final commit on close: %s", e)
 
         self._consumer.close()
 
@@ -407,8 +486,12 @@ class BatchEventConsumer:
         self._closed = True
         self._stop.set()
 
+        # Only commit if we have consumed messages
         try:
-            self._consumer.commit(asynchronous=False)
+            positions = self._consumer.position(self._consumer.assignment())
+            has_positions = any(p.offset >= 0 for p in positions)
+            if has_positions:
+                self._consumer.commit(asynchronous=False)
         except KafkaException:
             pass
 

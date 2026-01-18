@@ -7,9 +7,15 @@ version = "0.1.0"
 [pypi-dependencies]
 pytest = ">=8"
 pytest-cov = ">=5"
+pytest-timeout = ">=2.2"
 confluent-kafka = ">=2.3"
 minio = ">=7.2"
 apache-flink = ">=1.18"
+# Observability
+opentelemetry-api = ">=1.20"
+opentelemetry-sdk = ">=1.20"
+opentelemetry-exporter-otlp = ">=1.20"
+prometheus-client = ">=0.19"
 
 [dependencies]
 python = ">=3.12,<3.13"
@@ -22,6 +28,12 @@ psycopg = ">=3.3.2,<4"
 [tasks]
 run = "python -m src.app.main"
 run-streaming = "PIPELINE_MODE=streaming python -m src.app.main"
+run-flink-agg = "python -m src.app.flink_aggregation"
+run-flink-job = "python src/flink/jobs/submit_job.py"
 test = "pytest -q --cov=src --cov-report=term-missing"
+test-e2e = "pytest tests/e2e -v --timeout=300"
+test-all = "pytest tests/ -v"
 lint = "ruff check ."
 format = "ruff format ."
+benchmark = "python -m benchmarks.load_generator"
+benchmark-kafka = "python -m benchmarks.kafka_benchmark"

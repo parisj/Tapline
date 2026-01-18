@@ -395,8 +395,10 @@ This split keeps queries fast while preserving numeric fidelity for later time-r
 Kafka/Flink/MinIO-based architecture for scalable event streaming:
 
 - **Kafka** - Event backbone with topics for jobs, results, metrics, and audit logs
-- **PyFlink** - Stateful stream processing with time-windowed aggregation
+- **Flink** - Distributed stream processing with time-windowed aggregation (SQL or PyFlink)
 - **MinIO** - Content-addressed object storage for artifacts
+- **Prometheus/Grafana** - Metrics collection and dashboards
+- **Jaeger** - Distributed tracing via OpenTelemetry
 
 ```bash
 # Start infrastructure
@@ -404,15 +406,86 @@ docker-compose up -d
 
 # Run in streaming mode
 pixi run run-streaming
+
+# Submit Flink aggregation job
+pixi run run-flink-job
 ```
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Kafka | 9092 | Event streaming |
+| Kafka | 9092, 9093 | Event streaming (external, internal) |
 | Schema Registry | 8085 | Avro schemas |
-| Flink JobManager | 8081 | Stream processing |
+| Flink JobManager | 8081 | Stream processing UI |
 | MinIO | 9000, 9001 | Object storage (API, Console) |
 | Zookeeper | 2181 | Kafka coordination |
+| Prometheus | 9091 | Metrics collection |
+| Grafana | 3000 | Dashboards (admin/admin) |
+| Jaeger | 16686 | Distributed tracing UI |
+
+
+## **Observability**
+
+VisioEval includes a comprehensive observability stack:
+
+### **Distributed Tracing (OpenTelemetry + Jaeger)**
+
+- Automatic span creation for job processing, Kafka operations, MinIO storage
+- Trace context propagation via Kafka headers
+- Correlation IDs for end-to-end request tracking
+- View traces at http://localhost:16686
+
+### **Metrics (Prometheus + Grafana)**
+
+Pipeline metrics exposed on port 8000:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `visioeval_pipeline_up` | Gauge | Pipeline running status |
+| `visioeval_jobs_created_total` | Counter | Total jobs created |
+| `visioeval_jobs_completed_total` | Counter | Total jobs completed |
+| `visioeval_jobs_failed_total` | Counter | Total jobs failed |
+| `visioeval_job_duration_seconds` | Histogram | Job processing duration |
+| `visioeval_kafka_messages_produced_total` | Counter | Kafka messages produced |
+| `visioeval_kafka_messages_consumed_total` | Counter | Kafka messages consumed |
+| `visioeval_minio_store_duration_seconds` | Histogram | MinIO storage latency |
+
+Access Prometheus at http://localhost:9091 and Grafana dashboards at http://localhost:3000.
+
+### **Structured Logging**
+
+- JSON-formatted logs with trace context injection
+- Correlation ID propagation across services
+- Configurable via `src/config/observability.toml`
+
+
+## **Flink Aggregation**
+
+Metrics are aggregated in real-time using Flink SQL:
+
+```sql
+-- 1-minute tumbling windows
+SELECT
+    algo_name, algo_version, metric_name,
+    TUMBLE_START(proc_time, INTERVAL '1' MINUTE) AS window_start,
+    COUNT(*) AS metric_count,
+    AVG(value) AS metric_avg,
+    MIN(value) AS metric_min,
+    MAX(value) AS metric_max
+FROM metrics_source
+GROUP BY algo_name, algo_version, metric_name, TUMBLE(...)
+```
+
+**Topics:**
+- Source: `visio.metrics` (METRIC_EMITTED events)
+- Sink: `visio.aggregates` (aggregated results)
+
+**Commands:**
+```bash
+pixi run run-flink-job    # Submit SQL job to Flink cluster
+pixi run run-flink-agg    # Run standalone Python aggregation
+```
+
+**Monitor at:** http://localhost:8081 (Flink UI)
 
 
 ## **Requirements**
@@ -425,14 +498,16 @@ pixi run run-streaming
 | Docker | 20+ | Streaming mode infrastructure |
 
 
-## **Logging and Observability**
+## **Logging**
 
-All modules use a shared logging approach. This provides visibility into:
+All modules use a shared structured logging approach with JSON output and trace context injection. This provides visibility into:
 
 - ingestion and readiness decisions
 - job lifecycle transitions
 - worker execution and failures
 - evaluation windows and persistence operations
+
+Logs include `trace_id`, `span_id`, and `correlation_id` for distributed tracing correlation.
 
 
 ## **Project Status**
@@ -449,10 +524,12 @@ No performance claims are made at this stage.
 
 ## **Roadmap**
 
+- ~~observability stack (Prometheus, Grafana, Jaeger)~~ ✓
+- ~~distributed Flink aggregation~~ ✓
 - read-only query layer for dashboards
 - visualization module (Bokeh or equivalent)
 - richer analysis types (quantiles/sketches, robust stats)
-- operational tooling (migrations, admin helpers, monitoring)
+- operational tooling (migrations, admin helpers)
 
 
 ## **Contributing**

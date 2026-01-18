@@ -4,10 +4,13 @@ Replaces PostgreSQL-based pipeline with streaming infrastructure:
 - Kafka for event streaming and job queue
 - Flink for stateful stream processing
 - MinIO for artifact storage
+- OpenTelemetry for distributed tracing
+- Prometheus for metrics
 """
 
 from __future__ import annotations
 
+import atexit
 import threading
 import time
 from pathlib import Path
@@ -30,7 +33,21 @@ from src.streaming.producer import EventProducer
 from src.utils.logging import configure_logging, get_logger
 from src.workers.kafka_pool import KafkaWorkerPool
 
+# Import observability (loaded after dotenv for env var support)
+from src.observability.config import load_observability_config
+from src.observability.tracing import configure_tracing, shutdown_tracing
+from src.observability.metrics import (
+    configure_metrics,
+    set_build_info,
+    PIPELINE_UP,
+    WORKERS_ACTIVE,
+    WORKER_POOL_SIZE,
+)
+
 logger = get_logger("pipeline.app.streaming_main")
+
+# Version info
+__version__ = "0.1.0"
 
 
 def build_streaming_app(
@@ -94,15 +111,37 @@ def build_streaming_app(
 
 def main() -> None:
     """Main entry point for streaming pipeline."""
-    configure_logging()
+    # Load observability config
+    obs_config = load_observability_config(Path("src/config/observability.toml"))
+
+    # Configure logging (with observability config for structured logging)
+    configure_logging(obs_config)
 
     logger.info("Starting VisioEval streaming pipeline...")
 
+    # Initialize tracing
+    configure_tracing(obs_config)
+    atexit.register(shutdown_tracing)
+
+    # Initialize metrics server
+    metrics_started = configure_metrics(obs_config)
+    if metrics_started:
+        logger.info("Metrics server started on port %d", obs_config.metrics_port)
+
+    # Set build info metric
+    set_build_info(version=__version__, mode="streaming")
+
+    # Load runtime config and build app
     cfg = load_runtime_config(Path("src/config/pipeline.toml"))
     observer, worker_pool, producer, storage = build_streaming_app(cfg=cfg)
 
     stop = threading.Event()
     install_signal_handlers(stop)
+
+    # Set pipeline metrics
+    PIPELINE_UP.set(1)
+    WORKER_POOL_SIZE.set(cfg.workers_max)
+    WORKERS_ACTIVE.set(0)
 
     # Start components
     worker_pool.start()
@@ -114,6 +153,11 @@ def main() -> None:
         cfg.workers_max,
         len(cfg.directories),
     )
+    logger.info(
+        "Observability: tracing=%s, metrics=%s",
+        obs_config.tracing_enabled,
+        obs_config.metrics_enabled,
+    )
 
     # Main loop - just wait for stop signal
     # Aggregation is handled by Flink jobs separately
@@ -124,6 +168,9 @@ def main() -> None:
         producer.poll(0)
 
     logger.info("Stopping streaming pipeline...")
+
+    # Mark pipeline as down
+    PIPELINE_UP.set(0)
 
     # Graceful shutdown
     observer.stop()

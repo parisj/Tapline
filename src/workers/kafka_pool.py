@@ -68,25 +68,49 @@ class KafkaWorkerPool:
         # Per-worker consumers (created on start)
         self._consumers: list[EventConsumer] = []
 
+        # Event to signal when workers are ready (have partitions assigned)
+        self._ready = threading.Event()
+        self._ready_count = 0
+        self._ready_lock = threading.Lock()
+
         logger.info(
             "KafkaWorkerPool initialized: max_workers=%d",
             max_workers,
         )
 
-    def start(self) -> None:
-        """Start worker threads."""
+    def start(self, wait_for_ready: bool = True, ready_timeout: float = 30.0) -> None:
+        """Start worker threads.
+
+        Args:
+            wait_for_ready: If True, wait for workers to have partitions assigned
+            ready_timeout: Maximum time to wait for workers to be ready
+        """
         from src.streaming.consumer import EventConsumer
 
+        # All workers share the same consumer group for load balancing
+        # Kafka will distribute partitions among consumers in the same group
         for i in range(self._max_workers):
             consumer = EventConsumer(
                 config=self._kafka_config,
                 topics=[self._kafka_config.topic_jobs],
-                group_id=f"{self._kafka_config.consumer_group_id}-{i}",
+                group_id=self._kafka_config.consumer_group_id,  # Same group for all
+                on_assign_callback=lambda partitions: self._signal_ready(),
             )
             self._consumers.append(consumer)
             self._executor.submit(self._worker_loop, consumer, i)
 
         logger.info("Started %d Kafka workers", self._max_workers)
+
+        # Wait for workers to be ready (have partitions assigned)
+        if wait_for_ready:
+            logger.info("Waiting for workers to join consumer group...")
+            if self._ready.wait(timeout=ready_timeout):
+                logger.info("Workers ready with partitions assigned")
+            else:
+                logger.warning(
+                    "Timeout waiting for workers to be ready after %.1fs",
+                    ready_timeout,
+                )
 
     def stop(self) -> None:
         """Stop all workers gracefully."""
@@ -106,6 +130,15 @@ class KafkaWorkerPool:
 
         self._consumers.clear()
         logger.info("KafkaWorkerPool stopped")
+
+    def _signal_ready(self) -> None:
+        """Signal that a worker is ready (has partitions assigned)."""
+        with self._ready_lock:
+            self._ready_count += 1
+            # Signal ready when at least one worker has partitions
+            # (Kafka will distribute among workers based on partitions)
+            if self._ready_count >= 1 and not self._ready.is_set():
+                self._ready.set()
 
     def _worker_loop(self, consumer: EventConsumer, worker_id: int) -> None:
         """Main worker loop consuming from Kafka."""

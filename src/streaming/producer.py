@@ -5,15 +5,16 @@ The EventProducer provides:
 - Dual-write to operational topic + audit-log
 - Delivery confirmation handling
 - Per-partition ordering guarantees
+- OpenTelemetry tracing and Prometheus metrics
 """
 
 from __future__ import annotations
 
-import json
+import time
 import threading
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from confluent_kafka import KafkaException, Producer
+from confluent_kafka import Producer
 
 from src.audit.chain import HashChainTracker
 from src.domain.events import EventEnvelope, EventType
@@ -24,6 +25,23 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Import observability components (optional - gracefully degrade if not available)
+try:
+    from src.observability.metrics import (
+        KAFKA_MESSAGES_PRODUCED,
+        KAFKA_PRODUCE_ERRORS,
+        KAFKA_PRODUCE_LATENCY,
+    )
+    from src.observability.tracing import get_tracer
+    from src.observability.correlation import (
+        inject_correlation_header,
+        get_correlation_id,
+    )
+
+    _OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    _OBSERVABILITY_AVAILABLE = False
+
 
 class DeliveryReport:
     """Tracks delivery status for produced messages."""
@@ -32,17 +50,31 @@ class DeliveryReport:
         self.delivered = 0
         self.failed = 0
         self._lock = threading.Lock()
+        self._pending_start_times: dict[str, float] = {}
+
+    def track_send(self, msg_id: str) -> None:
+        """Track when a message was sent for latency calculation."""
+        self._pending_start_times[msg_id] = time.perf_counter()
 
     def on_delivery(self, err: Any, msg: Any) -> None:
         """Callback for message delivery confirmation."""
+        topic = msg.topic() if msg else "unknown"
+
         with self._lock:
             if err is not None:
                 logger.error(
                     "Message delivery failed: topic=%s, error=%s",
-                    msg.topic() if msg else "unknown",
+                    topic,
                     err,
                 )
                 self.failed += 1
+
+                # Record metrics if available
+                if _OBSERVABILITY_AVAILABLE:
+                    KAFKA_PRODUCE_ERRORS.labels(
+                        topic=topic,
+                        error_type=str(err.code()) if hasattr(err, "code") else "unknown",
+                    ).inc()
             else:
                 logger.debug(
                     "Message delivered: topic=%s, partition=%s, offset=%s",
@@ -51,6 +83,19 @@ class DeliveryReport:
                     msg.offset(),
                 )
                 self.delivered += 1
+
+                # Record metrics if available
+                if _OBSERVABILITY_AVAILABLE:
+                    KAFKA_MESSAGES_PRODUCED.labels(topic=topic).inc()
+
+                    # Calculate latency if we have the start time
+                    key = msg.key()
+                    if key and key.decode("utf-8") in self._pending_start_times:
+                        key_str = key.decode("utf-8")
+                        start_time = self._pending_start_times.pop(key_str, None)
+                        if start_time:
+                            latency = time.perf_counter() - start_time
+                            KAFKA_PRODUCE_LATENCY.labels(topic=topic).observe(latency)
 
 
 class EventProducer:
@@ -97,6 +142,9 @@ class EventProducer:
         self._producer = Producer(producer_config)
         self._closed = False
 
+        # Get tracer if available
+        self._tracer = get_tracer(__name__) if _OBSERVABILITY_AVAILABLE else None
+
         logger.info(
             "EventProducer initialized: bootstrap_servers=%s",
             config.bootstrap_servers,
@@ -121,26 +169,55 @@ class EventProducer:
         if self._closed:
             raise RuntimeError("Producer is closed")
 
-        partition_key = (key or event.source_id).encode("utf-8")
-        value = event.to_json().encode("utf-8")
+        # Create span for tracing
+        span_ctx = None
+        if self._tracer:
+            span_ctx = self._tracer.start_as_current_span(
+                f"kafka.publish.{topic}",
+                attributes={
+                    "kafka.topic": topic,
+                    "event.id": event.event_id,
+                    "event.type": event.event_type.value,
+                    "event.source_id": event.source_id,
+                },
+            )
+            span_ctx.__enter__()
 
-        kafka_headers = []
-        if headers:
-            kafka_headers = [(k, v.encode("utf-8")) for k, v in headers.items()]
+        try:
+            partition_key = (key or event.source_id).encode("utf-8")
+            value = event.to_json().encode("utf-8")
 
-        self._producer.produce(
-            topic=topic,
-            key=partition_key,
-            value=value,
-            headers=kafka_headers,
-            callback=self._delivery_report.on_delivery,
-        )
+            # Build headers with correlation ID
+            kafka_headers: list[tuple[str, bytes]] = []
+            if headers:
+                kafka_headers = [(k, v.encode("utf-8")) for k, v in headers.items()]
 
-        # Update chain tracker after successful enqueue
-        self._chain_tracker.update(event.source_id, event.content_hash)
+            # Inject correlation ID if available
+            if _OBSERVABILITY_AVAILABLE:
+                cid = get_correlation_id()
+                if cid:
+                    kafka_headers.append(("x-correlation-id", cid.encode("utf-8")))
 
-        # Trigger delivery of buffered messages
-        self._producer.poll(0)
+            # Track send time for latency metrics
+            self._delivery_report.track_send(key or event.source_id)
+
+            self._producer.produce(
+                topic=topic,
+                key=partition_key,
+                value=value,
+                headers=kafka_headers if kafka_headers else None,
+                callback=self._delivery_report.on_delivery,
+            )
+
+            # Update chain tracker after successful enqueue
+            self._chain_tracker.update(event.source_id, event.content_hash)
+
+            # Trigger delivery of buffered messages
+            self._producer.poll(0)
+
+        finally:
+            if span_ctx:
+                span_ctx.__exit__(None, None, None)
 
     def publish_with_audit(
         self,
@@ -171,6 +248,12 @@ class EventProducer:
         }
         if headers:
             audit_headers.update(headers)
+
+        # Add correlation ID to audit headers
+        if _OBSERVABILITY_AVAILABLE:
+            cid = get_correlation_id()
+            if cid:
+                audit_headers["x-correlation-id"] = cid
 
         self._producer.produce(
             topic=self._config.topic_audit_log,
@@ -343,6 +426,44 @@ class EventProducer:
         # Use algo_name as partition key for metric aggregation
         event = self.create_event(EventType.METRIC_EMITTED, algo_name, payload)
         self.publish(self._config.topic_metrics, event, key=algo_name)
+        return event
+
+    def publish_aggregate_produced(
+        self,
+        source_id: str,
+        algo_name: str,
+        algo_version: str,
+        metric_name: str,
+        window_start: str,
+        window_end: str,
+        count: int,
+        summary: dict[str, Any],
+        object_ref: str | None = None,
+    ) -> EventEnvelope:
+        """Publish AGGREGATE_COMPUTED event for Flink aggregation results."""
+        from src.domain.events import aggregate_computed_payload
+        from datetime import datetime
+
+        # Parse ISO timestamps to unix for consistency
+        try:
+            start_unix = datetime.fromisoformat(window_start).timestamp()
+            end_unix = datetime.fromisoformat(window_end).timestamp()
+        except ValueError:
+            start_unix = 0.0
+            end_unix = 0.0
+
+        payload = aggregate_computed_payload(
+            algo_name=algo_name,
+            algo_version=algo_version,
+            metric_name=metric_name,
+            analysis_kind="SUMMARY",
+            window_start_unix=start_unix,
+            window_end_unix=end_unix,
+            summary=summary,
+            artifact_ref=object_ref,
+        )
+        event = self.create_event(EventType.AGGREGATE_COMPUTED, source_id, payload)
+        self.publish(self._config.topic_aggregates, event, key=algo_name)
         return event
 
     def publish_artifact_stored(

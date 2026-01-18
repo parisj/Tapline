@@ -10,12 +10,15 @@ Default is 'legacy' for backward compatibility.
 
 from __future__ import annotations
 
+import atexit
 import os
 import threading
 import time
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+load_dotenv()
 
 from src.algorithms.registry import build_default_registry
 from src.app.signals import install_signal_handlers
@@ -37,15 +40,24 @@ from src.visualization.bokeh_app import start_bokeh_placeholder
 from src.workers.kafka_pool import KafkaWorkerPool
 from src.workers.pool import WorkerPool
 
-load_dotenv()
-
-
-
+# Import observability
+from src.observability.config import load_observability_config
+from src.observability.tracing import configure_tracing, shutdown_tracing
+from src.observability.metrics import (
+    configure_metrics,
+    set_build_info,
+    PIPELINE_UP,
+    WORKERS_ACTIVE,
+    WORKER_POOL_SIZE,
+)
 
 logger = get_logger("pipeline.app.main")
 
 # Pipeline mode: 'legacy' (PostgreSQL) or 'streaming' (Kafka/Flink/MinIO)
 PIPELINE_MODE = os.environ.get("PIPELINE_MODE", "legacy")
+
+# Version
+__version__ = "0.1.0"
 
 
 def build_legacy_app(
@@ -174,14 +186,23 @@ def run_legacy_mode(cfg: RuntimeConfig) -> None:
     logger.info("Legacy pipeline stopped.")
 
 
-def run_streaming_mode(cfg: RuntimeConfig) -> None:
+def run_streaming_mode(cfg: RuntimeConfig, obs_config) -> None:
     """Run pipeline in streaming Kafka/Flink/MinIO mode."""
     observer, worker_pool, producer, storage = build_streaming_app(cfg=cfg)
 
     stop = threading.Event()
     install_signal_handlers(stop)
 
+    # Set pipeline metrics
+    PIPELINE_UP.set(1)
+    WORKER_POOL_SIZE.set(cfg.workers_max)
+    WORKERS_ACTIVE.set(0)
+
     worker_pool.start()
+
+    # Give workers a moment to stabilize after group join
+    time.sleep(0.5)
+
     observer.start()
 
     logger.info("Streaming pipeline started. Ctrl+C to stop.")
@@ -190,12 +211,21 @@ def run_streaming_mode(cfg: RuntimeConfig) -> None:
         cfg.workers_max,
         len(cfg.directories),
     )
+    logger.info(
+        "Observability: tracing=%s, metrics=%s",
+        obs_config.tracing_enabled,
+        obs_config.metrics_enabled,
+    )
 
     while not stop.is_set():
         time.sleep(1.0)
         producer.poll(0)
 
     logger.info("Stopping streaming pipeline...")
+
+    # Mark pipeline as down
+    PIPELINE_UP.set(0)
+
     observer.stop()
     worker_pool.stop()
     producer.close()
@@ -204,14 +234,30 @@ def run_streaming_mode(cfg: RuntimeConfig) -> None:
 
 def main() -> None:
     """General main entry point - runs in configured mode."""
-    configure_logging()
+    # Load observability config
+    obs_config = load_observability_config(Path("src/config/observability.toml"))
+
+    # Configure logging with observability support
+    configure_logging(obs_config)
 
     logger.info("VisioEval starting in %s mode...", PIPELINE_MODE)
+
+    # Initialize tracing
+    configure_tracing(obs_config)
+    atexit.register(shutdown_tracing)
+
+    # Initialize metrics server
+    metrics_started = configure_metrics(obs_config)
+    if metrics_started:
+        logger.info("Metrics server started on port %d", obs_config.metrics_port)
+
+    # Set build info metric
+    set_build_info(version=__version__, mode=PIPELINE_MODE)
 
     cfg = load_runtime_config(Path("src/config/pipeline.toml"))
 
     if PIPELINE_MODE == "streaming":
-        run_streaming_mode(cfg)
+        run_streaming_mode(cfg, obs_config)
     else:
         run_legacy_mode(cfg)
 
