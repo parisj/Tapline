@@ -448,6 +448,7 @@ The full pipeline (`pixi run pipeline`) spawns three separate processes for bett
 | Prometheus | 9091 | Metrics collection |
 | Grafana | 3000 | Dashboards (admin/admin) |
 | Jaeger | 16686 | Distributed tracing UI |
+| Bokeh Dashboard | 5006 | Visualization dashboard |
 
 
 ## **Observability**
@@ -483,6 +484,50 @@ Access Prometheus at http://localhost:9091 and Grafana dashboards at http://loca
 - JSON-formatted logs with trace context injection
 - Correlation ID propagation across services
 - Configurable via `src/config/observability.toml`
+
+
+## **Visualization Dashboard**
+
+VisioEval includes a Bokeh-based visualization dashboard with a dark minimal theme.
+
+### Features
+
+- **KPI Cards** - Real-time metrics: jobs processed, throughput, errors, active sources
+- **Time-series Charts** - Throughput history from Prometheus
+- **Data Explorer** - Browse and visualize aggregated metrics by algorithm/version
+- **Auto-refresh** - Configurable polling interval (default 30s)
+- **Prometheus Integration** - Live connection status indicator
+
+### Running the Dashboard
+
+```bash
+pixi run dashboard        # Start at http://localhost:5006/server
+```
+
+### Architecture
+
+```
+src/visualization/
+├── server.py             # Bokeh server entry point
+├── layouts/
+│   └── main_layout.py    # Dashboard layout with sections
+├── data/
+│   ├── prometheus_client.py  # Prometheus HTTP API client
+│   └── kafka_stats.py        # Kafka topic statistics
+├── plots/
+│   ├── common.py         # Theme colors and utilities
+│   ├── time_series.py    # Throughput charts
+│   ├── histogram.py      # Distribution plots
+│   └── ...               # Other chart types
+├── widgets/
+│   ├── kpi_card.py       # KPI card components
+│   ├── selectors.py      # Dropdown selectors
+│   └── stats_table.py    # Summary tables
+└── readers/
+    └── minio_reader.py   # MinIO artifact reader
+```
+
+The dashboard reads aggregated metrics from MinIO and queries Prometheus for real-time KPIs.
 
 
 ## **Flink Aggregation**

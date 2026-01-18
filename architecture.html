@@ -272,14 +272,41 @@
     </text>
   </g>
 
+  <!-- VISUALIZATION PLANE -->
+  <g>
+    <text x="1290" y="610" font-size="14" font-weight="bold" fill="#374151"
+          font-family="Inter, Arial, sans-serif">
+      Visualization
+    </text>
+
+    <rect x="1290" y="625" width="260" height="100" rx="14" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="1420" y="660" text-anchor="middle" font-size="14" font-weight="bold"
+          font-family="Inter, Arial, sans-serif">
+      Bokeh Dashboard
+    </text>
+    <text x="1420" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+      KPIs · Time-series · Data Explorer
+    </text>
+    <text x="1420" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+      localhost:5006
+    </text>
+
+    <!-- Arrow from MinIO/Prometheus to Dashboard -->
+    <path d="M1340 560 L1340 625" stroke="#0ea5e9" stroke-width="1.5"
+          stroke-dasharray="5,3" fill="none" marker-end="url(#arrowMuted)"/>
+    <text x="1350" y="593" font-size="9" fill="#0ea5e9">reads aggregates</text>
+  </g>
+
   <!-- Legend -->
   <g>
-    <rect x="1300" y="780" width="250" height="70" rx="8" fill="#f9fafb"
+    <rect x="1300" y="780" width="250" height="85" rx="8" fill="#f9fafb"
           stroke="#e5e7eb" stroke-width="1"/>
     <text x="1320" y="805" font-size="11" font-weight="bold" fill="#374151">Legend</text>
     <rect x="1320" y="815" width="16" height="10" fill="#ffffff" stroke="#d1d5db"/>
     <text x="1345" y="824" font-size="10" fill="#6b7280">Data/Control</text>
     <rect x="1420" y="815" width="16" height="10" fill="#fef3c7" stroke="#f59e0b"/>
     <text x="1445" y="824" font-size="10" fill="#6b7280">Observability</text>
+    <rect x="1320" y="835" width="16" height="10" fill="#e0f2fe" stroke="#0ea5e9"/>
+    <text x="1345" y="844" font-size="10" fill="#6b7280">Visualization</text>
   </g>
 </svg>

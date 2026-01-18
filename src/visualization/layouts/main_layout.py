@@ -1,4 +1,4 @@
-"""Main dashboard layout with minimal dark design."""
+"""Main dashboard layout with clean dark design."""
 
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ from src.visualization.plots import (
 from src.visualization.widgets import (
     DashboardSelectors,
     create_kpi_card,
-    create_status_indicator,
     create_summary_table,
 )
 
@@ -36,9 +35,18 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Light theme colors for layout (from common.py)
+BG_LIGHT = THEME_COLORS["background"]
+SURFACE = THEME_COLORS["surface"]
+BORDER = THEME_COLORS["border"]
+TEXT = THEME_COLORS["text"]
+TEXT_MUTED = THEME_COLORS["text_muted"]
+PRIMARY = THEME_COLORS["primary"]
+SHADOW = "0 4px 12px rgba(0, 0, 0, 0.08)"
+
 
 class DashboardLayout:
-    """Minimal dark dashboard layout."""
+    """Clean light dashboard layout."""
 
     def __init__(
         self,
@@ -178,12 +186,12 @@ class DashboardLayout:
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
-                border-radius: 12px;
+                background: {SURFACE};
+                border: 1px dashed {BORDER};
+                border-radius: 8px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             ">
-                <span style="color: {THEME_COLORS['text_muted']}; font-size: 13px;">No data available</span>
+                <span style="color: {TEXT_MUTED}; font-size: 13px;">No data available</span>
             </div>
             """,
             width=850, height=220,
@@ -195,22 +203,22 @@ class DashboardLayout:
         self._update_chart()
 
         header = self._create_header()
-        kpi_section = self._create_card_section("Overview", self._kpi_cards_row)
-        chart_section = self._create_card_section("Metrics", self._chart_container)
+        overview_section = self._create_section("Overview", self._kpi_cards_row)
+        metrics_section = self._create_section("Metrics", self._chart_container)
         explorer_section = self._create_explorer_section()
 
         return column(
             header,
-            kpi_section,
-            chart_section,
+            overview_section,
+            metrics_section,
             explorer_section,
             sizing_mode="stretch_width",
         )
 
     def _create_header(self) -> Div:
         prom_ok = self._prometheus.is_available()
-        status_color = THEME_COLORS['success'] if prom_ok else THEME_COLORS['error']
-        status_text = 'Connected' if prom_ok else 'Disconnected'
+        status_color = THEME_COLORS["success"] if prom_ok else THEME_COLORS["error"]
+        status_text = "Connected" if prom_ok else "Disconnected"
 
         return Div(
             text=f"""
@@ -219,28 +227,60 @@ class DashboardLayout:
                 align-items: center;
                 justify-content: space-between;
                 padding: 16px 20px;
-                margin-bottom: 20px;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
+                margin-bottom: 16px;
+                background: {SURFACE};
                 border-radius: 12px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                box-shadow: {SHADOW};
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             ">
-                <h1 style="margin: 0; color: {THEME_COLORS['text']}; font-size: 16px; font-weight: 600;">
-                    VisioEval
-                </h1>
-                <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="display: flex; align-items: center;">
+                    <div style="
+                        width: 40px; height: 40px;
+                        background: {PRIMARY};
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-right: 12px;
+                        box-shadow: {SHADOW};
+                    ">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="white" stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 style="margin: 0; color: {TEXT}; font-size: 18px; font-weight: 600;">
+                            VisioEval
+                        </h1>
+                        <p style="margin: 0; color: {TEXT_MUTED}; font-size: 12px;">
+                            Metrics Dashboard
+                        </p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
                     <div id="clock" style="
-                        color: {THEME_COLORS['text_muted']};
+                        color: {TEXT_MUTED};
                         font-size: 12px;
                         font-variant-numeric: tabular-nums;
+                        background: {BG_LIGHT};
+                        padding: 6px 12px;
+                        border-radius: 6px;
                     ">--:--:--</div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        background: {BG_LIGHT};
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                    ">
                         <div style="
-                            width: 6px; height: 6px;
+                            width: 8px; height: 8px;
                             background: {status_color};
                             border-radius: 50%;
                         "></div>
-                        <span style="color: {THEME_COLORS['text_muted']}; font-size: 11px;">
+                        <span style="color: {TEXT_MUTED}; font-size: 11px;">
                             {status_text}
                         </span>
                     </div>
@@ -257,42 +297,63 @@ class DashboardLayout:
                 }})();
             </script>
             """,
-            height=70,
+            height=75,
         )
 
-    def _create_card_section(self, title: str, content: Model) -> Model:
-        header = Div(
+    def _create_section(self, title: str, content: Model) -> Model:
+        """Create a card section with title and content.
+
+        Uses a card header + content wrapper approach for visual continuity.
+        """
+        # Card header with title - has top border-radius
+        card_header = Div(
             text=f"""
             <div style="
-                padding: 14px 20px;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
+                background: {SURFACE};
                 border-radius: 12px 12px 0 0;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                padding: 16px 20px 12px 20px;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             ">
-                <span style="color: {THEME_COLORS['text']}; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">{title}</span>
+                <span style="
+                    color: {TEXT};
+                    font-size: 14px;
+                    font-weight: 600;
+                ">{title}</span>
             </div>
             """,
-            height=48,
+            height=50,
         )
 
-        wrapper = Div(
+        # Card body footer - has bottom border-radius and shadow
+        card_footer = Div(
             text=f"""
             <div style="
-                padding: 20px;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
-                border-top: none;
+                background: {SURFACE};
+                height: 16px;
                 border-radius: 0 0 12px 12px;
-                margin-bottom: 20px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                margin-bottom: 16px;
             "></div>
             """,
-            height=0,
+            height=20,
         )
 
-        return column(header, content, wrapper, sizing_mode="stretch_width")
+        # Content gets sandwiched with white background via CSS
+        content_col = column(
+            content,
+            sizing_mode="stretch_width",
+            css_classes=["section-content"],
+        )
+
+        return column(
+            card_header,
+            content_col,
+            card_footer,
+            sizing_mode="stretch_width",
+        )
 
     def _create_explorer_section(self) -> Model:
+        """Create the data explorer section with selectors and visualization."""
         selectors_row = row(
             column(self._selectors.directory_select, width=140),
             column(self._selectors.algorithm_select, width=140),
@@ -304,45 +365,51 @@ class DashboardLayout:
             column(self._refresh_spinner, width=65),
         )
 
-        header = Div(
-            text=f"""
-            <div style="
-                padding: 14px 20px;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
-                border-radius: 12px 12px 0 0;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            ">
-                <span style="color: {THEME_COLORS['text']}; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Data Explorer</span>
-            </div>
-            """,
-            height=48,
-        )
-
         content_wrapper = column(
             selectors_row,
             self._stats_row,
             self._plot_container,
             sizing_mode="stretch_width",
+            css_classes=["section-content"],
         )
 
-        footer = Div(
+        # Card header with title
+        card_header = Div(
             text=f"""
             <div style="
-                padding: 16px;
-                background: {THEME_COLORS['surface']};
-                border: 1px solid {THEME_COLORS['border_light']};
-                border-top: none;
+                background: {SURFACE};
+                border-radius: 12px 12px 0 0;
+                padding: 16px 20px 12px 20px;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            ">
+                <span style="
+                    color: {TEXT};
+                    font-size: 14px;
+                    font-weight: 600;
+                ">Data Explorer</span>
+            </div>
+            """,
+            height=50,
+        )
+
+        # Card footer with shadow
+        card_footer = Div(
+            text=f"""
+            <div style="
+                background: {SURFACE};
+                height: 16px;
                 border-radius: 0 0 12px 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                margin-bottom: 16px;
             "></div>
             """,
-            height=0,
+            height=20,
         )
 
         return column(
-            header,
+            card_header,
             content_wrapper,
-            footer,
+            card_footer,
             sizing_mode="stretch_width",
         )
 
@@ -444,12 +511,12 @@ class DashboardLayout:
         p.xgrid.grid_line_color = None
         p.y_range.start = 0
         p.title.text_font_size = "12pt"
-        p.title.text_color = THEME_COLORS["text"]
-        p.xaxis.major_label_text_color = THEME_COLORS["text_muted"]
-        p.yaxis.major_label_text_color = THEME_COLORS["text_muted"]
-        p.background_fill_color = THEME_COLORS["background"]
-        p.border_fill_color = THEME_COLORS["background"]
-        p.outline_line_color = THEME_COLORS["border"]
+        p.title.text_color = TEXT
+        p.xaxis.major_label_text_color = TEXT_MUTED
+        p.yaxis.major_label_text_color = TEXT_MUTED
+        p.background_fill_color = SURFACE
+        p.border_fill_color = BG_LIGHT
+        p.outline_line_color = BORDER
 
         return p
 

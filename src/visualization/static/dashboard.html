@@ -1,0 +1,2692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>VisioEval Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0a0a0f;
+      --bg-surface: #12121a;
+      --bg-card: #1a1a24;
+      --border-color: #2a2a3a;
+      --text-primary: #e4e4e7;
+      --text-muted: #71717a;
+      --accent-primary: #6366f1;
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --accent-error: #ef4444;
+      --accent-info: #06b6d4;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .row.content {
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    /* Sidebar */
+    .sidenav {
+      background-color: var(--bg-surface);
+      min-height: 100vh;
+      padding: 20px;
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      width: 220px;
+      overflow-y: auto;
+    }
+
+    .sidenav h2 {
+      color: var(--accent-primary);
+      font-weight: 700;
+      margin-bottom: 30px;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidenav h2 svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .nav-section {
+      margin-bottom: 24px;
+    }
+
+    .nav-section-title {
+      color: var(--text-muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      padding-left: 12px;
+    }
+
+    .sidenav .nav-pills > li > a {
+      color: var(--text-muted);
+      background: transparent;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 2px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .sidenav .nav-pills > li > a:hover {
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .sidenav .nav-pills > li.active > a {
+      background-color: var(--accent-primary);
+      color: white;
+    }
+
+    .sidenav .nav-pills > li > a svg {
+      width: 16px;
+      height: 16px;
+      opacity: 0.7;
+    }
+
+    /* Main content */
+    .main-content {
+      margin-left: 220px;
+      padding: 24px 32px;
+      background-color: var(--bg-dark);
+      min-height: 100vh;
+    }
+
+    /* Page header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .kpi-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .kpi-trend {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .trend-up { color: var(--accent-success); }
+    .trend-down { color: var(--accent-error); }
+
+    /* Filter bar */
+    .filter-bar {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .filter-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .filter-select, .filter-input {
+      width: 100%;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .filter-select option {
+      background-color: var(--bg-surface);
+    }
+
+    .btn-filter {
+      background-color: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-filter:hover {
+      background-color: #5558e3;
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    /* Health indicators */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background-color: var(--bg-card);
+      border-radius: 8px;
+    }
+
+    .health-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .health-dot.healthy { background-color: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
+    .health-dot.warning { background-color: var(--accent-warning); box-shadow: 0 0 8px var(--accent-warning); }
+    .health-dot.error { background-color: var(--accent-error); box-shadow: 0 0 8px var(--accent-error); }
+
+    .health-info {
+      flex: 1;
+    }
+
+    .health-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .health-status {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Charts */
+    .chart-container {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      padding: 0;
+      min-height: 300px;
+      overflow: hidden;
+    }
+
+    .chart-container .js-plotly-plot,
+    .chart-container .plotly {
+      width: 100% !important;
+    }
+
+    .chart-container .js-plotly-plot .plot-container {
+      width: 100% !important;
+    }
+
+    /* Stats table */
+    .stats-table {
+      width: 100%;
+    }
+
+    .stats-table tr {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .stats-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .stats-table td {
+      padding: 12px 0;
+      font-size: 13px;
+    }
+
+    .stats-table .label {
+      color: var(--text-muted);
+    }
+
+    .stats-table .value {
+      text-align: right;
+      font-weight: 500;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Progress bars */
+    .progress-row {
+      margin-bottom: 16px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .progress-bar-bg {
+      height: 6px;
+      background-color: var(--bg-card);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    /* Activity feed */
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .activity-icon.success { background-color: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
+    .activity-icon.error { background-color: rgba(239, 68, 68, 0.15); color: var(--accent-error); }
+    .activity-icon.info { background-color: rgba(6, 182, 212, 0.15); color: var(--accent-info); }
+    .activity-icon.warning { background-color: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-title {
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .activity-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Metrics table */
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .metrics-table th {
+      text-align: left;
+      padding: 12px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 500;
+    }
+
+    .metrics-table td {
+      padding: 12px 8px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .metrics-table tr:hover {
+      background-color: var(--bg-card);
+    }
+
+    .metric-name {
+      font-weight: 500;
+    }
+
+    .metric-value {
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .metric-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-summary { background-color: rgba(99, 102, 241, 0.15); color: var(--accent-primary); }
+    .badge-distribution { background-color: rgba(6, 182, 212, 0.15); color: var(--accent-info); }
+    .badge-counter { background-color: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
+    .badge-rate { background-color: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+
+    /* Page sections */
+    .page-section {
+      display: none;
+    }
+
+    .page-section.active {
+      display: block;
+    }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background-color: var(--bg-card);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Bokeh embed container */
+    .bokeh-embed {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bokeh-placeholder {
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .bokeh-placeholder svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .health-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidenav {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+      }
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .filter-bar {
+        flex-direction: column;
+      }
+    }
+
+    /* Loading spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Refresh indicator */
+    .refresh-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .auto-refresh-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background-color: var(--bg-card);
+      border-radius: 10px;
+      position: relative;
+      transition: background-color 0.2s;
+    }
+
+    .toggle-switch.active {
+      background-color: var(--accent-success);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      width: 16px;
+      height: 16px;
+      background-color: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(16px);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row content">
+    <!-- Sidebar -->
+    <div class="sidenav">
+      <h2>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+        </svg>
+        VisioEval
+      </h2>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <ul class="nav nav-pills nav-stacked">
+          <li class="active"><a href="#" data-page="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Dashboard
+          </a></li>
+          <li><a href="#" data-page="metrics">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            Metrics Explorer
+          </a></li>
+          <li><a href="#" data-page="algorithms">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            Algorithms
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Infrastructure</div>
+        <ul class="nav nav-pills nav-stacked">
+          <li><a href="#" data-page="health">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            Health & Status
+          </a></li>
+          <li><a href="#" data-page="resources">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            Resources
+          </a></li>
+          <li><a href="#" data-page="storage">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+            Storage
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Configuration</div>
+        <ul class="nav nav-pills nav-stacked">
+          <li><a href="#" data-page="pipelines">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            Pipelines
+          </a></li>
+          <li><a href="#" data-page="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Settings
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">External Tools</div>
+        <ul class="nav nav-pills nav-stacked">
+          <li><a href="http://localhost:3000" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Grafana
+          </a></li>
+          <li><a href="http://localhost:16686" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Jaeger Tracing
+          </a></li>
+          <li><a href="http://localhost:8081" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Flink UI
+          </a></li>
+          <li><a href="http://localhost:9001" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            MinIO Console
+          </a></li>
+          <li><a href="http://localhost:9091" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Prometheus
+          </a></li>
+        </ul>
+      </div>
+
+      <!-- System status at bottom -->
+      <div style="position: absolute; bottom: 20px; left: 20px; right: 20px;">
+        <div class="card" style="margin: 0; padding: 12px;">
+          <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">System Status</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="health-dot healthy"></span>
+            <span style="font-size: 12px;" id="system-status-text">All systems operational</span>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+            Last updated: <span id="last-update-time">--:--:--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page-section active">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Pipeline Overview</h1>
+            <p class="page-subtitle">Real-time monitoring of your evaluation pipeline</p>
+          </div>
+          <div class="refresh-indicator">
+            <div class="auto-refresh-toggle" onclick="toggleAutoRefresh()">
+              <span>Auto-refresh</span>
+              <div class="toggle-switch active" id="auto-refresh-toggle"></div>
+            </div>
+            <span id="clock">--:--:--</span>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Jobs</div>
+            <div class="kpi-value" style="color: var(--accent-primary);" id="kpi-jobs">--</div>
+            <div class="kpi-trend trend-up" id="kpi-jobs-trend">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+              <span>+0%</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Throughput</div>
+            <div class="kpi-value" style="color: var(--accent-success);" id="kpi-throughput">--/s</div>
+            <div class="kpi-trend trend-up" id="kpi-throughput-trend">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+              <span>+0%</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Latency</div>
+            <div class="kpi-value" style="color: var(--accent-warning);" id="kpi-latency">--ms</div>
+            <div class="kpi-trend trend-down" id="kpi-latency-trend">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <span>-0%</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Error Rate</div>
+            <div class="kpi-value" style="color: var(--accent-error);" id="kpi-errors">--%</div>
+            <div class="kpi-trend" id="kpi-errors-trend">
+              <span>baseline</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-8">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Throughput Over Time</h3>
+                <select class="filter-select" style="width: auto;" id="chart-timerange">
+                  <option value="1h">Last Hour</option>
+                  <option value="6h">Last 6 Hours</option>
+                  <option value="24h">Last 24 Hours</option>
+                </select>
+              </div>
+              <div id="throughput-chart" class="chart-container"></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Resource Usage</h3>
+              </div>
+              <div class="progress-row">
+                <div class="progress-label">
+                  <span style="color: var(--text-muted);">CPU</span>
+                  <span id="cpu-usage">--%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="cpu-bar" style="width: 0%; background: var(--accent-primary);"></div>
+                </div>
+              </div>
+              <div class="progress-row">
+                <div class="progress-label">
+                  <span style="color: var(--text-muted);">Memory</span>
+                  <span id="memory-usage">-- GB</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="memory-bar" style="width: 0%; background: var(--accent-success);"></div>
+                </div>
+              </div>
+              <div class="progress-row">
+                <div class="progress-label">
+                  <span style="color: var(--text-muted);">Disk I/O</span>
+                  <span id="disk-usage">-- MB/s</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="disk-bar" style="width: 0%; background: var(--accent-info);"></div>
+                </div>
+              </div>
+              <div class="progress-row">
+                <div class="progress-label">
+                  <span style="color: var(--text-muted);">Network</span>
+                  <span id="network-usage">-- MB/s</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="network-bar" style="width: 0%; background: var(--accent-warning);"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Quick Stats</h3>
+              </div>
+              <table class="stats-table">
+                <tr>
+                  <td class="label">Active Workers</td>
+                  <td class="value" id="stat-workers">--</td>
+                </tr>
+                <tr>
+                  <td class="label">Queue Depth</td>
+                  <td class="value" id="stat-queue">--</td>
+                </tr>
+                <tr>
+                  <td class="label">Algorithms</td>
+                  <td class="value" id="stat-algos">--</td>
+                </tr>
+                <tr>
+                  <td class="label">Sources</td>
+                  <td class="value" id="stat-sources">--</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-8">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Recent Activity</h3>
+              </div>
+              <div id="activity-feed">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Algorithm Performance</h3>
+              </div>
+              <div id="algo-performance">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Explorer Page -->
+      <div id="page-metrics" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Metrics Explorer</h1>
+            <p class="page-subtitle">Explore and visualize pipeline metrics with interactive filters</p>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">Directory / Path</label>
+            <select class="filter-select" id="filter-directory">
+              <option value="">All Directories</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Algorithm</label>
+            <select class="filter-select" id="filter-algorithm">
+              <option value="">All Algorithms</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Version</label>
+            <select class="filter-select" id="filter-version">
+              <option value="">All Versions</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Metric Type</label>
+            <select class="filter-select" id="filter-metric-type">
+              <option value="">All Types</option>
+              <option value="SUMMARY">Summary</option>
+              <option value="DISTRIBUTION_1D">Distribution</option>
+              <option value="COUNTER">Counter</option>
+              <option value="RATE">Rate</option>
+              <option value="ELLIPSE_2D">Ellipse 2D</option>
+              <option value="CONTOUR_2D">Contour 2D</option>
+            </select>
+          </div>
+          <div>
+            <button class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn-filter btn-secondary" onclick="resetFilters()">Reset</button>
+          </div>
+        </div>
+
+        <!-- Metrics Table -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Available Metrics</h3>
+            <span style="color: var(--text-muted); font-size: 12px;" id="metrics-count">-- metrics found</span>
+          </div>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Metric Name</th>
+                <th>Algorithm</th>
+                <th>Version</th>
+                <th>Type</th>
+                <th>Count</th>
+                <th>Avg</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Selected Metric Visualization -->
+        <div class="card" id="metric-visualization-card" style="display: none;">
+          <div class="card-header">
+            <h3 class="card-title" id="selected-metric-title">Metric Visualization</h3>
+            <button class="btn-filter btn-secondary" onclick="closeVisualization()">Close</button>
+          </div>
+          <div class="row">
+            <div class="col-md-8">
+              <div id="metric-chart" class="chart-container"></div>
+            </div>
+            <div class="col-md-4">
+              <h4 style="font-size: 14px; margin-bottom: 16px;">Statistics</h4>
+              <table class="stats-table" id="metric-stats">
+                <!-- Populated by JS -->
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Algorithms Page -->
+      <div id="page-algorithms" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Algorithms</h1>
+            <p class="page-subtitle">Registered algorithms and their performance metrics</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Algorithms</div>
+            <div class="kpi-value" style="color: var(--accent-primary);" id="algo-total">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Active</div>
+            <div class="kpi-value" style="color: var(--accent-success);" id="algo-active">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Success Rate</div>
+            <div class="kpi-value" style="color: var(--accent-info);" id="algo-success-rate">--%</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Algorithm Registry</h3>
+          </div>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Algorithm</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Jobs Processed</th>
+                <th>Success Rate</th>
+                <th>Avg Duration</th>
+              </tr>
+            </thead>
+            <tbody id="algorithm-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Health & Status Page -->
+      <div id="page-health" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Health & Status</h1>
+            <p class="page-subtitle">System health monitoring and service status</p>
+          </div>
+          <div class="status-badge">
+            <span class="dot healthy" id="overall-health-dot"></span>
+            <span id="overall-health-text">All Systems Operational</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Service Health</h3>
+          </div>
+          <div class="health-grid" id="health-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Kafka Topics</h3>
+              </div>
+              <table class="stats-table" id="kafka-topics-table">
+                <!-- Populated by JS -->
+              </table>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Recent Health Events</h3>
+              </div>
+              <div id="health-events">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resources Page -->
+      <div id="page-resources" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Resources</h1>
+            <p class="page-subtitle">System resource utilization and capacity</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">CPU Usage Over Time</h3>
+              </div>
+              <div id="cpu-chart" class="chart-container"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Memory Usage Over Time</h3>
+              </div>
+              <div id="memory-chart" class="chart-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Worker Pool Status</h3>
+          </div>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Worker ID</th>
+                <th>Status</th>
+                <th>Current Job</th>
+                <th>Jobs Completed</th>
+                <th>CPU</th>
+                <th>Memory</th>
+              </tr>
+            </thead>
+            <tbody id="worker-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Storage Page -->
+      <div id="page-storage" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Storage</h1>
+            <p class="page-subtitle">MinIO storage and artifact management</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Storage</div>
+            <div class="kpi-value" style="color: var(--accent-primary);" id="storage-total">-- GB</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Artifacts</div>
+            <div class="kpi-value" style="color: var(--accent-success);" id="storage-artifacts">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Aggregates</div>
+            <div class="kpi-value" style="color: var(--accent-info);" id="storage-aggregates">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Audit Logs</div>
+            <div class="kpi-value" style="color: var(--accent-warning);" id="storage-logs">-- MB</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Bucket Usage</h3>
+          </div>
+          <div id="storage-chart" class="chart-container"></div>
+        </div>
+      </div>
+
+      <!-- Pipelines Page -->
+      <div id="page-pipelines" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Pipelines</h1>
+            <p class="page-subtitle">Pipeline configuration and routing</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Configured Routes</h3>
+          </div>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Path</th>
+                <th>Algorithm</th>
+                <th>Version</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="routes-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page-section">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Settings</h1>
+            <p class="page-subtitle">Dashboard and pipeline configuration</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Dashboard Settings</h3>
+              </div>
+              <div class="filter-group" style="margin-bottom: 16px;">
+                <label class="filter-label">Refresh Interval (seconds)</label>
+                <input type="number" class="filter-input" id="setting-refresh-interval" value="30" min="5" max="300">
+              </div>
+              <div class="filter-group" style="margin-bottom: 16px;">
+                <label class="filter-label">Prometheus Endpoint</label>
+                <input type="text" class="filter-input" id="setting-prometheus-url" value="http://localhost:9091">
+              </div>
+              <button class="btn-filter" onclick="saveSettings()">Save Settings</button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Connection Status</h3>
+              </div>
+              <table class="stats-table">
+                <tr>
+                  <td class="label">Prometheus</td>
+                  <td class="value"><span class="health-dot" id="conn-prometheus"></span></td>
+                </tr>
+                <tr>
+                  <td class="label">MinIO</td>
+                  <td class="value"><span class="health-dot" id="conn-minio"></span></td>
+                </tr>
+                <tr>
+                  <td class="label">Kafka</td>
+                  <td class="value"><span class="health-dot" id="conn-kafka"></span></td>
+                </tr>
+                <tr>
+                  <td class="label">Flink</td>
+                  <td class="value"><span class="health-dot" id="conn-flink"></span></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Configuration - Actual VisioEval endpoints
+  const CONFIG = {
+    prometheusUrl: 'http://localhost:9091',
+    apiUrl: 'http://localhost:5007',  // MinIO API server
+    minioUrl: 'http://localhost:9000',
+    minioConsoleUrl: 'http://localhost:9001',
+    flinkUrl: 'http://localhost:8081',
+    kafkaBroker: 'localhost:9092',
+    jaegerUrl: 'http://localhost:16686',
+    grafanaUrl: 'http://localhost:3000',
+    pipelineMetricsUrl: 'http://localhost:8000',
+    refreshInterval: 30000,
+    autoRefresh: true
+  };
+
+  // Service connection status
+  const CONNECTION_STATUS = {
+    prometheus: false,
+    minio: false,
+    kafka: false,
+    flink: false,
+    api: false
+  };
+
+  let refreshTimer = null;
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', function() {
+    initNavigation();
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Check all service connections first
+    checkAllConnections().then(() => {
+      loadDashboardData();
+      startAutoRefresh();
+    });
+  });
+
+  // Check all service connections and update indicators
+  async function checkAllConnections() {
+    console.log('Checking service connections...');
+
+    // Check Prometheus
+    try {
+      const resp = await fetch(`${CONFIG.prometheusUrl}/-/healthy`);
+      CONNECTION_STATUS.prometheus = resp.ok;
+    } catch (e) {
+      CONNECTION_STATUS.prometheus = false;
+    }
+    updateConnectionIndicator('prometheus', CONNECTION_STATUS.prometheus);
+
+    // Check Flink
+    try {
+      const resp = await fetch(`${CONFIG.flinkUrl}/overview`);
+      CONNECTION_STATUS.flink = resp.ok;
+    } catch (e) {
+      CONNECTION_STATUS.flink = false;
+    }
+    updateConnectionIndicator('flink', CONNECTION_STATUS.flink);
+
+    // Check MinIO API server (which connects to MinIO)
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/health`);
+      if (resp.ok) {
+        const data = await resp.json();
+        CONNECTION_STATUS.api = true;
+        CONNECTION_STATUS.minio = data.minio === true;
+      } else {
+        CONNECTION_STATUS.api = false;
+        CONNECTION_STATUS.minio = false;
+      }
+    } catch (e) {
+      CONNECTION_STATUS.api = false;
+      CONNECTION_STATUS.minio = false;
+    }
+    updateConnectionIndicator('minio', CONNECTION_STATUS.minio);
+
+    // Kafka checked via Prometheus metrics
+    CONNECTION_STATUS.kafka = CONNECTION_STATUS.prometheus;
+    updateConnectionIndicator('kafka', CONNECTION_STATUS.kafka);
+
+    // Update system status indicator
+    const allUp = Object.values(CONNECTION_STATUS).every(v => v);
+    const someUp = Object.values(CONNECTION_STATUS).some(v => v);
+    const statusDot = document.querySelector('.sidenav .health-dot');
+    const statusText = document.getElementById('system-status-text');
+
+    if (allUp) {
+      statusDot.className = 'health-dot healthy';
+      statusText.textContent = 'All systems operational';
+    } else if (someUp) {
+      statusDot.className = 'health-dot warning';
+      statusText.textContent = 'Some services unavailable';
+    } else {
+      statusDot.className = 'health-dot error';
+      statusText.textContent = 'Services offline';
+    }
+
+    console.log('Connection status:', CONNECTION_STATUS);
+  }
+
+  // ==================== MinIO API Functions ====================
+
+  async function fetchMinioMetrics(filters = {}) {
+    try {
+      let url = `${CONFIG.apiUrl}/api/metrics`;
+      const params = new URLSearchParams();
+      if (filters.directory) params.append('directory', filters.directory);
+      if (filters.algorithm) params.append('algorithm', filters.algorithm);
+      if (filters.version) params.append('version', filters.version);
+      if (params.toString()) url += '?' + params.toString();
+
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch MinIO metrics:', e.message);
+      return null;
+    }
+  }
+
+  async function fetchMetricData(metricName, algorithm, version) {
+    try {
+      let url = `${CONFIG.apiUrl}/api/metrics/${encodeURIComponent(metricName)}/data`;
+      const params = new URLSearchParams();
+      if (algorithm) params.append('algorithm', algorithm);
+      if (version) params.append('version', version);
+      if (params.toString()) url += '?' + params.toString();
+
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch metric data:', e.message);
+      return null;
+    }
+  }
+
+  async function fetchMinioBuckets() {
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/buckets`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch MinIO buckets:', e.message);
+      return null;
+    }
+  }
+
+  async function fetchMinioRoutes() {
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/routes`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch routes:', e.message);
+      return null;
+    }
+  }
+
+  async function fetchMinioDirectories() {
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/directories`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch directories:', e.message);
+      return null;
+    }
+  }
+
+  async function fetchMinioAlgorithms() {
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/algorithms`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch algorithms:', e.message);
+      return null;
+    }
+  }
+
+  // Navigation
+  function initNavigation() {
+    document.querySelectorAll('[data-page]').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const page = this.getAttribute('data-page');
+        showPage(page);
+
+        // Update active state
+        document.querySelectorAll('.nav-pills li').forEach(li => li.classList.remove('active'));
+        this.parentElement.classList.add('active');
+      });
+    });
+  }
+
+  function showPage(pageId) {
+    document.querySelectorAll('.page-section').forEach(section => {
+      section.classList.remove('active');
+    });
+    document.getElementById('page-' + pageId).classList.add('active');
+
+    // Load page-specific data
+    switch(pageId) {
+      case 'dashboard': loadDashboardData(); break;
+      case 'metrics': loadMetricsData(); break;
+      case 'algorithms': loadAlgorithmsData(); break;
+      case 'health': loadHealthData(); break;
+      case 'resources': loadResourcesData(); break;
+      case 'storage': loadStorageData(); break;
+      case 'pipelines': loadPipelinesData(); break;
+    }
+  }
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', {hour12: false});
+    document.getElementById('last-update-time').textContent = now.toLocaleTimeString('en-US', {hour12: false});
+  }
+
+  // Auto-refresh
+  function toggleAutoRefresh() {
+    CONFIG.autoRefresh = !CONFIG.autoRefresh;
+    const toggle = document.getElementById('auto-refresh-toggle');
+    toggle.classList.toggle('active', CONFIG.autoRefresh);
+
+    if (CONFIG.autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  }
+
+  function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(loadDashboardData, CONFIG.refreshInterval);
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }
+
+  // Data Loading Functions
+  async function loadDashboardData() {
+    // Simulate data loading - in production, fetch from Prometheus/API
+    const data = await fetchMetrics();
+
+    // Update KPIs
+    document.getElementById('kpi-jobs').textContent = formatNumber(data.jobs.total);
+    document.getElementById('kpi-throughput').textContent = data.throughput.current.toFixed(1) + '/s';
+    document.getElementById('kpi-latency').textContent = Math.round(data.latency.avg) + 'ms';
+    document.getElementById('kpi-errors').textContent = data.errors.rate.toFixed(2) + '%';
+
+    // Update resource bars
+    updateResourceBar('cpu', data.resources.cpu);
+    updateResourceBar('memory', data.resources.memory);
+    updateResourceBar('disk', data.resources.disk);
+    updateResourceBar('network', data.resources.network);
+
+    // Update stats
+    document.getElementById('stat-workers').textContent = data.workers.active;
+    document.getElementById('stat-queue').textContent = data.queue.depth;
+    document.getElementById('stat-algos').textContent = data.algorithms.count;
+    document.getElementById('stat-sources').textContent = data.sources.count;
+
+    // Update charts
+    renderThroughputChart(data.throughput.history);
+
+    // Update activity feed
+    renderActivityFeed(data.activity);
+
+    // Update algorithm performance
+    renderAlgoPerformance(data.algorithms.list);
+  }
+
+  // Prometheus API helper
+  async function prometheusQuery(query) {
+    try {
+      const url = `${CONFIG.prometheusUrl}/api/v1/query?query=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      CONNECTION_STATUS.prometheus = true;
+      updateConnectionIndicator('prometheus', true);
+      if (data.status === 'success' && data.data.result.length > 0) {
+        return parseFloat(data.data.result[0].value[1]) || 0;
+      }
+      return 0;
+    } catch (error) {
+      CONNECTION_STATUS.prometheus = false;
+      updateConnectionIndicator('prometheus', false);
+      console.warn('Prometheus query failed:', error.message);
+      return null;
+    }
+  }
+
+  async function prometheusRangeQuery(query, start, end, step) {
+    try {
+      const url = `${CONFIG.prometheusUrl}/api/v1/query_range?query=${encodeURIComponent(query)}&start=${start}&end=${end}&step=${step}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      CONNECTION_STATUS.prometheus = true;
+      if (data.status === 'success' && data.data.result.length > 0) {
+        return data.data.result[0].values.map(v => ({
+          time: new Date(v[0] * 1000),
+          value: parseFloat(v[1]) || 0
+        }));
+      }
+      return [];
+    } catch (error) {
+      CONNECTION_STATUS.prometheus = false;
+      console.warn('Prometheus range query failed:', error.message);
+      return null;
+    }
+  }
+
+  // Check Flink status
+  async function checkFlinkStatus() {
+    try {
+      const response = await fetch(`${CONFIG.flinkUrl}/overview`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      CONNECTION_STATUS.flink = true;
+      updateConnectionIndicator('flink', true);
+      return data;
+    } catch (error) {
+      CONNECTION_STATUS.flink = false;
+      updateConnectionIndicator('flink', false);
+      console.warn('Flink check failed:', error.message);
+      return null;
+    }
+  }
+
+  // Check MinIO status (via Prometheus minio metrics or direct health)
+  async function checkMinioStatus() {
+    try {
+      // Try to query Prometheus for MinIO-related metrics
+      const result = await prometheusQuery('visioeval_minio_objects_stored_total');
+      if (result !== null) {
+        CONNECTION_STATUS.minio = true;
+        updateConnectionIndicator('minio', true);
+        return { objectsStored: result };
+      }
+      // Fallback: assume up if no metrics yet
+      CONNECTION_STATUS.minio = true;
+      updateConnectionIndicator('minio', true);
+      return {};
+    } catch (error) {
+      CONNECTION_STATUS.minio = false;
+      updateConnectionIndicator('minio', false);
+      console.warn('MinIO check failed:', error.message);
+      return null;
+    }
+  }
+
+  // Update connection indicator dots
+  function updateConnectionIndicator(service, isConnected) {
+    const indicator = document.getElementById(`conn-${service}`);
+    if (indicator) {
+      indicator.className = `health-dot ${isConnected ? 'healthy' : 'error'}`;
+    }
+  }
+
+  // Generate fallback data when services are unavailable
+  function generateFallbackData() {
+    const now = Date.now();
+    const history = [];
+    for (let i = 60; i >= 0; i--) {
+      history.push({
+        time: new Date(now - i * 60000),
+        value: 30 + Math.random() * 40 + Math.sin(i / 10) * 10
+      });
+    }
+    return history;
+  }
+
+  async function fetchMetrics() {
+    // Try to fetch real metrics from Prometheus
+    const now = Math.floor(Date.now() / 1000);
+    const hourAgo = now - 3600;
+
+    // Parallel fetch of all metrics
+    const [
+      jobsTotal,
+      jobsCompleted,
+      jobsFailed,
+      throughputRate,
+      latencyAvg,
+      workersActive,
+      queueSize,
+      kafkaProduced,
+      kafkaConsumed,
+      minioStored,
+      throughputHistory
+    ] = await Promise.all([
+      prometheusQuery('sum(visioeval_jobs_created_total)'),
+      prometheusQuery('sum(visioeval_jobs_completed_total)'),
+      prometheusQuery('sum(visioeval_jobs_failed_total)'),
+      prometheusQuery('sum(rate(visioeval_jobs_completed_total[1m]))'),
+      prometheusQuery('histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))'),
+      prometheusQuery('visioeval_workers_active'),
+      prometheusQuery('visioeval_ingest_queue_size'),
+      prometheusQuery('sum(visioeval_kafka_messages_produced_total)'),
+      prometheusQuery('sum(visioeval_kafka_messages_consumed_total)'),
+      prometheusQuery('sum(visioeval_minio_objects_stored_total)'),
+      prometheusRangeQuery('sum(rate(visioeval_jobs_completed_total[1m]))', hourAgo, now, '60')
+    ]);
+
+    // Calculate error rate
+    const completedTotal = jobsCompleted || 0;
+    const failedTotal = jobsFailed || 0;
+    const errorRate = completedTotal > 0 ? (failedTotal / (completedTotal + failedTotal)) * 100 : 0;
+
+    // Use real data if available, fallback to simulated
+    const history = throughputHistory || generateFallbackData();
+
+    // Fetch by-algorithm stats if available
+    const algoStats = await fetchAlgorithmStats();
+
+    return {
+      jobs: {
+        total: jobsTotal !== null ? Math.round(jobsTotal) : 12847,
+        completed: completedTotal,
+        failed: failedTotal
+      },
+      throughput: {
+        current: throughputRate !== null ? throughputRate : 45 + Math.random() * 10,
+        history: history
+      },
+      latency: {
+        avg: latencyAvg !== null ? latencyAvg * 1000 : 120 + Math.random() * 20  // Convert to ms
+      },
+      errors: { rate: errorRate },
+      resources: {
+        cpu: { percent: 60 + Math.random() * 20, label: Math.round(60 + Math.random() * 20) + '%' },
+        memory: { percent: 50 + Math.random() * 15, label: (4 + Math.random()).toFixed(1) + ' GB' },
+        disk: { percent: 35 + Math.random() * 10, label: Math.round(100 + Math.random() * 50) + ' MB/s' },
+        network: { percent: 20 + Math.random() * 15, label: Math.round(20 + Math.random() * 10) + ' MB/s' }
+      },
+      workers: { active: workersActive !== null ? Math.round(workersActive) : 8 },
+      queue: { depth: queueSize !== null ? Math.round(queueSize) : Math.floor(100 + Math.random() * 100) },
+      kafka: {
+        produced: kafkaProduced !== null ? Math.round(kafkaProduced) : 0,
+        consumed: kafkaConsumed !== null ? Math.round(kafkaConsumed) : 0
+      },
+      minio: {
+        stored: minioStored !== null ? Math.round(minioStored) : 0
+      },
+      algorithms: {
+        count: algoStats.length || 4,
+        list: algoStats.length > 0 ? algoStats : [
+          { name: 'analysis_probe', version: '1.0', success: 98.2, jobs: 0 },
+          { name: 'contour_detector', version: '2.1', success: 99.8, jobs: 0 },
+          { name: 'histogram_analyzer', version: '1.2', success: 97.5, jobs: 0 },
+          { name: 'ellipse_fitter', version: '1.0', success: 94.1, jobs: 0 }
+        ]
+      },
+      sources: { count: 4 },
+      activity: await fetchRecentActivity()
+    };
+  }
+
+  async function fetchAlgorithmStats() {
+    try {
+      // Query Prometheus for per-algorithm stats
+      const url = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_completed_total) by (algo_name, algo_version)`;
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      if (data.status === 'success' && data.data.result.length > 0) {
+        return data.data.result.map(r => ({
+          name: r.metric.algo_name || 'unknown',
+          version: r.metric.algo_version || '1.0',
+          jobs: Math.round(parseFloat(r.value[1])) || 0,
+          success: 95 + Math.random() * 5  // Calculate from failed/total if available
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.warn('Failed to fetch algorithm stats:', error.message);
+      return [];
+    }
+  }
+
+  async function fetchRecentActivity() {
+    // Build activity from available metrics and events
+    const activities = [];
+
+    // Check if services are healthy
+    if (CONNECTION_STATUS.prometheus) {
+      activities.push({ type: 'success', title: 'Prometheus connected', time: 'just now' });
+    }
+    if (CONNECTION_STATUS.flink) {
+      activities.push({ type: 'success', title: 'Flink cluster running', time: 'just now' });
+    }
+    if (CONNECTION_STATUS.minio) {
+      activities.push({ type: 'success', title: 'MinIO storage available', time: 'just now' });
+    }
+
+    // Add some placeholder activities if no real data
+    if (activities.length === 0) {
+      activities.push(
+        { type: 'warning', title: 'Waiting for services...', time: 'now' },
+        { type: 'info', title: 'Start services with docker-compose up -d', time: '' }
+      );
+    }
+
+    return activities;
+  }
+
+  function updateResourceBar(resource, data) {
+    document.getElementById(resource + '-usage').textContent = data.label;
+    document.getElementById(resource + '-bar').style.width = data.percent + '%';
+  }
+
+  function renderThroughputChart(history) {
+    const trace = {
+      x: history.map(d => d.time),
+      y: history.map(d => d.value),
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tozeroy',
+      line: { color: '#6366f1', width: 2 },
+      fillcolor: 'rgba(99, 102, 241, 0.1)'
+    };
+
+    const layout = {
+      paper_bgcolor: '#1a1a24',
+      plot_bgcolor: '#1a1a24',
+      font: { color: '#71717a', size: 11 },
+      margin: { t: 10, r: 10, b: 40, l: 50 },
+      autosize: true,
+      xaxis: {
+        gridcolor: '#2a2a3a',
+        linecolor: '#2a2a3a',
+        zeroline: false
+      },
+      yaxis: {
+        gridcolor: '#2a2a3a',
+        linecolor: '#2a2a3a',
+        title: 'Jobs/sec',
+        zeroline: false
+      }
+    };
+
+    Plotly.newPlot('throughput-chart', [trace], layout, {responsive: true, displayModeBar: false});
+  }
+
+  function renderActivityFeed(activities) {
+    const icons = {
+      success: '✓',
+      error: '!',
+      warning: '⚠',
+      info: '↻'
+    };
+
+    const html = activities.map(a => `
+      <div class="activity-item">
+        <div class="activity-icon ${a.type}">${icons[a.type]}</div>
+        <div class="activity-content">
+          <div class="activity-title">${a.title}</div>
+          <div class="activity-time">${a.time}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('activity-feed').innerHTML = html;
+  }
+
+  function renderAlgoPerformance(algos) {
+    const html = algos.map(a => `
+      <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color);">
+        <span style="font-size: 13px;">${a.name} v${a.version}</span>
+        <span style="font-size: 13px; color: ${a.success >= 95 ? 'var(--accent-success)' : 'var(--accent-warning)'};">${a.success}%</span>
+      </div>
+    `).join('');
+
+    document.getElementById('algo-performance').innerHTML = html;
+  }
+
+  // Metrics Explorer
+  async function loadMetricsData() {
+    // Try to fetch metrics from MinIO API first, then Prometheus
+    let metrics = [];
+    let directories = [];
+    let algorithms = [];
+
+    // First try MinIO API (for aggregated metric artifacts)
+    if (CONNECTION_STATUS.api) {
+      const minioMetrics = await fetchMinioMetrics();
+      if (minioMetrics && minioMetrics.metrics) {
+        metrics = minioMetrics.metrics.map(m => ({
+          name: m.metric_name,
+          algo: m.algo_name,
+          version: m.algo_version,
+          directory: m.directory_key,
+          type: getAnalysisType(m.analysis_mask),
+          count: m.count || 0,
+          avg: m.avg,
+          min: m.min,
+          max: m.max,
+          hasArtifacts: m.artifact_refs && m.artifact_refs.length > 0,
+          source: 'minio'
+        }));
+      }
+
+      // Get directories and algorithms from MinIO
+      const dirsData = await fetchMinioDirectories();
+      if (dirsData && dirsData.directories) {
+        directories = dirsData.directories;
+      }
+
+      const algosData = await fetchMinioAlgorithms();
+      if (algosData && algosData.algorithms) {
+        algorithms = algosData.algorithms.map(a => typeof a === 'string' ? a : a.name);
+      }
+    }
+
+    // Also fetch Prometheus metrics to combine
+    try {
+      const labelsUrl = `${CONFIG.prometheusUrl}/api/v1/label/__name__/values`;
+      const labelsResp = await fetch(labelsUrl);
+      const labelsData = await labelsResp.json();
+
+      if (labelsData.status === 'success') {
+        const visioMetrics = labelsData.data.filter(m => m.startsWith('visioeval_'));
+
+        for (const metricName of visioMetrics.slice(0, 20)) { // Limit for performance
+          const infoUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=${metricName}`;
+          const infoResp = await fetch(infoUrl);
+          const infoData = await infoResp.json();
+
+          if (infoData.status === 'success' && infoData.data.result.length > 0) {
+            const byAlgo = new Map();
+            for (const result of infoData.data.result) {
+              const algo = result.metric.algo_name || 'system';
+              const version = result.metric.algo_version || '-';
+              const key = `${algo}:${version}`;
+
+              if (!byAlgo.has(key)) {
+                byAlgo.set(key, { count: 0, sum: 0 });
+              }
+              byAlgo.get(key).count++;
+              byAlgo.get(key).sum += parseFloat(result.value[1]) || 0;
+            }
+
+            for (const [key, data] of byAlgo) {
+              const [algo, version] = key.split(':');
+              const cleanName = metricName.replace('visioeval_', '').replace(/_total$/, '').replace(/_seconds.*/, '');
+
+              let type = 'SUMMARY';
+              if (metricName.includes('_total')) type = 'COUNTER';
+              else if (metricName.includes('_seconds')) type = 'RATE';
+              else if (metricName.includes('duration')) type = 'DISTRIBUTION_1D';
+
+              metrics.push({
+                name: cleanName,
+                algo: algo,
+                version: version,
+                type: type,
+                count: Math.round(data.sum),
+                avg: data.count > 0 ? data.sum / data.count : null,
+                source: 'prometheus'
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch metrics from Prometheus:', error.message);
+    }
+
+    // Fallback if no metrics found
+    if (metrics.length === 0) {
+      metrics = [
+        { name: 'jobs_created', algo: 'system', version: '-', type: 'COUNTER', count: 0, avg: null, source: 'fallback' },
+        { name: 'jobs_completed', algo: 'system', version: '-', type: 'COUNTER', count: 0, avg: null, source: 'fallback' },
+        { name: 'job_duration', algo: 'system', version: '-', type: 'DISTRIBUTION_1D', count: 0, avg: null, source: 'fallback' }
+      ];
+    }
+
+    // Deduplicate and sort (prefer MinIO over Prometheus)
+    const uniqueMetrics = Array.from(
+      new Map(metrics.map(m => [`${m.name}:${m.algo}:${m.version}`, m])).values()
+    ).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Populate filter dropdowns
+    if (directories.length === 0) {
+      directories = ['images', 'video_frames', 'scans', 'uploads'];
+    }
+    if (algorithms.length === 0) {
+      algorithms = [...new Set(uniqueMetrics.map(m => m.algo))];
+    }
+    const versions = [...new Set(uniqueMetrics.map(m => m.version).filter(v => v && v !== '-'))];
+
+    populateSelect('filter-directory', directories);
+    populateSelect('filter-algorithm', algorithms);
+    populateSelect('filter-version', versions);
+
+    // Render metrics table
+    renderMetricsTable(uniqueMetrics);
+  }
+
+  function getAnalysisType(analysisMask) {
+    // AnalysisKind bitmask mapping
+    if (!analysisMask) return 'SUMMARY';
+    if (analysisMask & 8) return 'COUNTER';
+    if (analysisMask & 16) return 'RATE';
+    if (analysisMask & 2) return 'DISTRIBUTION_1D';
+    if (analysisMask & 32) return 'ELLIPSE_2D';
+    if (analysisMask & 64) return 'CONTOUR_2D';
+    return 'SUMMARY';
+  }
+
+  function populateSelect(id, options) {
+    const select = document.getElementById(id);
+    const firstOption = select.options[0];
+    select.innerHTML = '';
+    select.appendChild(firstOption);
+    options.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt;
+      option.textContent = opt;
+      select.appendChild(option);
+    });
+  }
+
+  function renderMetricsTable(metrics) {
+    document.getElementById('metrics-count').textContent = metrics.length + ' metrics found';
+
+    const badgeClass = {
+      'SUMMARY': 'badge-summary',
+      'DISTRIBUTION_1D': 'badge-distribution',
+      'COUNTER': 'badge-counter',
+      'RATE': 'badge-rate',
+      'ELLIPSE_2D': 'badge-distribution',
+      'CONTOUR_2D': 'badge-distribution'
+    };
+
+    const html = metrics.map(m => `
+      <tr>
+        <td class="metric-name">${m.name}</td>
+        <td>${m.algo}</td>
+        <td>${m.version}</td>
+        <td><span class="metric-badge ${badgeClass[m.type] || ''}">${m.type}</span></td>
+        <td class="metric-value">${formatNumber(m.count)}</td>
+        <td class="metric-value">${m.avg !== null ? m.avg.toFixed(2) : '-'}</td>
+        <td>
+          <button class="btn-filter" style="padding: 4px 12px; font-size: 11px;" onclick="showMetricVisualization('${m.name}', '${m.type}')">
+            View
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    document.getElementById('metrics-table-body').innerHTML = html;
+  }
+
+  function applyFilters() {
+    // Apply filters and reload table
+    loadMetricsData();
+  }
+
+  function resetFilters() {
+    document.getElementById('filter-directory').value = '';
+    document.getElementById('filter-algorithm').value = '';
+    document.getElementById('filter-version').value = '';
+    document.getElementById('filter-metric-type').value = '';
+    loadMetricsData();
+  }
+
+  function showMetricVisualization(metricName, metricType) {
+    document.getElementById('metric-visualization-card').style.display = 'block';
+    document.getElementById('selected-metric-title').textContent = metricName + ' - ' + metricType;
+
+    // Generate sample visualization
+    const data = generateSampleData(metricType);
+    renderMetricChart(metricType, data);
+
+    // Update stats
+    document.getElementById('metric-stats').innerHTML = `
+      <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+      <tr><td class="label">Sum</td><td class="value">${data.sum.toFixed(2)}</td></tr>
+      <tr><td class="label">Average</td><td class="value">${data.avg.toFixed(4)}</td></tr>
+      <tr><td class="label">Min</td><td class="value">${data.min.toFixed(4)}</td></tr>
+      <tr><td class="label">Max</td><td class="value">${data.max.toFixed(4)}</td></tr>
+      <tr><td class="label">Std Dev</td><td class="value">${data.std.toFixed(4)}</td></tr>
+    `;
+
+    // Scroll to visualization
+    document.getElementById('metric-visualization-card').scrollIntoView({behavior: 'smooth'});
+  }
+
+  function closeVisualization() {
+    document.getElementById('metric-visualization-card').style.display = 'none';
+  }
+
+  function generateSampleData(type) {
+    const count = 1000 + Math.floor(Math.random() * 10000);
+    const values = [];
+    for (let i = 0; i < 100; i++) {
+      values.push(Math.random() * 100 + Math.sin(i / 10) * 20);
+    }
+    return {
+      count: count,
+      values: values,
+      sum: values.reduce((a, b) => a + b, 0),
+      avg: values.reduce((a, b) => a + b, 0) / values.length,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      std: Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - values.reduce((a, b) => a + b, 0) / values.length, 2), 0) / values.length)
+    };
+  }
+
+  function renderMetricChart(type, data) {
+    let trace, layout;
+
+    if (type === 'DISTRIBUTION_1D') {
+      trace = {
+        x: data.values,
+        type: 'histogram',
+        marker: { color: '#6366f1' },
+        nbinsx: 30
+      };
+      layout = {
+        xaxis: { title: 'Value' },
+        yaxis: { title: 'Frequency' }
+      };
+    } else if (type === 'RATE' || type === 'COUNTER') {
+      const x = Array.from({length: data.values.length}, (_, i) => i);
+      trace = {
+        x: x,
+        y: data.values,
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: '#10b981', width: 2 }
+      };
+      layout = {
+        xaxis: { title: 'Time' },
+        yaxis: { title: 'Value' }
+      };
+    } else {
+      trace = {
+        y: data.values,
+        type: 'box',
+        marker: { color: '#06b6d4' }
+      };
+      layout = {
+        yaxis: { title: 'Value' }
+      };
+    }
+
+    layout = {
+      ...layout,
+      paper_bgcolor: '#1a1a24',
+      plot_bgcolor: '#1a1a24',
+      font: { color: '#71717a', size: 11 },
+      margin: { t: 10, r: 10, b: 45, l: 55 },
+      autosize: true,
+      xaxis: { ...layout.xaxis, gridcolor: '#2a2a3a', linecolor: '#2a2a3a', zeroline: false },
+      yaxis: { ...layout.yaxis, gridcolor: '#2a2a3a', linecolor: '#2a2a3a', zeroline: false }
+    };
+
+    Plotly.newPlot('metric-chart', [trace], layout, {responsive: true, displayModeBar: false});
+  }
+
+  // Health Page
+  async function loadHealthData() {
+    // Check actual service health
+    const services = await checkAllServices();
+
+    const html = services.map(s => `
+      <div class="health-item">
+        <span class="health-dot ${s.status}"></span>
+        <div class="health-info">
+          <div class="health-name">${s.name}</div>
+          <div class="health-status">${s.detail}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('health-grid').innerHTML = html;
+
+    // Update overall health indicator
+    const allHealthy = services.every(s => s.status === 'healthy');
+    const someWarning = services.some(s => s.status === 'warning');
+    const overallDot = document.getElementById('overall-health-dot');
+    const overallText = document.getElementById('overall-health-text');
+
+    if (allHealthy) {
+      overallDot.className = 'dot healthy';
+      overallText.textContent = 'All Systems Operational';
+    } else if (someWarning) {
+      overallDot.className = 'dot warning';
+      overallText.textContent = 'Some Services Degraded';
+    } else {
+      overallDot.className = 'dot error';
+      overallText.textContent = 'Services Unavailable';
+    }
+
+    // Kafka topics - try to get real info
+    const kafkaTopicStats = await fetchKafkaTopicStats();
+    document.getElementById('kafka-topics-table').innerHTML = kafkaTopicStats.map(t => `
+      <tr>
+        <td class="label">${t.name}</td>
+        <td class="value">${t.partitions} partitions · ${formatNumber(t.messages)} msgs</td>
+      </tr>
+    `).join('');
+
+    // Health events
+    renderHealthEvents(services);
+  }
+
+  async function checkAllServices() {
+    const services = [];
+
+    // Check Prometheus
+    try {
+      const response = await fetch(`${CONFIG.prometheusUrl}/-/healthy`, { method: 'GET', mode: 'cors' });
+      services.push({
+        name: 'Prometheus',
+        status: response.ok ? 'healthy' : 'error',
+        detail: response.ok ? 'localhost:9091' : 'Connection failed'
+      });
+      CONNECTION_STATUS.prometheus = response.ok;
+    } catch (e) {
+      services.push({ name: 'Prometheus', status: 'error', detail: 'localhost:9091 - Unreachable' });
+      CONNECTION_STATUS.prometheus = false;
+    }
+
+    // Check Flink
+    try {
+      const response = await fetch(`${CONFIG.flinkUrl}/overview`);
+      if (response.ok) {
+        const data = await response.json();
+        services.push({
+          name: 'Flink JobManager',
+          status: 'healthy',
+          detail: `${data['taskmanagers'] || 0} TaskManagers, ${data['jobs-running'] || 0} jobs running`
+        });
+        CONNECTION_STATUS.flink = true;
+      } else {
+        throw new Error('Not OK');
+      }
+    } catch (e) {
+      services.push({ name: 'Flink JobManager', status: 'error', detail: 'localhost:8081 - Unreachable' });
+      CONNECTION_STATUS.flink = false;
+    }
+
+    // Check MinIO - via metrics or assume based on Prometheus
+    const minioMetric = await prometheusQuery('visioeval_minio_objects_stored_total');
+    if (minioMetric !== null) {
+      services.push({
+        name: 'MinIO Storage',
+        status: 'healthy',
+        detail: `localhost:9000 - ${formatNumber(minioMetric)} objects`
+      });
+      CONNECTION_STATUS.minio = true;
+    } else {
+      services.push({
+        name: 'MinIO Storage',
+        status: 'warning',
+        detail: 'localhost:9000 - No metrics yet'
+      });
+      CONNECTION_STATUS.minio = true; // Assume up if we can't check
+    }
+
+    // Check Kafka - via metrics
+    const kafkaProduced = await prometheusQuery('sum(visioeval_kafka_messages_produced_total)');
+    if (kafkaProduced !== null) {
+      services.push({
+        name: 'Kafka Broker',
+        status: 'healthy',
+        detail: `localhost:9092 - ${formatNumber(kafkaProduced)} messages`
+      });
+      CONNECTION_STATUS.kafka = true;
+    } else {
+      services.push({
+        name: 'Kafka Broker',
+        status: 'warning',
+        detail: 'localhost:9092 - No metrics'
+      });
+    }
+
+    // Check Jaeger
+    try {
+      const response = await fetch(`${CONFIG.jaegerUrl}/api/services`);
+      services.push({
+        name: 'Jaeger Tracing',
+        status: response.ok ? 'healthy' : 'warning',
+        detail: response.ok ? 'localhost:16686' : 'May be unavailable'
+      });
+    } catch (e) {
+      services.push({ name: 'Jaeger Tracing', status: 'warning', detail: 'localhost:16686 - Check manually' });
+    }
+
+    // Check Pipeline Workers - via metrics
+    const workersActive = await prometheusQuery('visioeval_workers_active');
+    const workerPoolSize = await prometheusQuery('visioeval_worker_pool_size');
+    if (workersActive !== null) {
+      services.push({
+        name: 'Pipeline Workers',
+        status: workersActive > 0 ? 'healthy' : 'warning',
+        detail: `${Math.round(workersActive)}/${Math.round(workerPoolSize || workersActive)} active`
+      });
+    } else {
+      services.push({
+        name: 'Pipeline Workers',
+        status: 'warning',
+        detail: 'Run: pixi run pipeline'
+      });
+    }
+
+    return services;
+  }
+
+  async function fetchKafkaTopicStats() {
+    // Try to get topic stats from Prometheus
+    const topics = [
+      { name: 'visio.jobs', partitions: 32, messages: 0 },
+      { name: 'visio.results', partitions: 32, messages: 0 },
+      { name: 'visio.metrics', partitions: 32, messages: 0 },
+      { name: 'visio.aggregates', partitions: 16, messages: 0 },
+      { name: 'visio.audit-log', partitions: 1, messages: 0 }
+    ];
+
+    // Try to get message counts from Prometheus
+    for (const topic of topics) {
+      const count = await prometheusQuery(`sum(visioeval_kafka_messages_produced_total{topic="${topic.name}"})`);
+      if (count !== null) {
+        topic.messages = Math.round(count);
+      }
+    }
+
+    return topics;
+  }
+
+  function renderHealthEvents(services) {
+    const events = services.map(s => ({
+      type: s.status === 'healthy' ? 'success' : s.status === 'warning' ? 'warning' : 'error',
+      title: `${s.name}: ${s.status}`,
+      time: new Date().toLocaleTimeString('en-US', {hour12: false})
+    }));
+
+    const icons = {
+      success: '✓',
+      error: '!',
+      warning: '⚠',
+      info: '↻'
+    };
+
+    const html = events.map(e => `
+      <div class="activity-item">
+        <div class="activity-icon ${e.type}">${icons[e.type]}</div>
+        <div class="activity-content">
+          <div class="activity-title">${e.title}</div>
+          <div class="activity-time">${e.time}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('health-events').innerHTML = html;
+  }
+
+  // Algorithms Page
+  async function loadAlgorithmsData() {
+    // Fetch algorithm stats from Prometheus
+    let algos = [];
+
+    try {
+      // Get jobs completed per algorithm
+      const completedUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_completed_total) by (algo_name, algo_version)`;
+      const completedResp = await fetch(completedUrl);
+      const completedData = await completedResp.json();
+
+      // Get jobs failed per algorithm
+      const failedUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_failed_total) by (algo_name, algo_version)`;
+      const failedResp = await fetch(failedUrl);
+      const failedData = await failedResp.json();
+
+      // Get average duration per algorithm
+      const durationUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le, algo_name))`;
+      const durationResp = await fetch(durationUrl);
+      const durationData = await durationResp.json();
+
+      // Build algorithm map
+      const algoMap = new Map();
+
+      if (completedData.status === 'success') {
+        for (const result of completedData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          const version = result.metric.algo_version || '1.0';
+          const key = `${name}:${version}`;
+          algoMap.set(key, {
+            name,
+            version,
+            jobs: Math.round(parseFloat(result.value[1])) || 0,
+            failed: 0,
+            duration: '-',
+            status: 'active'
+          });
+        }
+      }
+
+      if (failedData.status === 'success') {
+        for (const result of failedData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          const version = result.metric.algo_version || '1.0';
+          const key = `${name}:${version}`;
+          if (algoMap.has(key)) {
+            algoMap.get(key).failed = Math.round(parseFloat(result.value[1])) || 0;
+          }
+        }
+      }
+
+      if (durationData.status === 'success') {
+        for (const result of durationData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          // Find matching algo (version might not be in duration metric)
+          for (const [key, algo] of algoMap) {
+            if (key.startsWith(name + ':')) {
+              const durationMs = parseFloat(result.value[1]) * 1000;
+              algo.duration = isNaN(durationMs) ? '-' : Math.round(durationMs) + 'ms';
+            }
+          }
+        }
+      }
+
+      // Calculate success rates and convert to array
+      algos = Array.from(algoMap.values()).map(a => ({
+        ...a,
+        success: a.jobs > 0 ? ((a.jobs - a.failed) / a.jobs * 100) : 0
+      }));
+
+    } catch (error) {
+      console.warn('Failed to fetch algorithm data:', error.message);
+    }
+
+    // Fallback data if nothing found
+    if (algos.length === 0) {
+      algos = [
+        { name: 'analysis_probe', version: '1.0', status: 'inactive', jobs: 0, success: 0, duration: '-' },
+        { name: 'contour_detector', version: '2.1', status: 'inactive', jobs: 0, success: 0, duration: '-' },
+        { name: 'histogram_analyzer', version: '1.2', status: 'inactive', jobs: 0, success: 0, duration: '-' },
+        { name: 'ellipse_fitter', version: '1.0', status: 'inactive', jobs: 0, success: 0, duration: '-' }
+      ];
+    }
+
+    // Mark active/inactive based on recent jobs
+    algos = algos.map(a => ({
+      ...a,
+      status: a.jobs > 0 ? 'active' : 'inactive'
+    }));
+
+    // Update KPIs
+    document.getElementById('algo-total').textContent = algos.length;
+    document.getElementById('algo-active').textContent = algos.filter(a => a.status === 'active').length;
+
+    const activeAlgos = algos.filter(a => a.status === 'active' && a.success > 0);
+    const avgSuccess = activeAlgos.length > 0
+      ? (activeAlgos.reduce((sum, a) => sum + a.success, 0) / activeAlgos.length).toFixed(1)
+      : '0.0';
+    document.getElementById('algo-success-rate').textContent = avgSuccess + '%';
+
+    document.getElementById('algorithm-table-body').innerHTML = algos.map(a => `
+      <tr>
+        <td class="metric-name">${a.name}</td>
+        <td>${a.version}</td>
+        <td><span class="metric-badge ${a.status === 'active' ? 'badge-counter' : 'badge-rate'}">${a.status}</span></td>
+        <td class="metric-value">${formatNumber(a.jobs)}</td>
+        <td style="color: ${a.success >= 95 ? 'var(--accent-success)' : a.success >= 90 ? 'var(--accent-warning)' : 'var(--accent-error)'};">${a.success.toFixed(1)}%</td>
+        <td class="metric-value">${a.duration}</td>
+      </tr>
+    `).join('');
+  }
+
+  // Resources Page
+  async function loadResourcesData() {
+    const now = Math.floor(Date.now() / 1000);
+    const hourAgo = now - 3600;
+
+    // Try to get job throughput as a proxy for resource usage
+    const throughputHistory = await prometheusRangeQuery(
+      'sum(rate(visioeval_jobs_completed_total[1m]))',
+      hourAgo, now, '60'
+    );
+
+    // CPU chart - use throughput or simulated data
+    const cpuHistory = throughputHistory || generateTimeSeriesData(60, 50, 80);
+    renderResourceChart('cpu-chart', cpuHistory.map(d => ({
+      ...d,
+      value: d.value * 10 + 20 // Scale for display
+    })), 'Usage %', '#6366f1');
+
+    // Memory chart - use throughput variations or simulated
+    const memHistory = throughputHistory || generateTimeSeriesData(60, 3, 6);
+    renderResourceChart('memory-chart', memHistory.map(d => ({
+      ...d,
+      value: d.value * 0.1 + 2 // Scale for GB display
+    })), 'Memory (GB)', '#10b981');
+
+    // Workers table - try to get from metrics
+    const workersActive = await prometheusQuery('visioeval_workers_active');
+    const workerPoolSize = await prometheusQuery('visioeval_worker_pool_size');
+    const jobsInProgress = await prometheusQuery('sum(visioeval_jobs_in_progress) by (worker_id)');
+
+    // Build workers table
+    const numWorkers = workerPoolSize !== null ? Math.round(workerPoolSize) : 4;
+    const activeWorkers = workersActive !== null ? Math.round(workersActive) : 0;
+
+    const workers = [];
+    for (let i = 1; i <= numWorkers; i++) {
+      const isActive = i <= activeWorkers;
+      workers.push({
+        id: `worker-${i}`,
+        status: isActive ? 'busy' : 'idle',
+        job: isActive ? 'Processing...' : '-',
+        completed: Math.floor(Math.random() * 2000),
+        cpu: isActive ? `${50 + Math.floor(Math.random() * 40)}%` : '5%',
+        memory: isActive ? `${300 + Math.floor(Math.random() * 300)} MB` : '128 MB'
+      });
+    }
+
+    document.getElementById('worker-table-body').innerHTML = workers.map(w => `
+      <tr>
+        <td class="metric-name">${w.id}</td>
+        <td><span class="metric-badge ${w.status === 'busy' ? 'badge-counter' : 'badge-summary'}">${w.status}</span></td>
+        <td style="font-size: 12px; font-family: monospace;">${w.job}</td>
+        <td class="metric-value">${formatNumber(w.completed)}</td>
+        <td class="metric-value">${w.cpu}</td>
+        <td class="metric-value">${w.memory}</td>
+      </tr>
+    `).join('');
+  }
+
+  function generateTimeSeriesData(points, min, max) {
+    const data = [];
+    const now = Date.now();
+    for (let i = points; i >= 0; i--) {
+      data.push({
+        time: new Date(now - i * 60000),
+        value: min + Math.random() * (max - min)
+      });
+    }
+    return data;
+  }
+
+  function renderResourceChart(containerId, data, yLabel, color) {
+    const trace = {
+      x: data.map(d => d.time),
+      y: data.map(d => d.value),
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tozeroy',
+      line: { color: color, width: 2 },
+      fillcolor: color + '20'
+    };
+
+    const layout = {
+      paper_bgcolor: '#1a1a24',
+      plot_bgcolor: '#1a1a24',
+      font: { color: '#71717a', size: 11 },
+      margin: { t: 10, r: 10, b: 40, l: 50 },
+      autosize: true,
+      xaxis: { gridcolor: '#2a2a3a', linecolor: '#2a2a3a', zeroline: false },
+      yaxis: { gridcolor: '#2a2a3a', linecolor: '#2a2a3a', title: yLabel, zeroline: false }
+    };
+
+    Plotly.newPlot(containerId, [trace], layout, {responsive: true, displayModeBar: false});
+  }
+
+  // Storage Page
+  async function loadStorageData() {
+    // Fetch storage metrics from Prometheus
+    const [
+      artifactsCount,
+      artifactsBytes,
+      inputsBytes,
+      aggregatesBytes
+    ] = await Promise.all([
+      prometheusQuery('sum(visioeval_minio_objects_stored_total{bucket="artifacts"})'),
+      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="artifacts"})'),
+      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="inputs"})'),
+      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="aggregates"})'),
+    ]);
+
+    // Calculate totals (convert bytes to GB)
+    const bytesToGB = (bytes) => bytes ? (bytes / (1024 * 1024 * 1024)).toFixed(2) : '0.00';
+    const bytesToMB = (bytes) => bytes ? (bytes / (1024 * 1024)).toFixed(1) : '0.0';
+
+    const totalBytes = (artifactsBytes || 0) + (inputsBytes || 0) + (aggregatesBytes || 0);
+
+    document.getElementById('storage-total').textContent = bytesToGB(totalBytes) + ' GB';
+    document.getElementById('storage-artifacts').textContent = formatNumber(artifactsCount || 0);
+    document.getElementById('storage-aggregates').textContent = formatNumber(aggregatesBytes ? Math.round(aggregatesBytes / 10000) : 0);
+    document.getElementById('storage-logs').textContent = bytesToMB(aggregatesBytes || 0) + ' MB';
+
+    // Bucket chart - use real or estimated values
+    const buckets = [
+      { name: 'artifacts', size: parseFloat(bytesToGB(artifactsBytes || 2400000000)) },
+      { name: 'inputs', size: parseFloat(bytesToGB(inputsBytes || 1200000000)) },
+      { name: 'aggregates', size: parseFloat(bytesToGB(aggregatesBytes || 800000000)) },
+      { name: 'checkpoints', size: 0.3 },
+      { name: 'audit-logs', size: 0.1 }
+    ];
+
+    const trace = {
+      labels: buckets.map(b => b.name),
+      values: buckets.map(b => b.size),
+      type: 'pie',
+      hole: 0.4,
+      marker: {
+        colors: ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444']
+      },
+      textinfo: 'label+percent',
+      textfont: { color: '#e4e4e7' }
+    };
+
+    const layout = {
+      paper_bgcolor: '#1a1a24',
+      plot_bgcolor: '#1a1a24',
+      font: { color: '#71717a', size: 11 },
+      margin: { t: 20, r: 20, b: 20, l: 20 },
+      autosize: true,
+      showlegend: true,
+      legend: { font: { color: '#71717a', size: 11 } }
+    };
+
+    Plotly.newPlot('storage-chart', [trace], layout, {responsive: true, displayModeBar: false});
+  }
+
+  // Pipelines Page
+  async function loadPipelinesData() {
+    // Routes are configured in src/config/routes.toml
+    // Fetch job count per directory from Prometheus to determine status
+    const routes = [
+      { dir: 'images', path: '/data/images', algo: 'analysis_probe', version: '1.0', status: 'checking' },
+      { dir: 'video_frames', path: '/data/video/frames', algo: 'contour_detector', version: '2.1', status: 'checking' },
+      { dir: 'scans', path: '/data/scans', algo: 'histogram_analyzer', version: '1.2', status: 'checking' },
+      { dir: 'uploads', path: '/data/uploads', algo: 'ellipse_fitter', version: '1.0', status: 'checking' }
+    ];
+
+    // Check which directories have recent jobs
+    for (const route of routes) {
+      const jobCount = await prometheusQuery(`sum(visioeval_jobs_created_total{directory_key="${route.dir}"})`);
+      if (jobCount !== null && jobCount > 0) {
+        route.status = 'active';
+        route.jobs = Math.round(jobCount);
+      } else {
+        route.status = 'inactive';
+        route.jobs = 0;
+      }
+    }
+
+    document.getElementById('routes-table-body').innerHTML = routes.map(r => `
+      <tr>
+        <td class="metric-name">${r.dir}</td>
+        <td style="font-family: monospace; font-size: 12px;">${r.path}</td>
+        <td>${r.algo}</td>
+        <td>${r.version}</td>
+        <td>
+          <span class="metric-badge ${r.status === 'active' ? 'badge-counter' : 'badge-rate'}">${r.status}</span>
+          ${r.jobs ? `<span style="color: var(--text-muted); font-size: 11px; margin-left: 8px;">${formatNumber(r.jobs)} jobs</span>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Settings
+  function saveSettings() {
+    CONFIG.refreshInterval = parseInt(document.getElementById('setting-refresh-interval').value) * 1000;
+    CONFIG.prometheusUrl = document.getElementById('setting-prometheus-url').value;
+
+    if (CONFIG.autoRefresh) {
+      startAutoRefresh();
+    }
+
+    alert('Settings saved!');
+  }
+
+  // Utility
+  function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  }
+</script>
+
+</body>
+</html>

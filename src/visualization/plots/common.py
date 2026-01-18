@@ -1,4 +1,4 @@
-"""Shared plot utilities and theming for modern dashboard."""
+"""Shared plot utilities and theming for dashboard."""
 
 from __future__ import annotations
 
@@ -8,53 +8,34 @@ from bokeh.plotting import figure
 PLOT_WIDTH = 700
 PLOT_HEIGHT = 450
 
-# Dark theme color palette - elegant minimal style
+# Light theme color palette - Healthcare dashboard style
 THEME_COLORS = {
     # Primary colors
-    "primary": "#6366f1",      # Indigo
-    "primary_light": "#818cf8",
-    "primary_dark": "#4f46e5",
-    "secondary": "#06b6d4",    # Cyan
-    "secondary_light": "#22d3ee",
-    "accent": "#ec4899",       # Pink
+    "primary": "#4a90e2",
+    "primary_light": "#ebf3ff",
+    "secondary": "#1c62b3",
+    "accent": "#9d65c9",
 
     # Semantic colors
-    "warning": "#f59e0b",      # Amber
-    "info": "#3b82f6",         # Blue
-    "neutral": "#6b7280",      # Gray
-    "success": "#10b981",      # Emerald
-    "error": "#ef4444",        # Red
+    "success": "#00d4b1",
+    "error": "#ff6b6b",
+    "warning": "#ffca58",
+    "info": "#4a90e2",
+    "neutral": "#7f8c8d",
 
-    # Backgrounds - very dark
-    "background": "#0a0a0f",   # Near black
-    "surface": "#12121a",      # Dark card
-    "surface_elevated": "#1a1a24",  # Slightly lighter
+    # Backgrounds
+    "background": "#ebf3ff",
+    "surface": "#ffffff",
 
-    # Borders - subtle
-    "border": "#2a2a35",
-    "border_light": "#1f1f28",
+    # Borders
+    "border": "rgba(74, 144, 226, 0.2)",
 
     # Text
-    "text": "#e4e4e7",         # Light gray
-    "text_muted": "#71717a",   # Muted gray
-
-    # Trend indicators
-    "trend_up": "#10b981",
-    "trend_down": "#ef4444",
-    "trend_neutral": "#6b7280",
-
-    # Card styling
-    "card_bg": "#12121a",
-    "card_border": "#1f1f28",
-
-    # Glow effects
-    "glow_primary": "rgba(99, 102, 241, 0.2)",
-    "glow_success": "rgba(16, 185, 129, 0.2)",
-    "glow_error": "rgba(239, 68, 68, 0.2)",
-    "glow_warning": "rgba(245, 158, 11, 0.2)",
+    "text": "#2c3e50",
+    "text_muted": "#7f8c8d",
 }
 
-# Vibrant gradient palette for dark mode charts
+# Vibrant palette for charts
 PALETTE = [
     "#818cf8",  # Indigo
     "#a78bfa",  # Violet
@@ -79,7 +60,7 @@ def create_figure(
     tools: str = "pan,wheel_zoom,box_zoom,reset,save",
     **kwargs: object,
 ) -> figure:
-    """Create a styled Bokeh figure with modern defaults.
+    """Create a styled Bokeh figure with dark theme defaults.
 
     Args:
         title: Plot title
@@ -104,15 +85,15 @@ def create_figure(
         **kwargs,
     )
 
-    # Modern title styling
-    p.title.text_font_size = "16pt"
+    # Title styling
+    p.title.text_font_size = "14pt"
     p.title.text_font = "Helvetica"
     p.title.text_font_style = "bold"
     p.title.text_color = THEME_COLORS["text"]
 
     # Axis label styling
-    p.xaxis.axis_label_text_font_size = "12pt"
-    p.yaxis.axis_label_text_font_size = "12pt"
+    p.xaxis.axis_label_text_font_size = "11pt"
+    p.yaxis.axis_label_text_font_size = "11pt"
     p.xaxis.axis_label_text_color = THEME_COLORS["text_muted"]
     p.yaxis.axis_label_text_color = THEME_COLORS["text_muted"]
 
@@ -123,14 +104,14 @@ def create_figure(
     p.yaxis.major_label_text_color = THEME_COLORS["text_muted"]
 
     # Background and border
-    p.background_fill_color = THEME_COLORS["background"]
+    p.background_fill_color = THEME_COLORS["surface"]
     p.border_fill_color = THEME_COLORS["background"]
     p.outline_line_color = THEME_COLORS["border"]
 
     # Grid styling
-    p.grid.grid_line_color = THEME_COLORS["border"]
-    p.grid.grid_line_alpha = 0.5
-    p.grid.grid_line_dash = [4, 4]
+    p.grid.grid_line_color = "rgba(74, 144, 226, 0.1)"
+    p.grid.grid_line_alpha = 1.0
+    p.grid.grid_line_dash = []
 
     # Axis line styling
     p.xaxis.axis_line_color = THEME_COLORS["border"]
@@ -196,7 +177,7 @@ def create_no_data_placeholder(
         <p style="
             margin: 0;
             color: {THEME_COLORS['text_muted']};
-            font-size: 14px;
+            font-size: 13px;
         ">{message}</p>
     </div>
     """
@@ -227,22 +208,22 @@ def create_error_placeholder(
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(248, 113, 113, 0.1);
+        background: {THEME_COLORS['surface']};
         border: 1px solid {THEME_COLORS['error']};
         border-radius: 8px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     ">
         <div style="text-align: center;">
             <p style="
-                margin: 0 0 4px 0;
+                margin: 0 0 8px 0;
                 color: {THEME_COLORS['error']};
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 600;
             ">Error</p>
             <p style="
                 margin: 0;
                 color: {THEME_COLORS['text_muted']};
-                font-size: 13px;
+                font-size: 12px;
             ">{error}</p>
         </div>
     </div>
@@ -275,23 +256,24 @@ def create_loading_placeholder(
         align-items: center;
         justify-content: center;
         background: {THEME_COLORS['surface']};
-        border-radius: 12px;
+        border: 1px solid {THEME_COLORS['border']};
+        border-radius: 8px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     ">
         <div style="text-align: center;">
             <div style="
-                width: 40px;
-                height: 40px;
-                border: 4px solid {THEME_COLORS['border']};
+                width: 32px;
+                height: 32px;
+                border: 3px solid {THEME_COLORS['border']};
                 border-top-color: {THEME_COLORS['primary']};
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
-                margin: 0 auto 16px auto;
+                margin: 0 auto 12px auto;
             "></div>
             <p style="
                 margin: 0;
                 color: {THEME_COLORS['text_muted']};
-                font-size: 14px;
+                font-size: 13px;
             ">{message}</p>
         </div>
     </div>
@@ -330,14 +312,14 @@ def create_stat_card(
     <div style="
         padding: 12px 16px;
         background: {THEME_COLORS['surface']};
-        border: 1px solid {THEME_COLORS['border_light']};
+        border: 1px solid {THEME_COLORS['border']};
         border-radius: 6px;
         border-left: 3px solid {accent_color};
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     ">
         <div style="
             color: {THEME_COLORS['text_muted']};
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -345,12 +327,12 @@ def create_stat_card(
         ">{label}</div>
         <div style="
             color: {THEME_COLORS['text']};
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 600;
         ">{value_str}</div>
     </div>
     """
-    return Div(text=html, width=width, height=70)
+    return Div(text=html, width=width, height=65)
 
 
 def format_number(value: float, precision: int = 2) -> str:

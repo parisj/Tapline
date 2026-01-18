@@ -414,9 +414,11 @@
                     <text x="515" y="181" text-anchor="middle" fill="#9ca3af" font-size="8">Kafka→MinIO</text>
 
                     <!-- Visualization -->
-                    <rect x="620" y="70" width="100" height="50" rx="6" fill="#1f2937" stroke="#60a5fa" stroke-width="2"/>
-                    <text x="670" y="92" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Dashboard</text>
-                    <text x="670" y="106" text-anchor="middle" fill="#9ca3af" font-size="8">Bokeh :5006</text>
+                    <rect x="620" y="50" width="100" height="70" rx="6" fill="#1f2937" stroke="#60a5fa" stroke-width="2"/>
+                    <text x="670" y="72" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Dashboard</text>
+                    <text x="670" y="86" text-anchor="middle" fill="#9ca3af" font-size="8">Bokeh :5006</text>
+                    <text x="670" y="100" text-anchor="middle" fill="#60a5fa" font-size="7">KPIs + Charts</text>
+                    <text x="670" y="112" text-anchor="middle" fill="#60a5fa" font-size="7">Data Explorer</text>
 
                     <!-- ============ ARROWS ============ -->
 
@@ -656,6 +658,16 @@
                         <li>ObjectRef metadata tracking</li>
                     </ul>
                 </div>
+                <div class="component-card">
+                    <h3>Bokeh Dashboard <span class="phase-tag" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">Visualization</span></h3>
+                    <p>Real-time web dashboard with dark theme.</p>
+                    <ul class="feature-list">
+                        <li>KPI cards: jobs, throughput, errors, sources</li>
+                        <li>Time-series charts from Prometheus</li>
+                        <li>Data Explorer for metric visualization</li>
+                        <li>Auto-refresh with configurable interval</li>
+                    </ul>
+                </div>
             </div>
         </section>
 
@@ -727,6 +739,7 @@
                     <tr><td>Grafana</td><td><span class="port-badge">3000</span></td><td>Dashboards</td></tr>
                     <tr><td>Jaeger</td><td><span class="port-badge">16686</span><span class="port-badge">4317</span></td><td>Distributed tracing</td></tr>
                     <tr><td>Zookeeper</td><td><span class="port-badge">2181</span></td><td>Kafka coordination</td></tr>
+                    <tr><td>Bokeh Dashboard</td><td><span class="port-badge">5006</span></td><td>Visualization dashboard</td></tr>
                 </tbody>
             </table>
         </section>
