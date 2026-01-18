@@ -138,34 +138,48 @@
 
   <!-- AGGREGATION -->
   <g>
-    <rect x="500" y="430" width="600" height="130" rx="18" fill="#ffffff"
+    <rect x="400" y="430" width="350" height="130" rx="18" fill="#ffffff"
           stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="800" y="465" text-anchor="middle" font-size="16" font-weight="bold">
-      Analyzer Pipeline (PyFlink)
+    <text x="575" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+      Flink SQL Aggregation
     </text>
-    <text x="800" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
-      AnalysisKind → Analyzer implementations
+    <text x="575" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+      1-min tumbling windows · count/sum/avg/min/max
     </text>
-    <text x="800" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
-      Summary · Histogram · Rate · Outliers · Ellipse · Contour
+    <text x="575" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+      Grouped by: algo_name, algo_version, metric_name
     </text>
 
-    <rect x="1150" y="430" width="400" height="130" rx="18" fill="#ffffff"
+    <rect x="800" y="430" width="280" height="130" rx="18" fill="#ffffff"
           stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="1350" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+    <text x="940" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+      Aggregate Sink
+    </text>
+    <text x="940" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+      Kafka → MinIO consumer
+    </text>
+    <text x="940" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+      Separate process for parallelism
+    </text>
+
+    <rect x="1130" y="430" width="420" height="130" rx="18" fill="#ffffff"
+          stroke="#d1d5db" stroke-width="1.5"/>
+    <text x="1340" y="465" text-anchor="middle" font-size="16" font-weight="bold">
       Aggregates (MinIO)
     </text>
-    <text x="1350" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1340" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
       JSON summaries + NPZ artifacts
     </text>
-    <text x="1350" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1340" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
       content-addressed · immutable
     </text>
 
-    <!-- Down arrows -->
+    <!-- Arrows: Flink -> Kafka -> Aggregate Sink -> MinIO -->
     <path d="M1475 370 L1475 430" stroke="#374151" stroke-width="2.5"
           fill="none" marker-end="url(#arrow)"/>
-    <path d="M1100 495 L1150 495" stroke="#374151" stroke-width="2.5"
+    <path d="M750 495 L800 495" stroke="#374151" stroke-width="2.5"
+          fill="none" marker-end="url(#arrow)"/>
+    <path d="M1080 495 L1130 495" stroke="#374151" stroke-width="2.5"
           fill="none" marker-end="url(#arrow)"/>
   </g>
 

@@ -26,6 +26,7 @@ def tomlfile() -> dict[str, Any]:
         },
     }
 
+
 @pytest.fixture
 def loaded_routes(tmp_path: pytest.TempPathFactory) -> dict[str, LoadedRoute]:
     routes_path = tmp_path / "routes.toml"
@@ -41,7 +42,8 @@ def loaded_routes(tmp_path: pytest.TempPathFactory) -> dict[str, LoadedRoute]:
             algorithm = "algoB"
             version = "0.1.0"
             settings = "settings_path1.toml"
-        """)
+        """,
+    )
 
     settings_path0.write_text(
         """
@@ -49,7 +51,8 @@ def loaded_routes(tmp_path: pytest.TempPathFactory) -> dict[str, LoadedRoute]:
             threshold = 0.4
             blur_kernel = 3
             use_canny = true
-        """)
+        """,
+    )
 
     settings_path1.write_text(
         """
@@ -65,8 +68,10 @@ def loaded_routes(tmp_path: pytest.TempPathFactory) -> dict[str, LoadedRoute]:
 
             [postprocessing]
             score_threshold = 0.5
-        """)
+        """,
+    )
     return load_routes_toml(routes_path)
+
 
 @pytest.fixture
 def job_unknown() -> Job:
@@ -90,6 +95,7 @@ def registry() -> AlgorithmRegistry:
     reg.register("algoB", "0.1.0", algo_b)
     return reg
 
+
 def test_load_routes_toml(loaded_routes: dict[str, LoadedRoute]) -> None:
     assert len(loaded_routes) == 2
     route0 = loaded_routes["path0"]
@@ -106,14 +112,17 @@ def test_load_routes_toml(loaded_routes: dict[str, LoadedRoute]) -> None:
     assert route1.settings_relpath == "settings_path1.toml"
     assert route1.settings["model"]["artifact_path"] == "/models/model.onnx"
 
+
 def test_load_routes_toml_missing_route_section(tmp_path: pytest.TempPathFactory) -> None:
     routes_path = tmp_path / "routes.toml"
     routes_path.write_text(
         """
         # No [route.*] sections
-        """)
+        """,
+    )
     with pytest.raises(ValueError, match="routes.toml must contain non-empty"):
         load_routes_toml(routes_path)
+
 
 def test_load_routes_toml_missing_settings_file(tmp_path: pytest.TempPathFactory) -> None:
     routes_path = tmp_path / "routes.toml"
@@ -122,15 +131,16 @@ def test_load_routes_toml_missing_settings_file(tmp_path: pytest.TempPathFactory
             algorithm = "algoA"
             version = "1.0.0"
             settings = "non_existent_settings.toml"
-        """)
+        """,
+    )
     with pytest.raises(ValueError, match="Settings not found for path0"):
         load_routes_toml(routes_path)
+
 
 def test_build_dispatch_plans(
     loaded_routes: dict[str, LoadedRoute],
     registry: AlgorithmRegistry,
 ) -> None:
-
     registry.register("unknown", "1.0.0", lambda: Mock(name="AlgoA_Instance"))
     dispatch_plans = build_dispatch_plans(
         loaded_routes,

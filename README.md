@@ -385,16 +385,58 @@ VisioEval uses a Kafka/Flink/MinIO-based architecture for scalable event streami
 - **Prometheus/Grafana** - Metrics collection and dashboards
 - **Jaeger** - Distributed tracing via OpenTelemetry
 
+### Pipeline Commands
+
 ```bash
 # Start infrastructure
 docker-compose up -d
 
-# Run pipeline
-pixi run run
+# Full pipeline (recommended) - spawns all 3 components as separate processes
+pixi run pipeline
 
-# Submit Flink aggregation job
-pixi run run-flink-job
+# Individual components (for development/debugging)
+pixi run run              # Main pipeline only (ingest + workers)
+pixi run run-flink-job    # Submit Flink SQL aggregation job
+pixi run aggregate-sink   # Kafka aggregate consumer -> MinIO
+
+# Visualization
+pixi run dashboard        # Bokeh dashboard at http://localhost:5006
 ```
+
+### Pipeline Architecture
+
+The full pipeline (`pixi run pipeline`) spawns three separate processes for better parallelism:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    pixi run pipeline                            │
+│                  (pipeline_runner.py)                           │
+│                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
+│  │  Main Pipeline  │  │   Flink SQL     │  │ Aggregate Sink │  │
+│  │   (main.py)     │  │     Job         │  │(aggregate_sink)│  │
+│  │                 │  │                 │  │                │  │
+│  │ • Ingest files  │  │ • 1-min windows │  │ • Kafka →      │  │
+│  │ • Kafka jobs    │  │ • Aggregates    │  │   MinIO        │  │
+│  │ • Worker pool   │  │   metrics       │  │ • Stores       │  │
+│  │ • Algorithm     │  │ • Publishes to  │  │   aggregates   │  │
+│  │   execution     │  │   visio.agg     │  │                │  │
+│  └────────┬────────┘  └────────┬────────┘  └───────┬────────┘  │
+│           │                    │                   │            │
+└───────────┼────────────────────┼───────────────────┼────────────┘
+            │                    │                   │
+            ▼                    ▼                   ▼
+     ┌──────────┐         ┌──────────┐        ┌──────────┐
+     │  Kafka   │◄───────►│  Flink   │        │  MinIO   │
+     │ Topics   │         │ Cluster  │        │ Storage  │
+     └──────────┘         └──────────┘        └──────────┘
+```
+
+**Why separate processes?**
+- Python's GIL limits true parallelism within a single process
+- I/O-bound operations (Kafka, MinIO) benefit from process isolation
+- Independent restart capability (aggregate sink auto-restarts if it crashes)
+- Better resource utilization across CPU cores
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -511,7 +553,8 @@ VisioEval is under active development.
 - core pipeline implemented
 - analyzers implemented
 - base unit tests exist (coverage enforced)
-- visualization layer not implemented yet (planned)
+- Bokeh visualization dashboard implemented
+- three-process architecture for full pipeline
 
 No performance claims are made at this stage.
 
@@ -520,8 +563,8 @@ No performance claims are made at this stage.
 
 - ~~observability stack (Prometheus, Grafana, Jaeger)~~ done
 - ~~distributed Flink aggregation~~ done
-- read-only query layer for dashboards
-- visualization module (Bokeh or equivalent)
+- ~~read-only query layer for dashboards~~ done
+- ~~visualization module (Bokeh dashboard)~~ done
 - richer analysis types (quantiles/sketches, robust stats)
 - operational tooling (migrations, admin helpers)
 

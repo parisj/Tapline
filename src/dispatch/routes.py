@@ -23,6 +23,7 @@ except ModuleNotFoundError:
 class RoutesConfigError(ValueError):
     pass
 
+
 @dataclass(frozen=True)
 class LoadedRoute:
     directory_key: str

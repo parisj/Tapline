@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisioEval Architecture Overview</title>
+    <style>
+        :root {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border-color: #4b5563;
+            --accent: #60a5fa;
+            --color-ingest: #3b82f6;
+            --color-kafka: #8b5cf6;
+            --color-processing: #10b981;
+            --color-aggregation: #ec4899;
+            --color-storage: #f59e0b;
+            --color-visualization: #6b7280;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            margin-bottom: 2.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        section {
+            margin-bottom: 2.5rem;
+        }
+
+        .architecture-diagram {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .detailed-flow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .flow-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .flow-card h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .flow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.4rem 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .step-number {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .topic-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .topic-name {
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+            margin-bottom: 0.4rem;
+        }
+
+        .topic-description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .topic-events {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .event-tag {
+            font-size: 0.6rem;
+            padding: 0.15rem 0.35rem;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: var(--text-secondary);
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .component-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .component-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.4rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .phase-tag {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .phase-tag.ingest {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--color-ingest);
+        }
+
+        .phase-tag.kafka {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--color-kafka);
+        }
+
+        .phase-tag.processing {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--color-processing);
+        }
+
+        .phase-tag.aggregation {
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--color-aggregation);
+        }
+
+        .phase-tag.storage {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--color-storage);
+        }
+
+        .component-card p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            font-size: 0.8rem;
+            padding: 0.3rem 0;
+            color: var(--text-secondary);
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: '-';
+            position: absolute;
+            left: 0;
+            color: var(--text-muted);
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .model-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .model-card h4 {
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .model-fields {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .model-fields code {
+            font-family: 'Consolas', monospace;
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            padding: 0.1rem 0.25rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+        }
+
+        .services-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 0.85rem;
+        }
+
+        .services-table th,
+        .services-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .services-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .services-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .port-badge {
+            font-family: 'Consolas', monospace;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.3rem;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            color: var(--text-secondary);
+            margin-right: 0.2rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>VisioEval</h1>
+            <p class="subtitle">Configuration-driven evaluation pipeline for continuous data ingestion, processing, and time-windowed analysis</p>
+        </header>
+
+        <section>
+            <h2>System Architecture</h2>
+            <div class="architecture-diagram">
+                <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto; max-width: 820px; display: block; margin: 0 auto;">
+                    <defs>
+                        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+                        </marker>
+                        <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#10b981"/>
+                        </marker>
+                        <marker id="arrow-pink" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#ec4899"/>
+                        </marker>
+                        <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+                        </marker>
+                        <marker id="arrow-dashed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#4b5563"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Background -->
+                    <rect width="820" height="240" fill="#1f2937"/>
+
+                    <!-- ============ COMPONENTS ============ -->
+
+                    <!-- Ingest -->
+                    <rect x="30" y="30" width="90" height="50" rx="6" fill="#1f2937" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="75" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Ingest</text>
+                    <text x="75" y="66" text-anchor="middle" fill="#9ca3af" font-size="8">Observer</text>
+                    <!-- Observed tag -->
+                    <rect x="100" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
+                    <circle cx="109" cy="37" r="3" fill="#1f2937"/>
+
+                    <!-- Kafka -->
+                    <rect x="170" y="30" width="90" height="50" rx="6" fill="#1f2937" stroke="#8b5cf6" stroke-width="2"/>
+                    <text x="215" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Kafka</text>
+                    <text x="215" y="66" text-anchor="middle" fill="#a78bfa" font-size="8">Event Hub</text>
+                    <!-- Observed tag -->
+                    <rect x="240" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
+                    <circle cx="249" cy="37" r="3" fill="#1f2937"/>
+
+                    <!-- Processing -->
+                    <rect x="310" y="30" width="100" height="50" rx="6" fill="#1f2937" stroke="#10b981" stroke-width="2"/>
+                    <text x="360" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Processing</text>
+                    <text x="360" y="66" text-anchor="middle" fill="#9ca3af" font-size="8">Workers</text>
+                    <!-- Observed tag -->
+                    <rect x="390" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
+                    <circle cx="399" cy="37" r="3" fill="#1f2937"/>
+
+                    <!-- Flink -->
+                    <rect x="310" y="110" width="100" height="50" rx="6" fill="#1f2937" stroke="#ec4899" stroke-width="2"/>
+                    <text x="360" y="132" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Flink</text>
+                    <text x="360" y="146" text-anchor="middle" fill="#9ca3af" font-size="8">Aggregation</text>
+                    <!-- Observed tag -->
+                    <rect x="390" y="112" width="18" height="10" rx="2" fill="#ef4444"/>
+                    <circle cx="399" cy="117" r="3" fill="#1f2937"/>
+
+                    <!-- MinIO -->
+                    <rect x="470" y="70" width="90" height="50" rx="6" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="515" y="92" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">MinIO</text>
+                    <text x="515" y="106" text-anchor="middle" fill="#9ca3af" font-size="8">Storage</text>
+
+                    <!-- Aggregate Sink -->
+                    <rect x="470" y="145" width="90" height="50" rx="6" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="515" y="167" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Agg Sink</text>
+                    <text x="515" y="181" text-anchor="middle" fill="#9ca3af" font-size="8">Kafka→MinIO</text>
+
+                    <!-- Visualization -->
+                    <rect x="620" y="70" width="100" height="50" rx="6" fill="#1f2937" stroke="#60a5fa" stroke-width="2"/>
+                    <text x="670" y="92" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Dashboard</text>
+                    <text x="670" y="106" text-anchor="middle" fill="#9ca3af" font-size="8">Bokeh :5006</text>
+
+                    <!-- ============ ARROWS ============ -->
+
+                    <!-- 1. Ingest -> Kafka -->
+                    <line x1="120" y1="55" x2="165" y2="55" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+
+                    <!-- 2. Kafka -> Processing -->
+                    <line x1="260" y1="55" x2="305" y2="55" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+
+                    <!-- 3. Processing -> Kafka (metrics) -->
+                    <path d="M 330 80 L 330 90 L 240 90 L 240 85" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+
+                    <!-- 4. Kafka -> Flink -->
+                    <path d="M 215 80 L 215 135 L 305 135" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-pink)"/>
+
+                    <!-- 5. Flink -> Kafka -->
+                    <path d="M 310 145 L 190 145 L 190 85" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-pink)"/>
+
+                    <!-- 6. Processing -> MinIO -->
+                    <line x1="410" y1="70" x2="465" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+                    <!-- 7. Flink -> MinIO -->
+                    <line x1="410" y1="125" x2="465" y2="110" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+                    <!-- 8. MinIO -> Visualization -->
+                    <line x1="560" y1="95" x2="615" y2="95" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                    <!-- 9. Flink -> Kafka (aggregates) -->
+                    <path d="M 360 160 L 360 170 L 190 170 L 190 85" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-pink)"/>
+
+                    <!-- 10. Kafka -> Aggregate Sink (aggregates) -->
+                    <path d="M 215 80 L 215 170 L 465 170" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arrow-orange)"/>
+
+                    <!-- 11. Aggregate Sink -> MinIO -->
+                    <line x1="515" y1="145" x2="515" y2="125" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+                    <!-- ============ LABELS ============ -->
+                    <text x="285" y="103" text-anchor="middle" fill="#10b981" font-size="7">metrics</text>
+                    <text x="250" y="158" text-anchor="middle" fill="#ec4899" font-size="7">aggregates</text>
+                    <text x="438" y="68" text-anchor="middle" fill="#f59e0b" font-size="7">artifacts</text>
+
+                    <!-- ============ LEGEND ============ -->
+                    <rect x="30" y="185" width="560" height="40" rx="4" fill="rgba(75, 85, 99, 0.15)" stroke="#4b5563" stroke-width="1"/>
+                    <text x="50" y="205" fill="#f9fafb" font-size="9" font-weight="500">Legend:</text>
+
+                    <!-- Observed indicator in legend -->
+                    <rect x="110" y="198" width="18" height="10" rx="2" fill="#ef4444"/>
+                    <circle cx="119" cy="203" r="3" fill="#1f2937"/>
+                    <text x="135" y="207" fill="#9ca3af" font-size="8">Observed (traces + metrics via OpenTelemetry)</text>
+
+                    <!-- Dashboard indicator in legend -->
+                    <rect x="360" y="197" width="20" height="12" rx="2" fill="none" stroke="#60a5fa" stroke-width="1"/>
+                    <text x="388" y="207" fill="#9ca3af" font-size="8">Visualization</text>
+
+                </svg>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 1rem; text-align: center;">
+                <strong>Kafka</strong> is the central event hub. <strong>Ingest</strong> detects files and produces job events.
+                <strong>Processing</strong> consumes jobs, executes algorithms, and produces metrics back to Kafka.
+                <strong>Flink</strong> consumes metrics for windowed aggregation and produces aggregates back to Kafka.
+                <strong>Aggregate Sink</strong> (separate process) consumes aggregates and stores to <strong>MinIO</strong>.
+                <strong>Dashboard</strong> reads from MinIO to visualize metrics. Components marked with <span style="color: #ef4444;">●</span> emit traces and metrics.
+            </p>
+        </section>
+
+        <section>
+            <h2>Kafka Topics</h2>
+            <div class="topics-grid">
+                <div class="topic-card">
+                    <div class="topic-name">visio.jobs</div>
+                    <div class="topic-description">Job lifecycle events with per-directory ordering.</div>
+                    <div class="topic-events">
+                        <span class="event-tag">JOB_CREATED</span>
+                        <span class="event-tag">JOB_STARTED</span>
+                        <span class="event-tag">JOB_COMPLETED</span>
+                        <span class="event-tag">JOB_FAILED</span>
+                    </div>
+                </div>
+                <div class="topic-card">
+                    <div class="topic-name">visio.results</div>
+                    <div class="topic-description">Algorithm outputs and artifact references.</div>
+                    <div class="topic-events">
+                        <span class="event-tag">RESULT_PRODUCED</span>
+                        <span class="event-tag">ARTIFACT_STORED</span>
+                    </div>
+                </div>
+                <div class="topic-card">
+                    <div class="topic-name">visio.metrics</div>
+                    <div class="topic-description">Individual metrics partitioned by algorithm.</div>
+                    <div class="topic-events">
+                        <span class="event-tag">METRIC_EMITTED</span>
+                    </div>
+                </div>
+                <div class="topic-card">
+                    <div class="topic-name">visio.audit-log</div>
+                    <div class="topic-description">Immutable audit trail with hash chain.</div>
+                    <div class="topic-events">
+                        <span class="event-tag">ALL EVENTS (dual-write)</span>
+                    </div>
+                </div>
+                <div class="topic-card">
+                    <div class="topic-name">visio.aggregates</div>
+                    <div class="topic-description">Time-windowed aggregations from Flink.</div>
+                    <div class="topic-events">
+                        <span class="event-tag">AGGREGATE_COMPUTED</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Processing Flow</h2>
+            <div class="detailed-flow">
+                <div class="flow-card">
+                    <h3>1. Ingest</h3>
+                    <div class="flow-steps">
+                        <div class="flow-step"><span class="step-number">1</span><span>Detect new or modified file</span></div>
+                        <div class="flow-step"><span class="step-number">2</span><span>Stability check (file write complete)</span></div>
+                        <div class="flow-step"><span class="step-number">3</span><span>Compute fingerprint</span></div>
+                        <div class="flow-step"><span class="step-number">4</span><span>Check dedup cache</span></div>
+                        <div class="flow-step"><span class="step-number">5</span><span>Publish JOB_CREATED</span></div>
+                    </div>
+                </div>
+                <div class="flow-card">
+                    <h3>2. Processing</h3>
+                    <div class="flow-steps">
+                        <div class="flow-step"><span class="step-number">1</span><span>Consume JOB_CREATED from Kafka</span></div>
+                        <div class="flow-step"><span class="step-number">2</span><span>Route to algorithm via Dispatcher</span></div>
+                        <div class="flow-step"><span class="step-number">3</span><span>Execute algorithm.run()</span></div>
+                        <div class="flow-step"><span class="step-number">4</span><span>Receive AlgoResult with MetricValues</span></div>
+                        <div class="flow-step"><span class="step-number">5</span><span>Each metric has AnalysisKind flags</span></div>
+                    </div>
+                </div>
+                <div class="flow-card">
+                    <h3>3. Analysis</h3>
+                    <div class="flow-steps">
+                        <div class="flow-step"><span class="step-number">1</span><span>Filter Kafka events by algo_name, algo_version</span></div>
+                        <div class="flow-step"><span class="step-number">2</span><span>For each metric, evaluate its AnalysisKind flags</span></div>
+                        <div class="flow-step"><span class="step-number">3</span><span>Run matching Analyzers (SUMMARY, DISTRIBUTION_1D, etc.)</span></div>
+                        <div class="flow-step"><span class="step-number">4</span><span>Produce summaries + artifacts for storage</span></div>
+                        <div class="flow-step"><span class="step-number">5</span><span>Prepare results for visualization</span></div>
+                    </div>
+                </div>
+                <div class="flow-card">
+                    <h3>4. Storage</h3>
+                    <div class="flow-steps">
+                        <div class="flow-step"><span class="step-number">1</span><span>Store artifacts from algorithms</span></div>
+                        <div class="flow-step"><span class="step-number">2</span><span>Store aggregates from Flink</span></div>
+                        <div class="flow-step"><span class="step-number">3</span><span>Content-addressed paths</span></div>
+                        <div class="flow-step"><span class="step-number">4</span><span>Automatic deduplication</span></div>
+                        <div class="flow-step"><span class="step-number">5</span><span>Return ObjectRef metadata</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Components</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h3>Directory Observer <span class="phase-tag ingest">Ingest</span></h3>
+                    <p>Monitors directories for new or modified files.</p>
+                    <ul class="feature-list">
+                        <li>File stability detection</li>
+                        <li>Fingerprint-based change detection</li>
+                        <li>In-memory dedup cache (1-hour TTL)</li>
+                        <li>Per-directory partition key</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Event Producer <span class="phase-tag kafka">Kafka</span></h3>
+                    <p>Publishes events with cryptographic hash chain.</p>
+                    <ul class="feature-list">
+                        <li>EventEnvelope with content_hash/prev_hash</li>
+                        <li>Dual-write to operational + audit topics</li>
+                        <li>OpenTelemetry trace propagation</li>
+                        <li>Prometheus metrics</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Worker Pool <span class="phase-tag processing">Processing</span></h3>
+                    <p>Kafka consumers processing jobs in parallel.</p>
+                    <ul class="feature-list">
+                        <li>Consumer group for load distribution</li>
+                        <li>Configurable ThreadPoolExecutor</li>
+                        <li>Backpressure via pause/resume</li>
+                        <li>Manual offset commit</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Algorithm Framework <span class="phase-tag processing">Processing</span></h3>
+                    <p>Extensible interface with lazy initialization.</p>
+                    <ul class="feature-list">
+                        <li>initialize() + run() methods</li>
+                        <li>Thread-safe one-time init</li>
+                        <li>Version-aware registry</li>
+                        <li>Per-algorithm TOML config</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Flink Aggregation <span class="phase-tag aggregation">Aggregation</span></h3>
+                    <p>Real-time streaming aggregation over visio.metrics topic.</p>
+                    <ul class="feature-list">
+                        <li>Consumes METRIC_EMITTED events</li>
+                        <li>1-min tumbling windows, groups by algo/metric</li>
+                        <li>Computes count, sum, avg, min, max</li>
+                        <li>Publishes to visio.aggregates topic</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Aggregate Sink <span class="phase-tag storage">Storage</span></h3>
+                    <p>Separate process consuming Flink output to MinIO.</p>
+                    <ul class="feature-list">
+                        <li>Consumes visio.aggregates topic</li>
+                        <li>Runs as separate process (GIL isolation)</li>
+                        <li>Auto-restarts on failure</li>
+                        <li>Writes JSON + NPZ to MinIO aggregates bucket</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Evaluation Analyzers <span class="phase-tag aggregation">Aggregation</span></h3>
+                    <p>AnalysisKind-driven statistical analysis on metric values.</p>
+                    <ul class="feature-list">
+                        <li>Metrics declare analysis via AnalysisKind flags</li>
+                        <li>SUMMARY: mean/std/quantiles</li>
+                        <li>DISTRIBUTION_1D: histograms</li>
+                        <li>OUTLIERS_1D, RATE, ELLIPSE_2D, CONTOUR_2D</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>MinIO Storage <span class="phase-tag storage">Storage</span></h3>
+                    <p>S3-compatible content-addressed storage.</p>
+                    <ul class="feature-list">
+                        <li>Path format: bucket/ab/cd/{hash}</li>
+                        <li>Automatic deduplication</li>
+                        <li>Buckets: artifacts, inputs, aggregates</li>
+                        <li>ObjectRef metadata tracking</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Domain Models</h2>
+            <div class="models-grid">
+                <div class="model-card">
+                    <h4>Job</h4>
+                    <div class="model-fields">
+                        Unit of work for file processing.<br>
+                        <code>job_id</code> <code>path</code> <code>directory_key</code> <code>fingerprint</code>
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>EventEnvelope</h4>
+                    <div class="model-fields">
+                        Immutable event with hash chain.<br>
+                        <code>event_id</code> <code>event_type</code> <code>payload</code> <code>content_hash</code> <code>prev_hash</code>
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>AlgoResult</h4>
+                    <div class="model-fields">
+                        Algorithm execution output.<br>
+                        <code>metrics</code> Dict[str, MetricValue]<br>
+                        <code>artifacts</code> Tuple[Artifact, ...]
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>MetricValue</h4>
+                    <div class="model-fields">
+                        Single metric with analysis hints.<br>
+                        <code>value</code> <code>analysis</code> (AnalysisKind) <code>meta</code>
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>ObjectRef</h4>
+                    <div class="model-fields">
+                        Reference to MinIO object.<br>
+                        <code>content_hash</code> <code>bucket</code> <code>key</code> <code>size</code>
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>AnalysisKind</h4>
+                    <div class="model-fields">
+                        Post-processing flags (IntFlag).<br>
+                        <code>SUMMARY</code> <code>DISTRIBUTION_1D</code> <code>OUTLIERS_1D</code> <code>COUNTER</code> <code>RATE</code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Infrastructure Services</h2>
+            <table class="services-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Port(s)</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Kafka</td><td><span class="port-badge">9092</span><span class="port-badge">9093</span></td><td>Event streaming</td></tr>
+                    <tr><td>Schema Registry</td><td><span class="port-badge">8085</span></td><td>Avro schema management</td></tr>
+                    <tr><td>Flink JobManager</td><td><span class="port-badge">8081</span></td><td>Stream processing</td></tr>
+                    <tr><td>MinIO</td><td><span class="port-badge">9000</span><span class="port-badge">9001</span></td><td>Object storage (API / Console)</td></tr>
+                    <tr><td>Prometheus</td><td><span class="port-badge">9091</span></td><td>Metrics collection</td></tr>
+                    <tr><td>Grafana</td><td><span class="port-badge">3000</span></td><td>Dashboards</td></tr>
+                    <tr><td>Jaeger</td><td><span class="port-badge">16686</span><span class="port-badge">4317</span></td><td>Distributed tracing</td></tr>
+                    <tr><td>Zookeeper</td><td><span class="port-badge">2181</span></td><td>Kafka coordination</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>Key Features</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h3>Event Ordering</h3>
+                    <p>Per-partition ordering using directory_key as partition key ensures jobs are processed in order within each directory.</p>
+                </div>
+                <div class="component-card">
+                    <h3>Deduplication</h3>
+                    <p>Content-addressed MinIO storage and fingerprint-based cache prevent duplicate processing.</p>
+                </div>
+                <div class="component-card">
+                    <h3>Audit Trail</h3>
+                    <p>Per-partition hash chains with dual-write provide tamper-evident event linking.</p>
+                </div>
+                <div class="component-card">
+                    <h3>Exactly-Once</h3>
+                    <p>Manual Kafka offset management and Flink checkpointing ensure exactly-once semantics.</p>
+                </div>
+                <div class="component-card">
+                    <h3>Backpressure</h3>
+                    <p>Worker pause/resume and consumer group rebalancing handle load gracefully.</p>
+                </div>
+                <div class="component-card">
+                    <h3>Observability</h3>
+                    <p>OpenTelemetry tracing, Prometheus metrics, structured logging, and correlation IDs.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>AnalysisKind &amp; Extensibility</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Metrics declare their analysis type via <code style="background: var(--bg-tertiary); padding: 0.1rem 0.3rem; border-radius: 3px;">AnalysisKind</code> flags. The system routes them to appropriate Analyzers automatically.</p>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h3>SUMMARY</h3>
+                    <p>Numeric statistics: count, mean, median, min, max, std, variance. Produces NPZ artifact with raw values.</p>
+                </div>
+                <div class="component-card">
+                    <h3>DISTRIBUTION_1D</h3>
+                    <p>Histogram computation with configurable bins. Produces NPZ artifact with edges and counts for visualization.</p>
+                </div>
+                <div class="component-card">
+                    <h3>OUTLIERS_1D</h3>
+                    <p>Robust outlier detection using IQR or MAD methods. Flags anomalous values for investigation.</p>
+                </div>
+                <div class="component-card">
+                    <h3>COUNTER</h3>
+                    <p>Categorical frequency table for discrete/string values. Tracks occurrence counts per category.</p>
+                </div>
+                <div class="component-card">
+                    <h3>RATE</h3>
+                    <p>Boolean pass/fail rate with Wilson confidence intervals. Accepts bool, 0/1, or yes/no strings.</p>
+                </div>
+                <div class="component-card">
+                    <h3>ELLIPSE_2D / CONTOUR_2D</h3>
+                    <p>2D covariance ellipse and density contours for bivariate data visualization.</p>
+                </div>
+            </div>
+            <div class="flow-card" style="margin-top: 1rem;">
+                <h3>Extensibility Model</h3>
+                <div class="flow-steps">
+                    <div class="flow-step"><span class="step-number">1</span><span><strong>Add algorithms</strong> - Implement Algorithm base class, register in registry, add route config. No pipeline changes needed.</span></div>
+                    <div class="flow-step"><span class="step-number">2</span><span><strong>Add analysis kinds</strong> - Add flag to AnalysisKind enum, implement Analyzer protocol, register in ANALYSIS_PIPELINE.</span></div>
+                    <div class="flow-step"><span class="step-number">3</span><span><strong>Nothing else changes</strong> - Kafka topics, Flink jobs, storage, and observability work automatically with new algorithms and analyzers.</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Audit Trail &amp; Hash Chain</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">GxP-compliant tamper-evident event linking using SHA-256 cryptographic hash chains.</p>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h3>How It Works</h3>
+                    <p>Each EventEnvelope contains:</p>
+                    <ul class="feature-list">
+                        <li><code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">content_hash</code> = SHA-256 of payload (canonical JSON)</li>
+                        <li><code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">prev_hash</code> = previous event's content_hash</li>
+                        <li>Per-partition chains for ordering guarantees</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Verification</h3>
+                    <p>To verify chain integrity:</p>
+                    <ul class="feature-list">
+                        <li>Recompute hash from payload - must match content_hash</li>
+                        <li>Check event[n].prev_hash == event[n-1].content_hash</li>
+                        <li>Any modification or deletion breaks the chain</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <h3>Benefits</h3>
+                    <p>Cryptographic guarantees:</p>
+                    <ul class="feature-list">
+                        <li>Tamper detection - modified events have wrong hash</li>
+                        <li>Gap detection - missing events break chain links</li>
+                        <li>Order verification - chain enforces sequence</li>
+                        <li>Signature-ready for PKI integration</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            VisioEval - Configuration-driven evaluation pipeline
+        </footer>
+    </div>
+</body>
+</html>

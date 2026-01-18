@@ -16,6 +16,10 @@ opentelemetry-api = ">=1.20"
 opentelemetry-sdk = ">=1.20"
 opentelemetry-exporter-otlp = ">=1.20"
 prometheus-client = ">=0.19"
+# Visualization
+bokeh = ">=3.3"
+# Performance (optional, falls back to stdlib json)
+orjson = ">=3.9"
 
 [dependencies]
 python = ">=3.12,<3.13"
@@ -25,13 +29,29 @@ pytest = ">=9.0.2,<10"
 ruff = ">=0.14.10,<0.15"
 
 [tasks]
+# Main pipeline components (can be run individually)
 run = "python -m src.app.main"
-run-flink-agg = "python -m src.app.flink_aggregation"
+aggregate-sink = "python -m src.app.aggregate_sink"
 run-flink-job = "python src/flink/jobs/submit_job.py"
+
+# Full pipeline (spawns all 3: main + flink job + aggregate sink)
+pipeline = "python -m src.app.pipeline_runner"
+
+# Legacy Python-based aggregation (not using Flink)
+run-flink-agg = "python -m src.app.flink_aggregation"
+
+# Testing
 test = "pytest -q --cov=src --cov-report=term-missing"
 test-e2e = "pytest tests/e2e -v --timeout=300"
 test-all = "pytest tests/ -v"
+
+# Code quality
 lint = "ruff check ."
 format = "ruff format ."
+
+# Benchmarks
 benchmark = "python -m benchmarks.load_generator"
 benchmark-kafka = "python -m benchmarks.kafka_benchmark"
+
+# Dashboard
+dashboard = "bokeh serve src/visualization/server.py --port 5006 --allow-websocket-origin=localhost:5006"

@@ -24,7 +24,6 @@ class ConfigError(ValueError):
     """Configuration validation error."""
 
 
-
 @dataclass(frozen=True)
 class RuntimeConfig:
     """Runtime configuration for the VisioEval pipeline."""

@@ -190,7 +190,8 @@ class TumblingWindowAggregator:
 
         self._window_start = datetime.fromtimestamp(window_start_sec, tz=UTC)
         self._window_end = datetime.fromtimestamp(
-            window_start_sec + self._window_size_sec, tz=UTC,
+            window_start_sec + self._window_size_sec,
+            tz=UTC,
         )
         self._current_window = {}
 

@@ -24,4 +24,3 @@ class Analyzer(Protocol):
 class AnalyzerResult(TypedDict, total=False):
     summary: dict[str, Any]
     artifact: Artifact | None
-

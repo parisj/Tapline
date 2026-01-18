@@ -35,5 +35,3 @@ ANALYSIS_PIPELINE: dict[AnalysisKind, list[AnalyzerFactory]] = {
         lambda: ContourAnalyzer(),
     ],
 }
-
-

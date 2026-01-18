@@ -33,7 +33,6 @@ from src.storage.minio_service import MinioStorageService
 from src.streaming.config import load_kafka_config
 from src.streaming.producer import EventProducer
 from src.utils.logging import configure_logging, get_logger
-from src.visualization.bokeh_app import start_bokeh_placeholder
 from src.workers.kafka_pool import KafkaWorkerPool
 
 logger = get_logger("pipeline.app.main")
@@ -90,7 +89,12 @@ def build_app(
 
 
 def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
-    """Run the streaming pipeline."""
+    """Run the streaming pipeline.
+
+    Note: This runs only the core pipeline (ingest, workers).
+    For full functionality with aggregation, use `pixi run pipeline` which
+    also starts the Flink job and aggregate sink.
+    """
     observer, worker_pool, producer, _storage = build_app(cfg=cfg)
 
     stop = threading.Event()
@@ -107,9 +111,10 @@ def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
     time.sleep(0.5)
 
     observer.start()
-    start_bokeh_placeholder()
 
     logger.info("Pipeline started. Ctrl+C to stop.")
+    logger.info("For full pipeline with Flink aggregation: pixi run pipeline")
+    logger.info("Dashboard available separately via: pixi run dashboard")
     logger.info(
         "Workers: %d, Directories: %d",
         cfg.workers_max,

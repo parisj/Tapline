@@ -103,11 +103,7 @@ class BenchmarkResult:
 def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
     """Create a PNG chunk with CRC."""
     chunk = chunk_type + data
-    return (
-        struct.pack(">I", len(data))
-        + chunk
-        + struct.pack(">I", zlib.crc32(chunk) & _CRC_MASK)
-    )
+    return struct.pack(">I", len(data)) + chunk + struct.pack(">I", zlib.crc32(chunk) & _CRC_MASK)
 
 
 def generate_png_bytes(width: int = 640, height: int = 480) -> bytes:
@@ -197,13 +193,11 @@ class LoadGenerator:
         self.config.directory.mkdir(parents=True, exist_ok=True)
 
         self._log(
-            f"Starting load generator: {self.config.target_rps} RPS "
-            f"for {self.config.duration_sec}s",
+            f"Starting load generator: {self.config.target_rps} RPS for {self.config.duration_sec}s",
         )
         self._log(f"Directory: {self.config.directory}")
         self._log(
-            f"Warmup: {self.config.warmup_sec}s, "
-            f"Cooldown: {self.config.cooldown_sec}s",
+            f"Warmup: {self.config.warmup_sec}s, Cooldown: {self.config.cooldown_sec}s",
         )
         self._log("")
 
@@ -247,9 +241,7 @@ class LoadGenerator:
         # Calculate results
         result.total_files_created = self._files_created
         result.duration_sec = measurement_end - measurement_start
-        result.actual_rps = (
-            measurement_files / result.duration_sec if result.duration_sec > 0 else 0
-        )
+        result.actual_rps = measurement_files / result.duration_sec if result.duration_sec > 0 else 0
 
         self._log("")
         self._log("=" * 60)

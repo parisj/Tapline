@@ -1,6 +1,5 @@
 """Unit tests for hash chain tracking and verification."""
 
-
 from src.audit.chain import (
     HashChainTracker,
     HashChainVerifier,

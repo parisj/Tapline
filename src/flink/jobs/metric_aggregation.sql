@@ -9,7 +9,10 @@
 --   Then paste this SQL
 -- ============================================================================
 
--- Create Kafka source table for metrics
+-- Configure idle timeout for source to advance watermarks when no new events
+SET 'table.exec.source.idle-timeout' = '10s';
+
+-- Create Kafka source table for metrics with event time
 CREATE TABLE metrics_source (
     event_id STRING,
     event_type STRING,
@@ -24,12 +27,14 @@ CREATE TABLE metrics_source (
         analysis_mask INT,
         meta MAP<STRING, STRING>
     >,
-    proc_time AS PROCTIME()
+    -- Parse ISO timestamp and define watermark with 10 second tolerance
+    event_time AS TO_TIMESTAMP(SUBSTRING(`timestamp`, 1, 19), 'yyyy-MM-dd''T''HH:mm:ss'),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
 ) WITH (
     'connector' = 'kafka',
     'topic' = 'visio.metrics',
     'properties.bootstrap.servers' = 'kafka:9093',
-    'properties.group.id' = 'visioeval-flink-sql',
+    'properties.group.id' = 'visioeval-flink-sql-v2',
     'scan.startup.mode' = 'earliest-offset',
     'format' = 'json',
     'json.ignore-parse-errors' = 'true'
@@ -54,14 +59,14 @@ CREATE TABLE aggregates_sink (
     'format' = 'json'
 );
 
--- Run aggregation query
+-- Run aggregation query with event time windows
 INSERT INTO aggregates_sink
 SELECT
     payload.algo_name AS algo_name,
     payload.algo_version AS algo_version,
     payload.metric_name AS metric_name,
-    TUMBLE_START(proc_time, INTERVAL '1' MINUTE) AS window_start,
-    TUMBLE_END(proc_time, INTERVAL '1' MINUTE) AS window_end,
+    TUMBLE_START(event_time, INTERVAL '1' MINUTE) AS window_start,
+    TUMBLE_END(event_time, INTERVAL '1' MINUTE) AS window_end,
     COUNT(*) AS metric_count,
     SUM(payload.`value`) AS metric_sum,
     AVG(payload.`value`) AS metric_avg,
@@ -74,4 +79,4 @@ GROUP BY
     payload.algo_name,
     payload.algo_version,
     payload.metric_name,
-    TUMBLE(proc_time, INTERVAL '1' MINUTE);
+    TUMBLE(event_time, INTERVAL '1' MINUTE);

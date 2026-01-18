@@ -336,12 +336,14 @@ class MinioStorageService:
         for obj in self._client.list_objects(bucket, prefix=prefix, recursive=True):
             if len(objects) >= limit:
                 break
-            objects.append({
-                "key": obj.object_name,
-                "size": obj.size,
-                "last_modified": obj.last_modified,
-                "etag": obj.etag,
-            })
+            objects.append(
+                {
+                    "key": obj.object_name,
+                    "size": obj.size,
+                    "last_modified": obj.last_modified,
+                    "etag": obj.etag,
+                },
+            )
         return objects
 
     def _object_exists(self, bucket: str, key: str) -> bool:

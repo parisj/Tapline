@@ -65,15 +65,17 @@ class MetricParser(MapFunction):
                 return None
 
             # Create structured metric record
-            return json.dumps({
-                "job_id": payload.get("job_id", ""),
-                "algo_name": payload.get("algo_name", "unknown"),
-                "algo_version": payload.get("algo_version", "0.0.0"),
-                "metric_name": payload.get("metric_name", "unknown"),
-                "value": float(metric_value),
-                "analysis_mask": payload.get("analysis_mask", 0),
-                "event_timestamp": data.get("timestamp", ""),
-            })
+            return json.dumps(
+                {
+                    "job_id": payload.get("job_id", ""),
+                    "algo_name": payload.get("algo_name", "unknown"),
+                    "algo_version": payload.get("algo_version", "0.0.0"),
+                    "metric_name": payload.get("metric_name", "unknown"),
+                    "value": float(metric_value),
+                    "analysis_mask": payload.get("analysis_mask", 0),
+                    "event_timestamp": data.get("timestamp", ""),
+                },
+            )
         except (json.JSONDecodeError, KeyError, ValueError):
             return None
 
@@ -117,7 +119,7 @@ class MetricWindowAggregator(ProcessWindowFunction):
         # Compute std
         if count > 1:
             variance = sum((v - mean) ** 2 for v in values) / count
-            std = variance ** 0.5
+            std = variance**0.5
         else:
             std = 0.0
 
@@ -176,7 +178,6 @@ def create_job() -> StreamExecutionEnvironment:
     aggregates_topic = os.getenv("KAFKA_TOPIC_AGGREGATES", "visio.aggregates")
     window_size_sec = int(os.getenv("FLINK_WINDOW_SIZE_SEC", "60"))
     parallelism = int(os.getenv("FLINK_PARALLELISM", "4"))
-
 
     # Create execution environment
     env = StreamExecutionEnvironment.get_execution_environment()

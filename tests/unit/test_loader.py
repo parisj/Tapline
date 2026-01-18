@@ -19,7 +19,7 @@ def _write_toml(tmp_path: Path, text: str) -> Path:
     return p
 
 
-def test_load_runtime_config_success_minimal_valid(tmp_path: Path)-> None:
+def test_load_runtime_config_success_minimal_valid(tmp_path: Path) -> None:
     path = _write_toml(
         tmp_path,
         """
@@ -64,7 +64,7 @@ def test_load_runtime_config_success_minimal_valid(tmp_path: Path)-> None:
     assert cfg.directories["out"] == Path("/tmp/out")
 
 
-def test_load_runtime_config_requires_each_top_level_table(tmp_path: Path)-> None:
+def test_load_runtime_config_requires_each_top_level_table(tmp_path: Path) -> None:
     path = _write_toml(
         tmp_path,
         """
@@ -167,7 +167,6 @@ def test_load_runtime_config_validates_ingest_fields(
 
     with pytest.raises(ConfigError, match=expected_message):
         load_runtime_config(path)
-
 
 
 @pytest.mark.parametrize(

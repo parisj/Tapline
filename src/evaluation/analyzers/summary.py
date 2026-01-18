@@ -69,7 +69,6 @@ class SummaryAnalyzer(Analyzer):
         buf = io.BytesIO()
         np.savez_compressed(buf, value=values)
 
-
         return {
             "summary": {
                 "count": len(nums),
@@ -81,7 +80,6 @@ class SummaryAnalyzer(Analyzer):
                 "std": std,
                 "variance": variance,
             },
-
             "artifact": Artifact(
                 name="summary.npz",
                 mime="summary/x-npz",

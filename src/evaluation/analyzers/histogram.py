@@ -8,7 +8,6 @@ from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
 
 class HistogramAnalyzer(Analyzer):
-
     def run(self, *, values: list[Any], meta: dict[str, Any]) -> AnalyzerResult:
         nums = np.array([v for v in values if isinstance(v, (int, float))])
 
@@ -30,7 +29,7 @@ class HistogramAnalyzer(Analyzer):
                 "mean": float(nums.mean()),
                 "std": float(nums.std(ddof=1)) if nums.size > 1 else 0.0,
                 "bins": bins,
-                "missing" : missing,
+                "missing": missing,
             },
             "artifact": Artifact(
                 name="histogram.npz",

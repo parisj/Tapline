@@ -315,9 +315,7 @@ class KafkaBenchmark:
                 result.roundtrip_latencies_ms.append(latency_ms)
 
         if result.roundtrip_latencies_ms:
-            result.consume_duration_sec = (
-                max(receive_times.values()) - min(receive_times.values())
-            )
+            result.consume_duration_sec = max(receive_times.values()) - min(receive_times.values())
 
         self._log("")
         self._log("=" * 60)

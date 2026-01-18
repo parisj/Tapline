@@ -55,9 +55,13 @@ def submit_sql_job(sql_file: Path, _flink_url: str) -> bool:
     # Submit via SQL Client
     # The SQL client runs the SQL statements and exits
     submit_cmd = [
-        "docker", "exec", "-i", "flink-jobmanager",
+        "docker",
+        "exec",
+        "-i",
+        "flink-jobmanager",
         "/opt/flink/bin/sql-client.sh",
-        "-f", container_sql_path,
+        "-f",
+        container_sql_path,
     ]
 
     result = subprocess.run(submit_cmd, check=False, capture_output=True, text=True, timeout=60)
@@ -74,12 +78,10 @@ def main() -> None:
     flink_url = os.getenv("FLINK_REST_URL", "http://localhost:8081")
     sql_file = Path(__file__).parent / "metric_aggregation.sql"
 
-
     # Check cluster health
     cluster_info = check_flink_cluster(flink_url)
     if not cluster_info:
         sys.exit(1)
-
 
     # Check for existing jobs
     initial_jobs = get_jobs(flink_url)
@@ -101,7 +103,6 @@ def main() -> None:
     current_jobs = get_jobs(flink_url)
     current_running = [j for j in current_jobs if j.get("status") == "RUNNING"]
 
-
     if current_running:
         for job in current_running:
             # Get job details
@@ -121,7 +122,6 @@ def main() -> None:
                 pass
         else:
             pass
-
 
 
 if __name__ == "__main__":

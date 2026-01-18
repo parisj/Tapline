@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 def install_signal_handlers(stop_event: threading.Event) -> None:
     """Set stop_event on SIGINT/SIGTERM."""
+
     def _handler(_signum: int, _frame: FrameType | None) -> None:
         stop_event.set()
 

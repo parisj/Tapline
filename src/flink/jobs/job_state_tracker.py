@@ -23,7 +23,6 @@ from pyflink.datastream.state import ValueStateDescriptor
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
-
     from collections.abc import Iterator
 
     from src.flink.config import FlinkConfig
@@ -160,10 +159,12 @@ class JobStateProcessor(KeyedProcessFunction):
 
         if job_state:
             # Record event in history (limit to last N events)
-            job_state.events.append({
-                "type": event_type,
-                "timestamp": timestamp.isoformat() if timestamp else None,
-            })
+            job_state.events.append(
+                {
+                    "type": event_type,
+                    "timestamp": timestamp.isoformat() if timestamp else None,
+                },
+            )
             if len(job_state.events) > _MAX_EVENT_HISTORY:
                 job_state.events = job_state.events[-_MAX_EVENT_HISTORY:]
 

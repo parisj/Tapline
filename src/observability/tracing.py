@@ -65,7 +65,8 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
             exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=True)
             _tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
             logger.info(
-                "OTLP tracing exporter configured: endpoint=%s", config.otlp_endpoint,
+                "OTLP tracing exporter configured: endpoint=%s",
+                config.otlp_endpoint,
             )
         except ImportError:
             logger.warning("OTLP exporter not available, falling back to console")

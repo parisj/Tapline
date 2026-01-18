@@ -23,17 +23,17 @@ class ModelInferenceAlgo(Algorithm):
     def initialize(self, settings: Mapping[str, Any]) -> None:
         self._model_path = str(settings.get("model_path", "model.onnx"))
 
-    def run(self, image_bytes: bytes, _settings: Mapping[str, Any]) -> AlgoResult:
-        score = (
-            (hashlib.sha1(image_bytes[:64]).digest()[0] / 255.0) if image_bytes else 0.0
-        )
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:
+        score = (hashlib.sha1(image_bytes[:64]).digest()[0] / 255.0) if image_bytes else 0.0
         return AlgoResult(
             metrics={
                 "score": MetricValue(
-                    score, AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                    score,
+                    AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
                 ),
                 "model_path": MetricValue(
-                    getattr(self, "_model_path", None), AnalysisKind.INFO,
+                    getattr(self, "_model_path", None),
+                    AnalysisKind.INFO,
                 ),
             },
         )

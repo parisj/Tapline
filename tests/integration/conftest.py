@@ -76,6 +76,7 @@ def minio_available(test_config: TestConfig) -> bool:
 def unique_topic_name() -> str:
     """Generate a unique topic name for test isolation."""
     import uuid
+
     return f"test-topic-{uuid.uuid4().hex[:8]}"
 
 
@@ -83,6 +84,7 @@ def unique_topic_name() -> str:
 def unique_bucket_name() -> str:
     """Generate a unique bucket name for test isolation."""
     import uuid
+
     return f"test-bucket-{uuid.uuid4().hex[:8]}"
 
 

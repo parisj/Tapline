@@ -60,7 +60,8 @@ class ContourAnalyzer(Analyzer):
         xx, yy = np.meshgrid(x, y)
 
         z, _, _ = np.histogram2d(
-            xs, ys,
+            xs,
+            ys,
             bins=size,
             range=[[xmin, xmax], [ymin, ymax]],
             density=bool(meta.get("density", True)),
@@ -89,7 +90,7 @@ class ContourAnalyzer(Analyzer):
                 "levels_n": int(levels.size),
                 "density": bool(meta.get("density", True)),
             },
-            "artifact":Artifact(
+            "artifact": Artifact(
                 name="contour.npz",
                 mime="application/x-npz",
                 data=buf.getvalue(),
