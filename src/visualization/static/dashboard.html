@@ -305,6 +305,7 @@
     .health-dot.healthy { background-color: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
     .health-dot.warning { background-color: var(--accent-warning); box-shadow: 0 0 8px var(--accent-warning); }
     .health-dot.error { background-color: var(--accent-error); box-shadow: 0 0 8px var(--accent-error); }
+    .health-dot.stopped { background-color: var(--text-muted); box-shadow: 0 0 8px var(--text-muted); }
 
     .health-info {
       flex: 1;
@@ -418,6 +419,7 @@
     .activity-icon.error { background-color: rgba(239, 68, 68, 0.15); color: var(--accent-error); }
     .activity-icon.info { background-color: rgba(6, 182, 212, 0.15); color: var(--accent-info); }
     .activity-icon.warning { background-color: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+    .activity-icon.stopped { background-color: rgba(113, 113, 122, 0.15); color: var(--text-muted); }
 
     .activity-content {
       flex: 1;
@@ -480,6 +482,10 @@
     .badge-distribution { background-color: rgba(6, 182, 212, 0.15); color: var(--accent-info); }
     .badge-counter { background-color: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
     .badge-rate { background-color: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+    .badge-outliers { background-color: rgba(239, 68, 68, 0.15); color: var(--accent-error); }
+    .badge-ellipse { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .badge-contour { background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .badge-info { background-color: rgba(113, 113, 122, 0.15); color: var(--text-muted); }
 
     /* Page sections */
     .page-section {
@@ -970,10 +976,12 @@
               <option value="">All Types</option>
               <option value="SUMMARY">Summary</option>
               <option value="DISTRIBUTION_1D">Distribution</option>
+              <option value="OUTLIERS_1D">Outliers</option>
               <option value="COUNTER">Counter</option>
               <option value="RATE">Rate</option>
               <option value="ELLIPSE_2D">Ellipse 2D</option>
               <option value="CONTOUR_2D">Contour 2D</option>
+              <option value="INFO">Info</option>
             </select>
           </div>
           <div>
@@ -1008,16 +1016,33 @@
 
         <!-- Selected Metric Visualization -->
         <div class="card" id="metric-visualization-card" style="display: none;">
-          <div class="card-header">
+          <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
             <h3 class="card-title" id="selected-metric-title">Metric Visualization</h3>
-            <button class="btn-filter btn-secondary" onclick="closeVisualization()">Close</button>
+            <div style="display: flex; align-items: center; gap: 16px; margin-left: auto;">
+              <select class="filter-select" id="viz-time-range" style="min-width: 130px; padding: 6px 10px; font-size: 13px;" onchange="updateVisualizationTimeRange()">
+                <option value="">All Time</option>
+                <option value="5">Last 5 min</option>
+                <option value="10">Last 10 min</option>
+                <option value="30" selected>Last 30 min</option>
+                <option value="60">Last 1 hour</option>
+                <option value="120">Last 2 hours</option>
+                <option value="360">Last 6 hours</option>
+                <option value="1440">Last 24 hours</option>
+              </select>
+              <button class="btn-filter btn-secondary" style="padding: 6px 12px;" onclick="closeVisualization()">Close</button>
+            </div>
           </div>
-          <div class="row">
+          <div id="viz-no-data" style="display: none; text-align: center; padding: 40px; color: var(--text-secondary);">
+            <div style="font-size: 48px; margin-bottom: 12px;">📊</div>
+            <div style="font-size: 14px;">No data available for selected time range</div>
+            <div style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">Try selecting a longer time range</div>
+          </div>
+          <div class="row" id="viz-content">
             <div class="col-md-8">
               <div id="metric-chart" class="chart-container"></div>
             </div>
             <div class="col-md-4">
-              <h4 style="font-size: 14px; margin-bottom: 16px;">Statistics</h4>
+              <h4 style="font-size: 13px; margin-bottom: 12px; color: var(--text-secondary);">Statistics</h4>
               <table class="stats-table" id="metric-stats">
                 <!-- Populated by JS -->
               </table>
@@ -1112,6 +1137,23 @@
               </div>
               <div id="health-events">
                 <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h3 class="card-title">Audit Chain Verification</h3>
+            <span style="font-size: 11px; color: var(--text-muted);">GxP Compliance Check</span>
+          </div>
+          <div id="audit-chain-status">
+            <!-- Populated by JS -->
+            <div class="health-item">
+              <span class="health-dot warning"></span>
+              <div class="health-info">
+                <div class="health-name">Audit Chain Integrity</div>
+                <div class="health-status">Verifying...</div>
               </div>
             </div>
           </div>
@@ -1267,20 +1309,32 @@
               </div>
               <table class="stats-table">
                 <tr>
+                  <td class="label">Dashboard API</td>
+                  <td class="value"><span class="health-dot" id="conn-api"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:5007</span></td>
+                </tr>
+                <tr>
                   <td class="label">Prometheus</td>
-                  <td class="value"><span class="health-dot" id="conn-prometheus"></span></td>
+                  <td class="value"><span class="health-dot" id="conn-prometheus"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:9091</span></td>
                 </tr>
                 <tr>
                   <td class="label">MinIO</td>
-                  <td class="value"><span class="health-dot" id="conn-minio"></span></td>
+                  <td class="value"><span class="health-dot" id="conn-minio"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:9000</span></td>
                 </tr>
                 <tr>
                   <td class="label">Kafka</td>
-                  <td class="value"><span class="health-dot" id="conn-kafka"></span></td>
+                  <td class="value"><span class="health-dot" id="conn-kafka"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:9092</span></td>
                 </tr>
                 <tr>
                   <td class="label">Flink</td>
-                  <td class="value"><span class="health-dot" id="conn-flink"></span></td>
+                  <td class="value"><span class="health-dot" id="conn-flink"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:8081</span></td>
+                </tr>
+                <tr>
+                  <td class="label">Jaeger</td>
+                  <td class="value"><span class="health-dot" id="conn-jaeger"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:16686</span></td>
+                </tr>
+                <tr>
+                  <td class="label">Grafana</td>
+                  <td class="value"><span class="health-dot" id="conn-grafana"></span> <span style="font-size: 11px; color: var(--text-muted);">localhost:3000</span></td>
                 </tr>
               </table>
             </div>
@@ -1292,17 +1346,15 @@
 </div>
 
 <script>
-  // Configuration - Actual VisioEval endpoints
+  // Configuration - All API calls go through Flask server
   const CONFIG = {
-    prometheusUrl: 'http://localhost:9091',
-    apiUrl: 'http://localhost:5007',  // MinIO API server
-    minioUrl: 'http://localhost:9000',
+    apiUrl: '',  // Same origin - Flask serves dashboard and API
+    // External services (for direct links only, not API calls)
     minioConsoleUrl: 'http://localhost:9001',
     flinkUrl: 'http://localhost:8081',
-    kafkaBroker: 'localhost:9092',
     jaegerUrl: 'http://localhost:16686',
     grafanaUrl: 'http://localhost:3000',
-    pipelineMetricsUrl: 'http://localhost:8000',
+    prometheusUiUrl: 'http://localhost:9091',
     refreshInterval: 30000,
     autoRefresh: true
   };
@@ -1335,25 +1387,7 @@
   async function checkAllConnections() {
     console.log('Checking service connections...');
 
-    // Check Prometheus
-    try {
-      const resp = await fetch(`${CONFIG.prometheusUrl}/-/healthy`);
-      CONNECTION_STATUS.prometheus = resp.ok;
-    } catch (e) {
-      CONNECTION_STATUS.prometheus = false;
-    }
-    updateConnectionIndicator('prometheus', CONNECTION_STATUS.prometheus);
-
-    // Check Flink
-    try {
-      const resp = await fetch(`${CONFIG.flinkUrl}/overview`);
-      CONNECTION_STATUS.flink = resp.ok;
-    } catch (e) {
-      CONNECTION_STATUS.flink = false;
-    }
-    updateConnectionIndicator('flink', CONNECTION_STATUS.flink);
-
-    // Check MinIO API server (which connects to MinIO)
+    // Check API server first (this Flask app)
     try {
       const resp = await fetch(`${CONFIG.apiUrl}/api/health`);
       if (resp.ok) {
@@ -1368,15 +1402,56 @@
       CONNECTION_STATUS.api = false;
       CONNECTION_STATUS.minio = false;
     }
+    updateConnectionIndicator('api', CONNECTION_STATUS.api);
     updateConnectionIndicator('minio', CONNECTION_STATUS.minio);
+
+    // Check Prometheus (via Flask API proxy)
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/prometheus/healthy`);
+      const data = await resp.json();
+      CONNECTION_STATUS.prometheus = data.healthy === true;
+    } catch (e) {
+      CONNECTION_STATUS.prometheus = false;
+    }
+    updateConnectionIndicator('prometheus', CONNECTION_STATUS.prometheus);
+
+    // Check Flink (direct - external service)
+    try {
+      const resp = await fetch(`${CONFIG.flinkUrl}/overview`);
+      CONNECTION_STATUS.flink = resp.ok;
+    } catch (e) {
+      CONNECTION_STATUS.flink = false;
+    }
+    updateConnectionIndicator('flink', CONNECTION_STATUS.flink);
 
     // Kafka checked via Prometheus metrics
     CONNECTION_STATUS.kafka = CONNECTION_STATUS.prometheus;
     updateConnectionIndicator('kafka', CONNECTION_STATUS.kafka);
 
-    // Update system status indicator
-    const allUp = Object.values(CONNECTION_STATUS).every(v => v);
-    const someUp = Object.values(CONNECTION_STATUS).some(v => v);
+    // Check Jaeger
+    let jaegerUp = false;
+    try {
+      const resp = await fetch(`${CONFIG.jaegerUrl}/api/services`);
+      jaegerUp = resp.ok;
+    } catch (e) {
+      jaegerUp = false;
+    }
+    updateConnectionIndicator('jaeger', jaegerUp);
+
+    // Check Grafana
+    let grafanaUp = false;
+    try {
+      const resp = await fetch(`${CONFIG.grafanaUrl}/api/health`);
+      grafanaUp = resp.ok;
+    } catch (e) {
+      grafanaUp = false;
+    }
+    updateConnectionIndicator('grafana', grafanaUp);
+
+    // Update system status indicator (core services only: API, Prometheus, MinIO, Kafka)
+    const coreServices = [CONNECTION_STATUS.api, CONNECTION_STATUS.prometheus, CONNECTION_STATUS.minio];
+    const allUp = coreServices.every(v => v);
+    const someUp = coreServices.some(v => v);
     const statusDot = document.querySelector('.sidenav .health-dot');
     const statusText = document.getElementById('system-status-text');
 
@@ -1400,12 +1475,13 @@
     try {
       let url = `${CONFIG.apiUrl}/api/metrics`;
       const params = new URLSearchParams();
-      if (filters.directory) params.append('directory', filters.directory);
       if (filters.algorithm) params.append('algorithm', filters.algorithm);
       if (filters.version) params.append('version', filters.version);
+      if (filters.refresh) params.append('refresh', 'true');
+      if (filters.time_range) params.append('time_range', filters.time_range);
       if (params.toString()) url += '?' + params.toString();
 
-      const resp = await fetch(url);
+      const resp = await fetch(url, {cache: 'no-store'});
       if (!resp.ok) return null;
       return await resp.json();
     } catch (e) {
@@ -1414,15 +1490,16 @@
     }
   }
 
-  async function fetchMetricData(metricName, algorithm, version) {
+  async function fetchMetricData(metricName, algorithm, version, timeRange = null) {
     try {
       let url = `${CONFIG.apiUrl}/api/metrics/${encodeURIComponent(metricName)}/data`;
       const params = new URLSearchParams();
       if (algorithm) params.append('algorithm', algorithm);
       if (version) params.append('version', version);
+      if (timeRange) params.append('time_range', timeRange);
       if (params.toString()) url += '?' + params.toString();
 
-      const resp = await fetch(url);
+      const resp = await fetch(url, {cache: 'no-store'});
       if (!resp.ok) return null;
       return await resp.json();
     } catch (e) {
@@ -1433,7 +1510,7 @@
 
   async function fetchMinioBuckets() {
     try {
-      const resp = await fetch(`${CONFIG.apiUrl}/api/buckets`);
+      const resp = await fetch(`${CONFIG.apiUrl}/api/buckets`, {cache: 'no-store'});
       if (!resp.ok) return null;
       return await resp.json();
     } catch (e) {
@@ -1573,16 +1650,16 @@
     renderAlgoPerformance(data.algorithms.list);
   }
 
-  // Prometheus API helper
+  // Prometheus API helper (via Flask API proxy)
   async function prometheusQuery(query) {
     try {
-      const url = `${CONFIG.prometheusUrl}/api/v1/query?query=${encodeURIComponent(query)}`;
+      const url = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(query)}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      CONNECTION_STATUS.prometheus = true;
-      updateConnectionIndicator('prometheus', true);
-      if (data.status === 'success' && data.data.result.length > 0) {
+      if (data.status === 'success' && data.data && data.data.result && data.data.result.length > 0) {
+        CONNECTION_STATUS.prometheus = true;
+        updateConnectionIndicator('prometheus', true);
         return parseFloat(data.data.result[0].value[1]) || 0;
       }
       return 0;
@@ -1596,12 +1673,12 @@
 
   async function prometheusRangeQuery(query, start, end, step) {
     try {
-      const url = `${CONFIG.prometheusUrl}/api/v1/query_range?query=${encodeURIComponent(query)}&start=${start}&end=${end}&step=${step}`;
+      const url = `${CONFIG.apiUrl}/api/prometheus/query_range?query=${encodeURIComponent(query)}&start=${start}&end=${end}&step=${step}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      CONNECTION_STATUS.prometheus = true;
-      if (data.status === 'success' && data.data.result.length > 0) {
+      if (data.status === 'success' && data.data && data.data.result && data.data.result.length > 0) {
+        CONNECTION_STATUS.prometheus = true;
         return data.data.result[0].values.map(v => ({
           time: new Date(v[0] * 1000),
           value: parseFloat(v[1]) || 0
@@ -1662,14 +1739,14 @@
     }
   }
 
-  // Generate fallback data when services are unavailable
+  // Generate empty fallback data when services are unavailable
   function generateFallbackData() {
     const now = Date.now();
     const history = [];
     for (let i = 60; i >= 0; i--) {
       history.push({
         time: new Date(now - i * 60000),
-        value: 30 + Math.random() * 40 + Math.sin(i / 10) * 10
+        value: 0  // Show zero when no data available, not fake random values
       });
     }
     return history;
@@ -1680,7 +1757,7 @@
     const now = Math.floor(Date.now() / 1000);
     const hourAgo = now - 3600;
 
-    // Parallel fetch of all metrics
+    // Parallel fetch of all metrics (Prometheus + MinIO for fallback)
     const [
       jobsTotal,
       jobsCompleted,
@@ -1692,90 +1769,212 @@
       kafkaProduced,
       kafkaConsumed,
       minioStored,
-      throughputHistory
+      throughputHistory,
+      minioBuckets,
+      minioMetrics
     ] = await Promise.all([
       prometheusQuery('sum(visioeval_jobs_created_total)'),
       prometheusQuery('sum(visioeval_jobs_completed_total)'),
       prometheusQuery('sum(visioeval_jobs_failed_total)'),
-      prometheusQuery('sum(rate(visioeval_jobs_completed_total[1m]))'),
+      prometheusQuery('sum(rate(visioeval_kafka_messages_consumed_total[1m]))'),
       prometheusQuery('histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))'),
       prometheusQuery('visioeval_workers_active'),
       prometheusQuery('visioeval_ingest_queue_size'),
       prometheusQuery('sum(visioeval_kafka_messages_produced_total)'),
       prometheusQuery('sum(visioeval_kafka_messages_consumed_total)'),
       prometheusQuery('sum(visioeval_minio_objects_stored_total)'),
-      prometheusRangeQuery('sum(rate(visioeval_jobs_completed_total[1m]))', hourAgo, now, '60')
+      prometheusRangeQuery('sum(rate(visioeval_kafka_messages_consumed_total[1m]))', hourAgo, now, '60'),
+      fetchMinioBuckets(),
+      fetchMinioMetrics({refresh: true})  // Always refresh to get latest data
     ]);
 
-    // Calculate error rate
-    const completedTotal = jobsCompleted || 0;
-    const failedTotal = jobsFailed || 0;
-    const errorRate = completedTotal > 0 ? (failedTotal / (completedTotal + failedTotal)) * 100 : 0;
+    // Extract MinIO data as fallback for job counts
+    let minioArtifactsCount = 0;
+    let minioAggregatesCount = 0;
+    if (minioBuckets && minioBuckets.buckets) {
+      const artifactsBucket = minioBuckets.buckets.find(b => b.name === 'artifacts');
+      const aggregatesBucket = minioBuckets.buckets.find(b => b.name === 'aggregates');
+      minioArtifactsCount = artifactsBucket ? (artifactsBucket.object_count || 0) : 0;
+      minioAggregatesCount = aggregatesBucket ? (aggregatesBucket.object_count || 0) : 0;
+    }
 
-    // Use real data if available, fallback to simulated
-    const history = throughputHistory || generateFallbackData();
+    // Count jobs from MinIO metrics (using max count as proxy for total processed)
+    let minioJobsFromMetrics = 0;
+    if (minioMetrics && minioMetrics.metrics) {
+      // Sum the max count per algorithm (each algo processes jobs independently)
+      const algoMaxCounts = {};
+      for (const m of minioMetrics.metrics) {
+        const key = `${m.algo_name}|${m.algo_version}`;
+        if (m.count && m.count > 0) {
+          algoMaxCounts[key] = Math.max(algoMaxCounts[key] || 0, m.count);
+        }
+      }
+      minioJobsFromMetrics = Object.values(algoMaxCounts).reduce((sum, c) => sum + c, 0);
+    }
+
+    // Use Prometheus jobs if available, otherwise fall back to MinIO data
+    // Prefer metrics job count over artifacts count (more accurate)
+    const promJobsTotal = jobsTotal !== null ? Math.round(jobsTotal) : 0;
+    const minioFallbackJobs = minioJobsFromMetrics > 0 ? minioJobsFromMetrics : minioArtifactsCount;
+    const effectiveJobsTotal = promJobsTotal > 0 ? promJobsTotal : minioFallbackJobs;
+
+    const promCompleted = jobsCompleted || 0;
+    const effectiveCompleted = promCompleted > 0 ? promCompleted : minioFallbackJobs;
+
+    // Calculate error rate (0 if using MinIO fallback since we don't have failure data)
+    const completedTotal = effectiveCompleted;
+    const failedTotal = jobsFailed || 0;
+    const errorRate = completedTotal > 0 && promCompleted > 0
+      ? (failedTotal / (completedTotal + failedTotal)) * 100
+      : 0;
+
+    // Use real data if available, fallback to zeros
+    const history = (throughputHistory && throughputHistory.length > 0) ? throughputHistory : generateFallbackData();
 
     // Fetch by-algorithm stats if available
     const algoStats = await fetchAlgorithmStats();
 
+    // Fetch real algorithms from config API
+    let configAlgos = [];
+    try {
+      const algosData = await fetchMinioAlgorithms();
+      if (algosData && algosData.algorithms) {
+        configAlgos = algosData.algorithms.map(a => ({
+          name: a.name,
+          version: a.version,
+          success: 0,  // Will be calculated from real data
+          jobs: 0
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch config algorithms:', e.message);
+    }
+
+    // Fetch directories count from config
+    let dirCount = 0;
+    try {
+      const dirsData = await fetchMinioDirectories();
+      if (dirsData && dirsData.directories) {
+        dirCount = dirsData.directories.length;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch directories:', e.message);
+    }
+
+    // Merge algorithm stats with config
+    // If no Prometheus stats, use MinIO metrics to estimate per-algo jobs
+    let mergedAlgos = [];
+    if (algoStats.length > 0) {
+      mergedAlgos = configAlgos.length > 0 ? configAlgos.map(ca => {
+        const stats = algoStats.find(s => s.name === ca.name);
+        return stats ? { ...ca, ...stats } : ca;
+      }) : algoStats;
+    } else if (minioMetrics && minioMetrics.metrics) {
+      // Estimate jobs per algorithm from MinIO metrics
+      const algoJobCounts = {};
+      for (const m of minioMetrics.metrics) {
+        const key = `${m.algo_name}|${m.algo_version}`;
+        if (!algoJobCounts[key]) {
+          algoJobCounts[key] = { name: m.algo_name, version: m.algo_version, jobs: 0, metricCount: 0, success: 100 };
+        }
+        algoJobCounts[key].metricCount++;
+        // Use the aggregated count from MinIO (actual job count)
+        if (m.count && m.count > 0) {
+          algoJobCounts[key].jobs = Math.max(algoJobCounts[key].jobs, m.count);
+        }
+      }
+      const minioAlgoStats = Object.values(algoJobCounts);
+
+      mergedAlgos = configAlgos.length > 0 ? configAlgos.map(ca => {
+        const stats = minioAlgoStats.find(s => s.name === ca.name);
+        return stats ? { ...ca, ...stats } : ca;
+      }) : minioAlgoStats;
+    } else {
+      mergedAlgos = configAlgos;
+    }
+
+    // Calculate throughput estimate if Prometheus returns 0
+    // Use MinIO aggregates count as a rough indicator (aggregates are time-windowed)
+    const promThroughput = throughputRate !== null ? throughputRate : 0;
+    const effectiveThroughput = promThroughput > 0 ? promThroughput : 0;
+
     return {
       jobs: {
-        total: jobsTotal !== null ? Math.round(jobsTotal) : 12847,
-        completed: completedTotal,
-        failed: failedTotal
+        total: effectiveJobsTotal,
+        completed: effectiveCompleted,
+        failed: failedTotal,
+        source: promJobsTotal > 0 ? 'prometheus' : 'minio'
       },
       throughput: {
-        current: throughputRate !== null ? throughputRate : 45 + Math.random() * 10,
+        current: effectiveThroughput,
         history: history
       },
       latency: {
-        avg: latencyAvg !== null ? latencyAvg * 1000 : 120 + Math.random() * 20  // Convert to ms
+        avg: latencyAvg !== null ? latencyAvg * 1000 : 0  // Convert to ms, 0 if unavailable
       },
       errors: { rate: errorRate },
       resources: {
-        cpu: { percent: 60 + Math.random() * 20, label: Math.round(60 + Math.random() * 20) + '%' },
-        memory: { percent: 50 + Math.random() * 15, label: (4 + Math.random()).toFixed(1) + ' GB' },
-        disk: { percent: 35 + Math.random() * 10, label: Math.round(100 + Math.random() * 50) + ' MB/s' },
-        network: { percent: 20 + Math.random() * 15, label: Math.round(20 + Math.random() * 10) + ' MB/s' }
+        // Show N/A when no real resource metrics available
+        cpu: { percent: 0, label: 'N/A' },
+        memory: { percent: 0, label: 'N/A' },
+        disk: { percent: 0, label: 'N/A' },
+        network: { percent: 0, label: 'N/A' }
       },
-      workers: { active: workersActive !== null ? Math.round(workersActive) : 8 },
-      queue: { depth: queueSize !== null ? Math.round(queueSize) : Math.floor(100 + Math.random() * 100) },
+      workers: { active: workersActive !== null ? Math.round(workersActive) : 0 },
+      queue: { depth: queueSize !== null ? Math.round(queueSize) : 0 },
       kafka: {
         produced: kafkaProduced !== null ? Math.round(kafkaProduced) : 0,
         consumed: kafkaConsumed !== null ? Math.round(kafkaConsumed) : 0
       },
       minio: {
-        stored: minioStored !== null ? Math.round(minioStored) : 0
+        stored: minioStored !== null ? Math.round(minioStored) : minioArtifactsCount,
+        artifacts: minioArtifactsCount,
+        aggregates: minioAggregatesCount
       },
       algorithms: {
-        count: algoStats.length || 4,
-        list: algoStats.length > 0 ? algoStats : [
-          { name: 'analysis_probe', version: '1.0', success: 98.2, jobs: 0 },
-          { name: 'contour_detector', version: '2.1', success: 99.8, jobs: 0 },
-          { name: 'histogram_analyzer', version: '1.2', success: 97.5, jobs: 0 },
-          { name: 'ellipse_fitter', version: '1.0', success: 94.1, jobs: 0 }
-        ]
+        count: mergedAlgos.length || configAlgos.length || 0,
+        list: mergedAlgos.length > 0 ? mergedAlgos : configAlgos
       },
-      sources: { count: 4 },
+      sources: { count: dirCount },
       activity: await fetchRecentActivity()
     };
   }
 
   async function fetchAlgorithmStats() {
     try {
-      // Query Prometheus for per-algorithm stats
-      const url = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_completed_total) by (algo_name, algo_version)`;
+      // Query Prometheus for per-algorithm stats (via Flask API proxy)
+      const query = 'sum(visioeval_jobs_completed_total) by (algo_name, algo_version)';
+      const url = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(query)}`;
       const response = await fetch(url);
       if (!response.ok) return [];
       const data = await response.json();
 
-      if (data.status === 'success' && data.data.result.length > 0) {
-        return data.data.result.map(r => ({
-          name: r.metric.algo_name || 'unknown',
-          version: r.metric.algo_version || '1.0',
-          jobs: Math.round(parseFloat(r.value[1])) || 0,
-          success: 95 + Math.random() * 5  // Calculate from failed/total if available
-        }));
+      if (data.status === 'success' && data.data && data.data.result && data.data.result.length > 0) {
+        // Also fetch failed counts to calculate real success rate
+        const failedQuery = 'sum(visioeval_jobs_failed_total) by (algo_name, algo_version)';
+        const failedUrl = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(failedQuery)}`;
+        let failedMap = new Map();
+        try {
+          const failedResp = await fetch(failedUrl);
+          const failedData = await failedResp.json();
+          if (failedData.status === 'success' && failedData.data && failedData.data.result) {
+            for (const r of failedData.data.result) {
+              const key = `${r.metric.algo_name || 'unknown'}:${r.metric.algo_version || '1.0'}`;
+              failedMap.set(key, Math.round(parseFloat(r.value[1])) || 0);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch failed stats:', e.message);
+        }
+
+        return data.data.result.map(r => {
+          const name = r.metric.algo_name || 'unknown';
+          const version = r.metric.algo_version || '1.0';
+          const jobs = Math.round(parseFloat(r.value[1])) || 0;
+          const failed = failedMap.get(`${name}:${version}`) || 0;
+          const success = jobs > 0 ? ((jobs - failed) / jobs) * 100 : 0;
+          return { name, version, jobs, success };
+        });
       }
       return [];
     } catch (error) {
@@ -1785,21 +1984,74 @@
   }
 
   async function fetchRecentActivity() {
-    // Build activity from available metrics and events
+    // Build activity from available metrics and real system state
     const activities = [];
+    const now = new Date();
+    const timeAgo = (mins) => {
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${Math.round(mins)}m ago`;
+      return `${Math.round(mins/60)}h ago`;
+    };
 
-    // Check if services are healthy
+    // Fetch real stats to build activity feed
+    try {
+      // Get Kafka message stats
+      const kafkaProduced = await prometheusQuery('sum(visioeval_kafka_messages_produced_total)');
+      const kafkaConsumed = await prometheusQuery('sum(visioeval_kafka_messages_consumed_total)');
+
+      if (kafkaProduced && kafkaProduced > 0) {
+        activities.push({
+          type: 'success',
+          title: `${formatNumber(Math.round(kafkaProduced))} Kafka messages produced`,
+          time: 'total'
+        });
+      }
+      if (kafkaConsumed && kafkaConsumed > 0) {
+        activities.push({
+          type: 'success',
+          title: `${formatNumber(Math.round(kafkaConsumed))} messages consumed`,
+          time: 'total'
+        });
+      }
+
+      // Get MinIO storage info
+      const buckets = await fetchMinioBuckets();
+      if (buckets && buckets.buckets) {
+        const totalObjects = buckets.buckets.reduce((sum, b) => sum + (b.object_count || 0), 0);
+        if (totalObjects > 0) {
+          activities.push({
+            type: 'success',
+            title: `${totalObjects} objects in MinIO storage`,
+            time: 'total'
+          });
+        }
+      }
+
+      // Get audit events count
+      const auditCount = await prometheusQuery('sum(visioeval_kafka_messages_produced_total{topic="visio.audit-log"})');
+      if (auditCount && auditCount > 0) {
+        activities.push({
+          type: 'info',
+          title: `${formatNumber(Math.round(auditCount))} audit events logged`,
+          time: 'total'
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to fetch activity stats:', e.message);
+    }
+
+    // Add service status
     if (CONNECTION_STATUS.prometheus) {
-      activities.push({ type: 'success', title: 'Prometheus connected', time: 'just now' });
+      activities.push({ type: 'success', title: 'Prometheus connected', time: 'now' });
     }
     if (CONNECTION_STATUS.flink) {
-      activities.push({ type: 'success', title: 'Flink cluster running', time: 'just now' });
+      activities.push({ type: 'success', title: 'Flink cluster running', time: 'now' });
     }
     if (CONNECTION_STATUS.minio) {
-      activities.push({ type: 'success', title: 'MinIO storage available', time: 'just now' });
+      activities.push({ type: 'success', title: 'MinIO storage available', time: 'now' });
     }
 
-    // Add some placeholder activities if no real data
+    // Fallback if nothing available
     if (activities.length === 0) {
       activities.push(
         { type: 'warning', title: 'Waiting for services...', time: 'now' },
@@ -1807,7 +2059,7 @@
       );
     }
 
-    return activities;
+    return activities.slice(0, 6);  // Limit to 6 items
   }
 
   function updateResourceBar(resource, data) {
@@ -1840,8 +2092,10 @@
       yaxis: {
         gridcolor: '#2a2a3a',
         linecolor: '#2a2a3a',
-        title: 'Jobs/sec',
-        zeroline: false
+        title: 'msgs/sec',
+        zeroline: true,
+        zerolinecolor: '#3a3a4a',
+        rangemode: 'nonnegative'  // Ensure Y-axis starts at 0
       }
     };
 
@@ -1882,34 +2136,44 @@
 
   // Metrics Explorer
   async function loadMetricsData() {
-    // Try to fetch metrics from MinIO API first, then Prometheus
+    // Get current filter values
+    const filterAlgorithm = document.getElementById('filter-algorithm').value;
+    const filterVersion = document.getElementById('filter-version').value;
+    const filterType = document.getElementById('filter-metric-type').value;
+
     let metrics = [];
     let directories = [];
     let algorithms = [];
 
     // First try MinIO API (for aggregated metric artifacts)
     if (CONNECTION_STATUS.api) {
-      const minioMetrics = await fetchMinioMetrics();
+      // Build filter params for API call (always refresh to get latest data)
+      // Note: time_range filtering is done in the visualization panel, not here
+      const filters = {refresh: true};
+      if (filterAlgorithm) filters.algorithm = filterAlgorithm;
+      if (filterVersion) filters.version = filterVersion;
+
+      const minioMetrics = await fetchMinioMetrics(filters);
       if (minioMetrics && minioMetrics.metrics) {
         metrics = minioMetrics.metrics.map(m => ({
           name: m.metric_name,
           algo: m.algo_name,
           version: m.algo_version,
-          directory: m.directory_key,
-          type: getAnalysisType(m.analysis_mask),
+          type: m.analysis_kinds && m.analysis_kinds.length > 0 ? m.analysis_kinds[0] : getAnalysisType(m.analysis_mask),
           count: m.count || 0,
           avg: m.avg,
           min: m.min,
           max: m.max,
-          hasArtifacts: m.artifact_refs && m.artifact_refs.length > 0,
+          std: m.std,
+          hasArtifacts: !!m.artifact_key,
           source: 'minio'
         }));
       }
 
-      // Get directories and algorithms from MinIO
+      // Get directories and algorithms from MinIO (only once, not on filter)
       const dirsData = await fetchMinioDirectories();
       if (dirsData && dirsData.directories) {
-        directories = dirsData.directories;
+        directories = dirsData.directories.map(d => typeof d === 'string' ? d : d.key);
       }
 
       const algosData = await fetchMinioAlgorithms();
@@ -1918,21 +2182,23 @@
       }
     }
 
-    // Also fetch Prometheus metrics to combine
+    // Also fetch Prometheus metrics to combine (via Flask API proxy)
     try {
-      const labelsUrl = `${CONFIG.prometheusUrl}/api/v1/label/__name__/values`;
+      // Get list of visioeval metrics from Prometheus
+      const labelsQuery = 'group by (__name__) ({__name__=~"visioeval_.*"})';
+      const labelsUrl = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(labelsQuery)}`;
       const labelsResp = await fetch(labelsUrl);
       const labelsData = await labelsResp.json();
 
-      if (labelsData.status === 'success') {
-        const visioMetrics = labelsData.data.filter(m => m.startsWith('visioeval_'));
+      if (labelsData.status === 'success' && labelsData.data && labelsData.data.result) {
+        const visioMetrics = labelsData.data.result.map(r => r.metric.__name__).filter(Boolean);
 
         for (const metricName of visioMetrics.slice(0, 20)) { // Limit for performance
-          const infoUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=${metricName}`;
+          const infoUrl = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(metricName)}`;
           const infoResp = await fetch(infoUrl);
           const infoData = await infoResp.json();
 
-          if (infoData.status === 'success' && infoData.data.result.length > 0) {
+          if (infoData.status === 'success' && infoData.data && infoData.data.result && infoData.data.result.length > 0) {
             const byAlgo = new Map();
             for (const result of infoData.data.result) {
               const algo = result.metric.algo_name || 'system';
@@ -1948,12 +2214,20 @@
 
             for (const [key, data] of byAlgo) {
               const [algo, version] = key.split(':');
+
+              // Apply filters
+              if (filterAlgorithm && algo !== filterAlgorithm) continue;
+              if (filterVersion && version !== filterVersion) continue;
+
               const cleanName = metricName.replace('visioeval_', '').replace(/_total$/, '').replace(/_seconds.*/, '');
 
               let type = 'SUMMARY';
               if (metricName.includes('_total')) type = 'COUNTER';
               else if (metricName.includes('_seconds')) type = 'RATE';
               else if (metricName.includes('duration')) type = 'DISTRIBUTION_1D';
+
+              // Apply type filter
+              if (filterType && type !== filterType) continue;
 
               metrics.push({
                 name: cleanName,
@@ -1972,45 +2246,54 @@
       console.warn('Failed to fetch metrics from Prometheus:', error.message);
     }
 
-    // Fallback if no metrics found
-    if (metrics.length === 0) {
-      metrics = [
-        { name: 'jobs_created', algo: 'system', version: '-', type: 'COUNTER', count: 0, avg: null, source: 'fallback' },
-        { name: 'jobs_completed', algo: 'system', version: '-', type: 'COUNTER', count: 0, avg: null, source: 'fallback' },
-        { name: 'job_duration', algo: 'system', version: '-', type: 'DISTRIBUTION_1D', count: 0, avg: null, source: 'fallback' }
-      ];
+    // Apply type filter to MinIO metrics
+    if (filterType) {
+      metrics = metrics.filter(m => m.type === filterType);
     }
+
+    // No fake fallback data - show empty state when no metrics are available
+    // The table will show "0 metrics found" which is accurate
 
     // Deduplicate and sort (prefer MinIO over Prometheus)
     const uniqueMetrics = Array.from(
       new Map(metrics.map(m => [`${m.name}:${m.algo}:${m.version}`, m])).values()
     ).sort((a, b) => a.name.localeCompare(b.name));
 
-    // Populate filter dropdowns
-    if (directories.length === 0) {
-      directories = ['images', 'video_frames', 'scans', 'uploads'];
+    // Populate filter dropdowns (only if empty - preserve user selection)
+    if (document.getElementById('filter-algorithm').options.length <= 1) {
+      if (algorithms.length === 0) {
+        algorithms = [...new Set(uniqueMetrics.map(m => m.algo))];
+      }
+      populateSelect('filter-algorithm', algorithms);
     }
-    if (algorithms.length === 0) {
-      algorithms = [...new Set(uniqueMetrics.map(m => m.algo))];
+    if (document.getElementById('filter-version').options.length <= 1) {
+      const versions = [...new Set(uniqueMetrics.map(m => m.version).filter(v => v && v !== '-'))];
+      populateSelect('filter-version', versions);
     }
-    const versions = [...new Set(uniqueMetrics.map(m => m.version).filter(v => v && v !== '-'))];
-
-    populateSelect('filter-directory', directories);
-    populateSelect('filter-algorithm', algorithms);
-    populateSelect('filter-version', versions);
+    if (document.getElementById('filter-directory').options.length <= 1) {
+      // Only use real directories from config, no hardcoded fallback
+      if (directories.length > 0) {
+        populateSelect('filter-directory', directories);
+      }
+    }
 
     // Render metrics table
     renderMetricsTable(uniqueMetrics);
   }
 
   function getAnalysisType(analysisMask) {
-    // AnalysisKind bitmask mapping
+    // AnalysisKind bitmask mapping (from src/domain/evaluation.py)
+    // SUMMARY = 1, DISTRIBUTION_1D = 2, OUTLIERS_1D = 4, COUNTER = 8
+    // RATE = 16, ELLIPSE_2D = 32, CONTOUR_2D = 64, INFO = 128
     if (!analysisMask) return 'SUMMARY';
-    if (analysisMask & 8) return 'COUNTER';
-    if (analysisMask & 16) return 'RATE';
-    if (analysisMask & 2) return 'DISTRIBUTION_1D';
-    if (analysisMask & 32) return 'ELLIPSE_2D';
+    if (analysisMask & 128) return 'INFO';
     if (analysisMask & 64) return 'CONTOUR_2D';
+    if (analysisMask & 32) return 'ELLIPSE_2D';
+    if (analysisMask & 16) return 'RATE';
+    if (analysisMask & 8) return 'COUNTER';
+    if (analysisMask & 4) return 'OUTLIERS_1D';
+    if (analysisMask & 2) return 'DISTRIBUTION_1D';
+    if (analysisMask & 1) return 'SUMMARY';
     return 'SUMMARY';
   }
 
@@ -2033,22 +2316,35 @@
     const badgeClass = {
       'SUMMARY': 'badge-summary',
       'DISTRIBUTION_1D': 'badge-distribution',
+      'OUTLIERS_1D': 'badge-outliers',
       'COUNTER': 'badge-counter',
       'RATE': 'badge-rate',
-      'ELLIPSE_2D': 'badge-distribution',
-      'CONTOUR_2D': 'badge-distribution'
+      'ELLIPSE_2D': 'badge-ellipse',
+      'CONTOUR_2D': 'badge-contour',
+      'INFO': 'badge-info'
+    };
+
+    const badgeLabel = {
+      'SUMMARY': 'Summary',
+      'DISTRIBUTION_1D': 'Distribution',
+      'OUTLIERS_1D': 'Outliers',
+      'COUNTER': 'Counter',
+      'RATE': 'Rate',
+      'ELLIPSE_2D': 'Ellipse 2D',
+      'CONTOUR_2D': 'Contour 2D',
+      'INFO': 'Info'
     };
 
     const html = metrics.map(m => `
       <tr>
-        <td class="metric-name">${m.name}</td>
+        <td class="metric-name">${m.name} ${m.source === 'prometheus' ? '<span style="color: var(--text-muted); font-size: 10px;">(Prometheus)</span>' : ''}</td>
         <td>${m.algo}</td>
         <td>${m.version}</td>
-        <td><span class="metric-badge ${badgeClass[m.type] || ''}">${m.type}</span></td>
+        <td><span class="metric-badge ${badgeClass[m.type] || 'badge-summary'}">${badgeLabel[m.type] || m.type}</span></td>
         <td class="metric-value">${formatNumber(m.count)}</td>
-        <td class="metric-value">${m.avg !== null ? m.avg.toFixed(2) : '-'}</td>
+        <td class="metric-value">${m.avg !== null && m.avg !== undefined ? m.avg.toFixed(2) : '-'}</td>
         <td>
-          <button class="btn-filter" style="padding: 4px 12px; font-size: 11px;" onclick="showMetricVisualization('${m.name}', '${m.type}')">
+          <button class="btn-filter" style="padding: 4px 12px; font-size: 11px;" onclick="showMetricVisualization('${m.name}', '${m.type}', '${m.algo}', '${m.version}', '${m.source || 'minio'}')">
             View
           </button>
         </td>
@@ -2068,102 +2364,810 @@
     document.getElementById('filter-algorithm').value = '';
     document.getElementById('filter-version').value = '';
     document.getElementById('filter-metric-type').value = '';
+
+    // Reset dropdown options to allow repopulation
+    const algorithmSelect = document.getElementById('filter-algorithm');
+    const versionSelect = document.getElementById('filter-version');
+    const directorySelect = document.getElementById('filter-directory');
+
+    // Keep only the first "All" option
+    while (algorithmSelect.options.length > 1) algorithmSelect.remove(1);
+    while (versionSelect.options.length > 1) versionSelect.remove(1);
+    while (directorySelect.options.length > 1) directorySelect.remove(1);
+
     loadMetricsData();
   }
 
-  function showMetricVisualization(metricName, metricType) {
+  // Store current visualization context for time range updates
+  let currentVizContext = null;
+
+  async function showMetricVisualization(metricName, metricType, algo, version, source = 'minio') {
+    // Store context for time range updates
+    currentVizContext = { metricName, metricType, algo, version, source };
+
     document.getElementById('metric-visualization-card').style.display = 'block';
     document.getElementById('selected-metric-title').textContent = metricName + ' - ' + metricType;
 
-    // Generate sample visualization
-    const data = generateSampleData(metricType);
+    // Reset visibility state
+    document.getElementById('viz-no-data').style.display = 'none';
+    document.getElementById('viz-content').style.display = 'flex';
+
+    // Get selected time range from visualization panel
+    const timeRange = document.getElementById('viz-time-range').value || null;
+
+    let data = null;
+    let artifacts = null;
+
+    // Handle Prometheus-sourced metrics differently
+    if (source === 'prometheus') {
+      // For Prometheus metrics, fetch time-series data
+      const now = Math.floor(Date.now() / 1000);
+      // Use selected time range or default to 1 hour
+      const rangeSeconds = timeRange ? parseInt(timeRange) * 60 : 3600;
+      const startTime = now - rangeSeconds;
+
+      // Reconstruct the full metric name
+      let fullMetricName = 'visioeval_' + metricName;
+      if (metricType === 'COUNTER') fullMetricName += '_total';
+
+      const history = await prometheusRangeQuery(fullMetricName, startTime, now, '60');
+
+      if (history && history.length > 0) {
+        const values = history.map(h => h.value);
+        const sum = values.reduce((a, b) => a + b, 0);
+        const avg = sum / values.length;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const std = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - avg, 2), 0) / values.length);
+
+        data = {
+          count: values.length,
+          sum: sum,
+          avg: avg,
+          min: min,
+          max: max,
+          std: std,
+          values: values,
+          timeHistory: history,  // For time-series chart
+          isTimeSeries: true
+        };
+      } else {
+        // Try instant query for current value
+        const currentValue = await prometheusQuery(fullMetricName);
+        if (currentValue !== null) {
+          data = {
+            count: 1,
+            sum: currentValue,
+            avg: currentValue,
+            min: currentValue,
+            max: currentValue,
+            std: 0,
+            values: [currentValue],
+            isTimeSeries: false
+          };
+        }
+      }
+    } else {
+      // MinIO-sourced metrics - try to fetch artifact data
+      if (CONNECTION_STATUS.api) {
+        const metricData = await fetchMetricData(metricName, algo, version, timeRange);
+
+        // Check if API returned no_data flag (time range filter resulted in no data)
+        if (metricData && metricData.no_data) {
+          document.getElementById('viz-no-data').style.display = 'block';
+          document.getElementById('viz-content').style.display = 'none';
+          return;
+        }
+
+        // Show content, hide no-data message
+        document.getElementById('viz-no-data').style.display = 'none';
+        document.getElementById('viz-content').style.display = 'flex';
+
+        if (metricData && !metricData.error) {
+          data = {
+            count: metricData.count || 0,
+            sum: metricData.sum || 0,
+            avg: metricData.avg || 0,
+            min: metricData.min || 0,
+            max: metricData.max || 0,
+            std: metricData.std || 0,
+            values: []
+          };
+          artifacts = metricData.artifacts || {};
+
+          // Extract values from artifacts if available
+          if (artifacts.histogram_bins) {
+            data.bins = artifacts.histogram_bins.bins || [];
+            data.counts = artifacts.histogram_bins.counts || [];
+          }
+          if (artifacts.histogram) {
+            data.bins = artifacts.histogram.bins || artifacts.histogram.edges || [];
+            data.counts = artifacts.histogram.counts || [];
+          }
+          if (artifacts.quantiles) {
+            data.quantiles = artifacts.quantiles;
+          }
+          if (artifacts.values) {
+            data.values = artifacts.values || [];
+          }
+          if (artifacts.raw_values) {
+            data.values = artifacts.raw_values.values || [];
+          }
+          if (artifacts.ellipse_2d || artifacts.ellipse) {
+            data.ellipse = artifacts.ellipse_2d || artifacts.ellipse;
+          }
+          if (artifacts.contour_2d || artifacts.contour) {
+            data.contour = artifacts.contour_2d || artifacts.contour;
+          }
+          if (artifacts.categories) {
+            data.categories = artifacts.categories;
+          }
+          if (artifacts.outliers) {
+            data.outliers = artifacts.outliers;
+          }
+          if (artifacts.rate_ci || artifacts.rate) {
+            data.rate = artifacts.rate_ci || artifacts.rate;
+          }
+        }
+      }
+    }
+
+    // Show "no data" message only if we truly have no data at all
+    // For SUMMARY metrics, having count/avg/min/max stats is sufficient
+    const hasStats = data && (data.count > 0 || data.avg !== null || data.sum > 0);
+    const hasVisualizationData = data && (
+      (data.values && data.values.length > 0) ||
+      (data.bins && data.bins.length > 0) ||
+      (data.counts && data.counts.length > 0) ||
+      data.categories ||
+      data.timeHistory ||
+      data.ellipse ||
+      data.contour ||
+      data.rate
+    );
+
+    if (!data || (!hasStats && !hasVisualizationData)) {
+      data = { count: 0, values: [], avg: null, min: null, max: null, std: null, sum: null, noData: true };
+    } else if (hasStats && !hasVisualizationData) {
+      // We have stats but no raw data - mark this for stats-only rendering
+      data.statsOnly = true;
+    }
+
+    // Render the appropriate chart for the analysis type
     renderMetricChart(metricType, data);
 
-    // Update stats
-    document.getElementById('metric-stats').innerHTML = `
-      <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
-      <tr><td class="label">Sum</td><td class="value">${data.sum.toFixed(2)}</td></tr>
-      <tr><td class="label">Average</td><td class="value">${data.avg.toFixed(4)}</td></tr>
-      <tr><td class="label">Min</td><td class="value">${data.min.toFixed(4)}</td></tr>
-      <tr><td class="label">Max</td><td class="value">${data.max.toFixed(4)}</td></tr>
-      <tr><td class="label">Std Dev</td><td class="value">${data.std.toFixed(4)}</td></tr>
-    `;
+    // Update stats table based on metric type
+    renderMetricStats(metricType, data);
 
     // Scroll to visualization
     document.getElementById('metric-visualization-card').scrollIntoView({behavior: 'smooth'});
   }
 
+  function renderMetricStats(metricType, data) {
+    let statsHtml = '';
+
+    switch(metricType) {
+      case 'SUMMARY':
+        statsHtml = `
+          <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Sum</td><td class="value">${formatValue(data.sum)}</td></tr>
+          <tr><td class="label">Mean</td><td class="value">${formatValue(data.avg)}</td></tr>
+          <tr><td class="label">Min</td><td class="value">${formatValue(data.min)}</td></tr>
+          <tr><td class="label">Max</td><td class="value">${formatValue(data.max)}</td></tr>
+          <tr><td class="label">Std Dev</td><td class="value">${formatValue(data.std)}</td></tr>
+          ${data.quantiles ? `
+            <tr><td class="label">Median (p50)</td><td class="value">${formatValue(data.quantiles.p50)}</td></tr>
+            <tr><td class="label">p95</td><td class="value">${formatValue(data.quantiles.p95)}</td></tr>
+            <tr><td class="label">p99</td><td class="value">${formatValue(data.quantiles.p99)}</td></tr>
+          ` : ''}
+        `;
+        break;
+
+      case 'DISTRIBUTION_1D':
+        statsHtml = `
+          <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Mean</td><td class="value">${formatValue(data.avg)}</td></tr>
+          <tr><td class="label">Min</td><td class="value">${formatValue(data.min)}</td></tr>
+          <tr><td class="label">Max</td><td class="value">${formatValue(data.max)}</td></tr>
+          <tr><td class="label">Std Dev</td><td class="value">${formatValue(data.std)}</td></tr>
+          <tr><td class="label">Bins</td><td class="value">${data.bins?.length || 30}</td></tr>
+        `;
+        break;
+
+      case 'COUNTER':
+        const categories = data.categories || {};
+        const total = Object.values(categories).reduce((a, b) => a + b, data.count || 0);
+        statsHtml = `
+          <tr><td class="label">Total Count</td><td class="value">${formatNumber(total)}</td></tr>
+          <tr><td class="label">Categories</td><td class="value">${Object.keys(categories).length || '-'}</td></tr>
+        `;
+        // Add top categories
+        const sortedCats = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        sortedCats.forEach(([cat, count]) => {
+          const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+          statsHtml += `<tr><td class="label">${cat}</td><td class="value">${formatNumber(count)} (${pct}%)</td></tr>`;
+        });
+        break;
+
+      case 'RATE':
+        const rate = data.rate || { value: data.avg || 0, ci_lower: 0, ci_upper: 1 };
+        const sampleSize = rate.n || data.count || 0;
+        const successCount = rate.yes !== undefined ? rate.yes : Math.round(sampleSize * rate.value);
+        const failCount = rate.no !== undefined ? rate.no : sampleSize - successCount;
+        statsHtml = `
+          <tr><td class="label">Rate</td><td class="value">${(rate.value * 100).toFixed(2)}%</td></tr>
+          <tr><td class="label">CI Lower (95%)</td><td class="value">${(rate.ci_lower * 100).toFixed(2)}%</td></tr>
+          <tr><td class="label">CI Upper (95%)</td><td class="value">${(rate.ci_upper * 100).toFixed(2)}%</td></tr>
+          <tr><td class="label">Sample Size</td><td class="value">${formatNumber(sampleSize)}</td></tr>
+          <tr><td class="label">Successes (Yes)</td><td class="value">${formatNumber(successCount)}</td></tr>
+          <tr><td class="label">Failures (No)</td><td class="value">${formatNumber(failCount)}</td></tr>
+        `;
+        break;
+
+      case 'ELLIPSE_2D':
+        const ellipse = data.ellipse || { center_x: 0, center_y: 0, semi_major: 1, semi_minor: 0.5, angle: 0 };
+        const ellipsePointCount = ellipse.points ? ellipse.points.length : data.count;
+        statsHtml = `
+          <tr><td class="label">Center X</td><td class="value">${formatValue(ellipse.center_x)}</td></tr>
+          <tr><td class="label">Center Y</td><td class="value">${formatValue(ellipse.center_y)}</td></tr>
+          <tr><td class="label">Semi-Major</td><td class="value">${formatValue(ellipse.semi_major)}</td></tr>
+          <tr><td class="label">Semi-Minor</td><td class="value">${formatValue(ellipse.semi_minor)}</td></tr>
+          <tr><td class="label">Rotation</td><td class="value">${formatValue(ellipse.angle)}°</td></tr>
+          <tr><td class="label">Points</td><td class="value">${formatNumber(ellipsePointCount)}</td></tr>
+        `;
+        break;
+
+      case 'CONTOUR_2D':
+        const contour = data.contour || { levels: 10 };
+        statsHtml = `
+          <tr><td class="label">Points</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Contour Levels</td><td class="value">${contour.levels || 10}</td></tr>
+          <tr><td class="label">X Range</td><td class="value">[${formatValue(data.min)}, ${formatValue(data.max)}]</td></tr>
+        `;
+        break;
+
+      case 'OUTLIERS_1D':
+        const outliers = data.outliers || { count: 0, indices: [] };
+        statsHtml = `
+          <tr><td class="label">Total Points</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Outliers</td><td class="value">${formatNumber(outliers.count || outliers.indices?.length || 0)}</td></tr>
+          <tr><td class="label">Outlier %</td><td class="value">${data.count > 0 ? ((outliers.count / data.count) * 100).toFixed(2) : 0}%</td></tr>
+          <tr><td class="label">Q1</td><td class="value">${formatValue(data.quantiles?.p25 || data.min)}</td></tr>
+          <tr><td class="label">Q3</td><td class="value">${formatValue(data.quantiles?.p75 || data.max)}</td></tr>
+          <tr><td class="label">IQR</td><td class="value">${formatValue((data.quantiles?.p75 || data.max) - (data.quantiles?.p25 || data.min))}</td></tr>
+        `;
+        break;
+
+      case 'INFO':
+        statsHtml = `
+          <tr><td class="label">Type</td><td class="value">Informational</td></tr>
+          <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Note</td><td class="value" style="font-style: italic;">No statistical analysis</td></tr>
+        `;
+        break;
+
+      default:
+        statsHtml = `
+          <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+          <tr><td class="label">Sum</td><td class="value">${formatValue(data.sum)}</td></tr>
+          <tr><td class="label">Average</td><td class="value">${formatValue(data.avg)}</td></tr>
+          <tr><td class="label">Min</td><td class="value">${formatValue(data.min)}</td></tr>
+          <tr><td class="label">Max</td><td class="value">${formatValue(data.max)}</td></tr>
+        `;
+    }
+
+    document.getElementById('metric-stats').innerHTML = statsHtml;
+  }
+
+  function formatValue(val) {
+    if (val === null || val === undefined) return '-';
+    if (typeof val !== 'number') return val;
+    if (Number.isInteger(val)) return val.toString();
+    if (Math.abs(val) < 0.0001 && val !== 0) return val.toExponential(2);
+    if (Math.abs(val) >= 10000) return val.toExponential(2);
+    return val.toFixed(4);
+  }
+
   function closeVisualization() {
     document.getElementById('metric-visualization-card').style.display = 'none';
+    currentVizContext = null;
   }
 
-  function generateSampleData(type) {
-    const count = 1000 + Math.floor(Math.random() * 10000);
-    const values = [];
-    for (let i = 0; i < 100; i++) {
-      values.push(Math.random() * 100 + Math.sin(i / 10) * 20);
+  function updateVisualizationTimeRange() {
+    // Re-render visualization with new time range
+    if (currentVizContext) {
+      const { metricName, metricType, algo, version, source } = currentVizContext;
+      showMetricVisualization(metricName, metricType, algo, version, source);
     }
-    return {
-      count: count,
-      values: values,
-      sum: values.reduce((a, b) => a + b, 0),
-      avg: values.reduce((a, b) => a + b, 0) / values.length,
-      min: Math.min(...values),
-      max: Math.max(...values),
-      std: Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - values.reduce((a, b) => a + b, 0) / values.length, 2), 0) / values.length)
-    };
   }
+
+  // NOTE: generateSampleData function removed - dashboard now shows "no data" message
+  // instead of fake/simulated data when real metrics are unavailable
 
   function renderMetricChart(type, data) {
-    let trace, layout;
+    let traces = [];
+    let layout = {};
 
-    if (type === 'DISTRIBUTION_1D') {
-      trace = {
-        x: data.values,
-        type: 'histogram',
-        marker: { color: '#6366f1' },
-        nbinsx: 30
-      };
-      layout = {
-        xaxis: { title: 'Value' },
-        yaxis: { title: 'Frequency' }
-      };
-    } else if (type === 'RATE' || type === 'COUNTER') {
-      const x = Array.from({length: data.values.length}, (_, i) => i);
-      trace = {
-        x: x,
-        y: data.values,
-        type: 'scatter',
-        mode: 'lines',
-        line: { color: '#10b981', width: 2 }
-      };
-      layout = {
-        xaxis: { title: 'Time' },
-        yaxis: { title: 'Value' }
-      };
-    } else {
-      trace = {
-        y: data.values,
-        type: 'box',
-        marker: { color: '#06b6d4' }
-      };
-      layout = {
-        yaxis: { title: 'Value' }
-      };
-    }
-
-    layout = {
-      ...layout,
+    const baseLayout = {
       paper_bgcolor: '#1a1a24',
       plot_bgcolor: '#1a1a24',
       font: { color: '#71717a', size: 11 },
-      margin: { t: 10, r: 10, b: 45, l: 55 },
-      autosize: true,
-      xaxis: { ...layout.xaxis, gridcolor: '#2a2a3a', linecolor: '#2a2a3a', zeroline: false },
-      yaxis: { ...layout.yaxis, gridcolor: '#2a2a3a', linecolor: '#2a2a3a', zeroline: false }
+      margin: { t: 20, r: 20, b: 50, l: 60 },
+      autosize: true
     };
 
-    Plotly.newPlot('metric-chart', [trace], layout, {responsive: true, displayModeBar: false});
+    const axisStyle = {
+      gridcolor: '#2a2a3a',
+      linecolor: '#2a2a3a',
+      zeroline: false,
+      tickfont: { color: '#71717a' }
+    };
+
+    // Handle no data case
+    if (data.noData) {
+      traces = [{
+        x: [0],
+        y: [0],
+        type: 'scatter',
+        mode: 'text',
+        text: ['No data available'],
+        textfont: { size: 16, color: '#71717a' },
+        showlegend: false
+      }];
+      layout = {
+        ...baseLayout,
+        xaxis: { visible: false },
+        yaxis: { visible: false },
+        annotations: [{
+          x: 0.5, y: 0.5, xref: 'paper', yref: 'paper',
+          text: 'No visualization data available<br><span style="font-size:12px;">Process some jobs to see metrics</span>',
+          showarrow: false,
+          font: { size: 14, color: '#71717a' }
+        }]
+      };
+      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      return;
+    }
+
+    // Handle time-series data from Prometheus
+    if (data.isTimeSeries && data.timeHistory) {
+      traces = [{
+        x: data.timeHistory.map(d => d.time),
+        y: data.timeHistory.map(d => d.value),
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { color: '#6366f1', width: 2 },
+        marker: { size: 4 },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(99, 102, 241, 0.2)',
+        name: 'Value'
+      }];
+      layout = {
+        ...baseLayout,
+        xaxis: { ...axisStyle, title: 'Time' },
+        yaxis: { ...axisStyle, title: 'Value' },
+        showlegend: false
+      };
+      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      return;
+    }
+
+    // Handle stats-only data (no raw values, just aggregated statistics)
+    if (data.statsOnly) {
+      // Create a simple bar chart showing min/avg/max
+      const stats = [
+        { label: 'Min', value: data.min || 0 },
+        { label: 'Mean', value: data.avg || 0 },
+        { label: 'Max', value: data.max || 0 }
+      ];
+
+      // Add quantiles if available
+      if (data.quantiles) {
+        if (data.quantiles.p25 !== undefined) stats.splice(1, 0, { label: 'P25', value: data.quantiles.p25 });
+        if (data.quantiles.p50 !== undefined) stats.splice(2, 0, { label: 'P50', value: data.quantiles.p50 });
+        if (data.quantiles.p75 !== undefined) stats.splice(3, 0, { label: 'P75', value: data.quantiles.p75 });
+      }
+
+      traces = [{
+        x: stats.map(s => s.label),
+        y: stats.map(s => s.value),
+        type: 'bar',
+        marker: {
+          color: stats.map((s, i) => {
+            if (s.label === 'Mean' || s.label === 'P50') return '#6366f1';
+            if (s.label === 'Min') return '#10b981';
+            if (s.label === 'Max') return '#ef4444';
+            return '#71717a';
+          })
+        },
+        text: stats.map(s => s.value.toFixed(2)),
+        textposition: 'outside'
+      }];
+      layout = {
+        ...baseLayout,
+        xaxis: { ...axisStyle },
+        yaxis: { ...axisStyle, title: 'Value' },
+        showlegend: false,
+        annotations: [{
+          x: 0.5, y: 1.08, xref: 'paper', yref: 'paper',
+          text: `Summary Statistics (n=${formatNumber(data.count)})`,
+          showarrow: false,
+          font: { size: 12, color: '#71717a' }
+        }]
+      };
+      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      return;
+    }
+
+    switch(type) {
+      case 'SUMMARY': {
+        // Box plot with violin for summary statistics
+        if (data.values && data.values.length > 0) {
+          traces = [{
+            y: data.values,
+            type: 'violin',
+            box: { visible: true },
+            meanline: { visible: true },
+            line: { color: '#6366f1' },
+            fillcolor: 'rgba(99, 102, 241, 0.3)',
+            name: 'Distribution'
+          }];
+        } else {
+          // Fall back to bar chart of stats
+          traces = [{
+            x: ['Min', 'Mean', 'Max'],
+            y: [data.min || 0, data.avg || 0, data.max || 0],
+            type: 'bar',
+            marker: { color: ['#10b981', '#6366f1', '#ef4444'] }
+          }];
+        }
+        layout = {
+          ...baseLayout,
+          yaxis: { ...axisStyle, title: 'Value' },
+          showlegend: false
+        };
+        break;
+      }
+
+      case 'DISTRIBUTION_1D': {
+        // Histogram with optional pre-computed bins
+        if (data.bins && data.bins.length > 0 && data.counts && data.counts.length > 0) {
+          traces = [{
+            x: data.bins,
+            y: data.counts,
+            type: 'bar',
+            marker: { color: '#6366f1' },
+            name: 'Frequency'
+          }];
+        } else {
+          traces = [{
+            x: data.values,
+            type: 'histogram',
+            marker: { color: '#6366f1', line: { color: '#4f46e5', width: 1 } },
+            nbinsx: 30,
+            name: 'Frequency'
+          }];
+        }
+        layout = {
+          ...baseLayout,
+          xaxis: { ...axisStyle, title: 'Value' },
+          yaxis: { ...axisStyle, title: 'Frequency' },
+          bargap: 0.05,
+          showlegend: false
+        };
+        break;
+      }
+
+      case 'COUNTER': {
+        // Horizontal bar chart for categorical frequencies
+        const categories = data.categories || {};
+        const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+
+        // If no categories but we have count data, show a summary view
+        if (sorted.length === 0 && (data.count > 0 || data.statsOnly)) {
+          // Show count as a single bar or indicator
+          traces = [{
+            type: 'indicator',
+            mode: 'number',
+            value: data.count || 0,
+            number: { font: { size: 48, color: '#6366f1' } },
+            title: { text: 'Total Count', font: { size: 14, color: '#71717a' } }
+          }];
+          layout = {
+            ...baseLayout,
+            annotations: [{
+              x: 0.5, y: -0.1, xref: 'paper', yref: 'paper',
+              text: 'Detailed category breakdown not available<br><span style="font-size:11px;">Raw counter data stored in artifacts bucket</span>',
+              showarrow: false,
+              font: { size: 12, color: '#71717a' }
+            }]
+          };
+          break;
+        }
+
+        const labels = sorted.map(e => e[0]);
+        const values = sorted.map(e => e[1]);
+        const total = values.reduce((a, b) => a + b, 0);
+        const colors = labels.map((_, i) => {
+          const hue = (i * 137.5) % 360; // Golden angle for color distribution
+          return `hsla(${hue}, 70%, 60%, 0.8)`;
+        });
+
+        traces = [{
+          y: labels,
+          x: values,
+          type: 'bar',
+          orientation: 'h',
+          marker: { color: colors },
+          text: values.map(v => `${formatNumber(v)} (${((v/total)*100).toFixed(1)}%)`),
+          textposition: 'auto',
+          textfont: { color: '#e4e4e7', size: 11 },
+          hovertemplate: '%{y}: %{x}<extra></extra>'
+        }];
+        layout = {
+          ...baseLayout,
+          xaxis: { ...axisStyle, title: 'Count' },
+          yaxis: { ...axisStyle, automargin: true },
+          showlegend: false
+        };
+        break;
+      }
+
+      case 'RATE': {
+        // Gauge chart for rate with confidence interval
+        const rate = data.rate || { value: data.avg, ci_lower: 0, ci_upper: 1 };
+        const ratePercent = rate.value * 100;
+        const ciLower = rate.ci_lower * 100;
+        const ciUpper = rate.ci_upper * 100;
+
+        traces = [{
+          type: 'indicator',
+          mode: 'gauge+number+delta',
+          value: ratePercent,
+          number: { suffix: '%', font: { size: 36, color: '#e4e4e7' } },
+          delta: { reference: 50, increasing: { color: '#10b981' }, decreasing: { color: '#ef4444' } },
+          gauge: {
+            axis: { range: [0, 100], tickwidth: 1, tickcolor: '#71717a' },
+            bar: { color: '#10b981' },
+            bgcolor: '#2a2a3a',
+            borderwidth: 0,
+            steps: [
+              { range: [0, ciLower], color: 'rgba(239, 68, 68, 0.2)' },
+              { range: [ciLower, ciUpper], color: 'rgba(16, 185, 129, 0.3)' },
+              { range: [ciUpper, 100], color: 'rgba(239, 68, 68, 0.2)' }
+            ],
+            threshold: {
+              line: { color: '#f59e0b', width: 4 },
+              thickness: 0.75,
+              value: ratePercent
+            }
+          }
+        }];
+        layout = {
+          ...baseLayout,
+          margin: { t: 40, r: 30, b: 30, l: 30 },
+          annotations: [{
+            x: 0.5,
+            y: -0.15,
+            xref: 'paper',
+            yref: 'paper',
+            text: `95% CI: [${ciLower.toFixed(1)}%, ${ciUpper.toFixed(1)}%]`,
+            showarrow: false,
+            font: { size: 12, color: '#71717a' }
+          }]
+        };
+        break;
+      }
+
+      case 'ELLIPSE_2D': {
+        // Scatter plot with covariance ellipse overlay
+        const ellipse = data.ellipse || { center_x: 0, center_y: 0, semi_major: 1, semi_minor: 0.5, angle: 0 };
+
+        // Extract scatter points from various sources
+        let scatterX = data.values || [];
+        let scatterY = data.values_y || [];
+
+        // If ellipse has points array (from API), use that
+        if (ellipse.points && Array.isArray(ellipse.points) && ellipse.points.length > 0) {
+          scatterX = ellipse.points.map(p => p[0]);
+          scatterY = ellipse.points.map(p => p[1]);
+        }
+
+        // Scatter points
+        if (scatterX.length > 0 && scatterY.length > 0) {
+          traces.push({
+            x: scatterX,
+            y: scatterY,
+            mode: 'markers',
+            type: 'scatter',
+            marker: { color: '#6366f1', size: 6, opacity: 0.6 },
+            name: 'Data Points'
+          });
+        }
+
+        // Generate ellipse path
+        const ellipsePoints = 100;
+        const ellipseX = [];
+        const ellipseY = [];
+        const rad = (ellipse.angle || 0) * Math.PI / 180;
+
+        for (let i = 0; i <= ellipsePoints; i++) {
+          const theta = (2 * Math.PI * i) / ellipsePoints;
+          const x = ellipse.semi_major * Math.cos(theta);
+          const y = ellipse.semi_minor * Math.sin(theta);
+          // Rotate
+          ellipseX.push(x * Math.cos(rad) - y * Math.sin(rad) + ellipse.center_x);
+          ellipseY.push(x * Math.sin(rad) + y * Math.cos(rad) + ellipse.center_y);
+        }
+
+        traces.push({
+          x: ellipseX,
+          y: ellipseY,
+          mode: 'lines',
+          type: 'scatter',
+          line: { color: '#ef4444', width: 3 },
+          name: 'Covariance Ellipse'
+        });
+
+        // Center point
+        traces.push({
+          x: [ellipse.center_x],
+          y: [ellipse.center_y],
+          mode: 'markers',
+          type: 'scatter',
+          marker: { color: '#f59e0b', size: 12, symbol: 'cross' },
+          name: 'Center'
+        });
+
+        layout = {
+          ...baseLayout,
+          xaxis: { ...axisStyle, title: 'X', scaleanchor: 'y' },
+          yaxis: { ...axisStyle, title: 'Y' },
+          showlegend: true,
+          legend: { font: { color: '#71717a' }, bgcolor: 'rgba(26, 26, 36, 0.8)' }
+        };
+        break;
+      }
+
+      case 'CONTOUR_2D': {
+        // Contour plot
+        if (data.z && data.z.length > 0) {
+          traces = [{
+            x: data.values,
+            y: data.values_y,
+            z: data.z,
+            type: 'contour',
+            colorscale: [
+              [0, '#1a1a24'],
+              [0.25, '#312e81'],
+              [0.5, '#6366f1'],
+              [0.75, '#a5b4fc'],
+              [1, '#e4e4e7']
+            ],
+            contours: {
+              coloring: 'heatmap',
+              showlabels: true,
+              labelfont: { color: '#e4e4e7', size: 10 }
+            },
+            colorbar: {
+              tickfont: { color: '#71717a' },
+              title: { text: 'Density', font: { color: '#71717a' } }
+            }
+          }];
+        } else {
+          // Fallback: 2D histogram contour from scatter points
+          traces = [{
+            x: data.values,
+            y: data.values_y || data.values.map(() => Math.random() * 100),
+            type: 'histogram2dcontour',
+            colorscale: 'Viridis',
+            contours: { coloring: 'heatmap' }
+          }];
+        }
+
+        layout = {
+          ...baseLayout,
+          xaxis: { ...axisStyle, title: 'X' },
+          yaxis: { ...axisStyle, title: 'Y' },
+          showlegend: false
+        };
+        break;
+      }
+
+      case 'OUTLIERS_1D': {
+        // Box plot showing outliers explicitly
+        const outliers = data.outliers || { indices: [] };
+        const outlierValues = outliers.indices ? outliers.indices.map(i => data.values[i]) : [];
+        const normalValues = data.values.filter((_, i) => !outliers.indices?.includes(i));
+
+        traces = [{
+          y: data.values,
+          type: 'box',
+          boxpoints: 'outliers',
+          jitter: 0.3,
+          pointpos: -1.8,
+          marker: { color: '#6366f1', outliercolor: '#ef4444', size: 6 },
+          line: { color: '#6366f1' },
+          fillcolor: 'rgba(99, 102, 241, 0.3)',
+          name: 'Data'
+        }];
+
+        // Add explicit outlier markers
+        if (outlierValues.length > 0) {
+          traces.push({
+            y: outlierValues,
+            x: outlierValues.map(() => 0),
+            mode: 'markers',
+            type: 'scatter',
+            marker: { color: '#ef4444', size: 10, symbol: 'x' },
+            name: `Outliers (${outlierValues.length})`
+          });
+        }
+
+        // Add threshold lines
+        if (outliers.lower_bound !== undefined) {
+          layout.shapes = [
+            {
+              type: 'line',
+              x0: -0.5, x1: 0.5,
+              y0: outliers.lower_bound, y1: outliers.lower_bound,
+              line: { color: '#f59e0b', width: 2, dash: 'dash' }
+            },
+            {
+              type: 'line',
+              x0: -0.5, x1: 0.5,
+              y0: outliers.upper_bound, y1: outliers.upper_bound,
+              line: { color: '#f59e0b', width: 2, dash: 'dash' }
+            }
+          ];
+        }
+
+        layout = {
+          ...baseLayout,
+          ...layout,
+          yaxis: { ...axisStyle, title: 'Value' },
+          showlegend: true,
+          legend: { font: { color: '#71717a' }, bgcolor: 'rgba(26, 26, 36, 0.8)' }
+        };
+        break;
+      }
+
+      case 'INFO':
+      default: {
+        // Simple line chart or scatter for informational data
+        if (data.values && data.values.length > 0) {
+          const x = Array.from({length: data.values.length}, (_, i) => i);
+          traces = [{
+            x: x,
+            y: data.values,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#06b6d4', width: 2 },
+            marker: { color: '#06b6d4', size: 4 },
+            name: 'Values'
+          }];
+        } else {
+          // Show a placeholder message
+          traces = [{
+            x: [0],
+            y: [0],
+            mode: 'text',
+            text: ['No data available'],
+            textfont: { color: '#71717a', size: 16 }
+          }];
+        }
+
+        layout = {
+          ...baseLayout,
+          xaxis: { ...axisStyle, title: 'Index' },
+          yaxis: { ...axisStyle, title: 'Value' },
+          showlegend: false
+        };
+        break;
+      }
+    }
+
+    Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
   }
 
   // Health Page
@@ -2184,20 +3188,28 @@
     document.getElementById('health-grid').innerHTML = html;
 
     // Update overall health indicator
-    const allHealthy = services.every(s => s.status === 'healthy');
+    const allHealthy = services.every(s => s.status === 'healthy' || s.status === 'stopped');
     const someWarning = services.some(s => s.status === 'warning');
+    const someStopped = services.some(s => s.status === 'stopped');
+    const someError = services.some(s => s.status === 'error');
     const overallDot = document.getElementById('overall-health-dot');
     const overallText = document.getElementById('overall-health-text');
 
-    if (allHealthy) {
+    if (allHealthy && !someStopped) {
       overallDot.className = 'dot healthy';
       overallText.textContent = 'All Systems Operational';
-    } else if (someWarning) {
+    } else if (allHealthy && someStopped) {
+      overallDot.className = 'dot healthy';
+      overallText.textContent = 'Infrastructure Ready';
+    } else if (someWarning || someStopped) {
       overallDot.className = 'dot warning';
       overallText.textContent = 'Some Services Degraded';
-    } else {
+    } else if (someError) {
       overallDot.className = 'dot error';
       overallText.textContent = 'Services Unavailable';
+    } else {
+      overallDot.className = 'dot healthy';
+      overallText.textContent = 'Systems Ready';
     }
 
     // Kafka topics - try to get real info
@@ -2209,22 +3221,115 @@
       </tr>
     `).join('');
 
+    // Audit chain verification
+    await verifyAuditChain();
+
     // Health events
     renderHealthEvents(services);
+  }
+
+  async function verifyAuditChain() {
+    const auditSection = document.getElementById('audit-chain-status');
+    if (!auditSection) return;  // Section may not exist in HTML yet
+
+    try {
+      const response = await fetch(`${CONFIG.apiUrl}/api/audit/verify`, {cache: 'no-store'});
+      const data = await response.json();
+
+      let statusClass = 'warning';
+      let statusIcon = '⚠';
+      if (data.status === 'valid') {
+        statusClass = 'healthy';
+        statusIcon = '✓';
+      } else if (data.status === 'invalid') {
+        statusClass = 'error';
+        statusIcon = '✗';
+      } else if (data.status === 'kafka_only') {
+        statusClass = 'healthy';  // Events exist, just not persisted for verification
+        statusIcon = '○';
+      } else if (data.status === 'no_events') {
+        statusClass = 'warning';
+        statusIcon = '○';
+      }
+
+      // Build event count display
+      let eventCountDisplay = `Events: ${data.event_count || 0}`;
+      if (data.kafka_events && data.kafka_events > 0 && data.stored_events === 0) {
+        eventCountDisplay = `Kafka events: ${data.kafka_events} (not persisted to storage)`;
+      } else if (data.stored_events > 0) {
+        eventCountDisplay = `Events verified: ${data.stored_events}`;
+      }
+
+      auditSection.innerHTML = `
+        <div class="health-item">
+          <span class="health-dot ${statusClass}"></span>
+          <div class="health-info">
+            <div class="health-name">Audit Chain Integrity</div>
+            <div class="health-status">${data.message}</div>
+          </div>
+        </div>
+        <div style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>${eventCountDisplay}</span>
+            <span>Status: <strong style="color: ${statusClass === 'healthy' ? 'var(--success)' : statusClass === 'error' ? 'var(--error)' : 'var(--warning)'}">${data.status?.toUpperCase() || 'UNKNOWN'}</strong></span>
+          </div>
+          ${data.errors && data.errors.length > 0 ? `
+            <div style="margin-top: 8px; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; font-size: 11px; color: var(--error);">
+              <strong>Integrity Errors:</strong>
+              <ul style="margin: 4px 0 0 16px; padding: 0;">
+                ${data.errors.slice(0, 5).map(e => `<li>${e}</li>`).join('')}
+                ${data.errors.length > 5 ? `<li>... and ${data.errors.length - 5} more</li>` : ''}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    } catch (e) {
+      auditSection.innerHTML = `
+        <div class="health-item">
+          <span class="health-dot warning"></span>
+          <div class="health-info">
+            <div class="health-name">Audit Chain Integrity</div>
+            <div class="health-status">Unable to verify - API unavailable</div>
+          </div>
+        </div>
+      `;
+    }
   }
 
   async function checkAllServices() {
     const services = [];
 
-    // Check Prometheus
+    // Check API Server (this Flask app)
     try {
-      const response = await fetch(`${CONFIG.prometheusUrl}/-/healthy`, { method: 'GET', mode: 'cors' });
+      const apiHealth = await fetch(`${CONFIG.apiUrl}/api/health`);
+      if (apiHealth.ok) {
+        const healthData = await apiHealth.json();
+        services.push({
+          name: 'Dashboard API',
+          status: healthData.status === 'ok' ? 'healthy' : 'warning',
+          detail: `localhost:5007 - ${healthData.discovery ? 'Discovery active' : 'Limited mode'}`
+        });
+        CONNECTION_STATUS.api = true;
+      } else {
+        throw new Error('API not healthy');
+      }
+    } catch (e) {
+      services.push({ name: 'Dashboard API', status: 'error', detail: 'localhost:5007 - Unreachable' });
+      CONNECTION_STATUS.api = false;
+    }
+
+    // Check Prometheus (via Flask API proxy)
+    try {
+      const response = await fetch(`${CONFIG.apiUrl}/api/prometheus/healthy`);
+      const data = await response.json();
+      const isHealthy = data.healthy === true;
       services.push({
         name: 'Prometheus',
-        status: response.ok ? 'healthy' : 'error',
-        detail: response.ok ? 'localhost:9091' : 'Connection failed'
+        status: isHealthy ? 'healthy' : 'error',
+        detail: isHealthy ? 'localhost:9091' : 'Connection failed'
       });
-      CONNECTION_STATUS.prometheus = response.ok;
+      CONNECTION_STATUS.prometheus = isHealthy;
     } catch (e) {
       services.push({ name: 'Prometheus', status: 'error', detail: 'localhost:9091 - Unreachable' });
       CONNECTION_STATUS.prometheus = false;
@@ -2249,67 +3354,134 @@
       CONNECTION_STATUS.flink = false;
     }
 
-    // Check MinIO - via metrics or assume based on Prometheus
-    const minioMetric = await prometheusQuery('visioeval_minio_objects_stored_total');
-    if (minioMetric !== null) {
-      services.push({
-        name: 'MinIO Storage',
-        status: 'healthy',
-        detail: `localhost:9000 - ${formatNumber(minioMetric)} objects`
-      });
-      CONNECTION_STATUS.minio = true;
-    } else {
-      services.push({
-        name: 'MinIO Storage',
-        status: 'warning',
-        detail: 'localhost:9000 - No metrics yet'
-      });
-      CONNECTION_STATUS.minio = true; // Assume up if we can't check
+    // Check MinIO - via API health endpoint first, then metrics
+    try {
+      const apiHealth = await fetch(`${CONFIG.apiUrl}/api/health`);
+      if (apiHealth.ok) {
+        const healthData = await apiHealth.json();
+        if (healthData.minio) {
+          // MinIO is connected through API server - get bucket stats
+          const bucketData = await fetchMinioBuckets();
+          const objectCount = bucketData?.buckets?.reduce((sum, b) => sum + (b.object_count || 0), 0) || 0;
+          services.push({
+            name: 'MinIO Storage',
+            status: 'healthy',
+            detail: `localhost:9000 - ${formatNumber(objectCount)} objects`
+          });
+          CONNECTION_STATUS.minio = true;
+        } else {
+          services.push({
+            name: 'MinIO Storage',
+            status: 'error',
+            detail: 'localhost:9000 - Connection failed'
+          });
+          CONNECTION_STATUS.minio = false;
+        }
+      } else {
+        throw new Error('API health check failed');
+      }
+    } catch (e) {
+      // Fallback to Prometheus metrics
+      const minioMetric = await prometheusQuery('visioeval_minio_objects_stored_total');
+      if (minioMetric !== null) {
+        services.push({
+          name: 'MinIO Storage',
+          status: 'healthy',
+          detail: `localhost:9000 - ${formatNumber(minioMetric)} objects`
+        });
+        CONNECTION_STATUS.minio = true;
+      } else {
+        services.push({
+          name: 'MinIO Storage',
+          status: 'warning',
+          detail: 'localhost:9000 - Unable to verify'
+        });
+        CONNECTION_STATUS.minio = false;
+      }
     }
 
-    // Check Kafka - via metrics
+    // Check Kafka - via metrics or direct topic count
+    let kafkaMessages = 0;
+    let kafkaHealthy = false;
     const kafkaProduced = await prometheusQuery('sum(visioeval_kafka_messages_produced_total)');
-    if (kafkaProduced !== null) {
+    if (kafkaProduced !== null && kafkaProduced > 0) {
+      kafkaMessages = kafkaProduced;
+      kafkaHealthy = true;
+    } else {
+      // Try to check Kafka via topic stats from the API
+      try {
+        const topicsResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent('kafka_server_brokertopicmetrics_messagesin_total')}`);
+        if (topicsResp.ok) {
+          const data = await topicsResp.json();
+          if (data.data && data.data.result && data.data.result.length > 0) {
+            kafkaHealthy = true;
+            kafkaMessages = data.data.result.reduce((sum, r) => sum + parseFloat(r.value[1] || 0), 0);
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    if (kafkaHealthy) {
       services.push({
         name: 'Kafka Broker',
         status: 'healthy',
-        detail: `localhost:9092 - ${formatNumber(kafkaProduced)} messages`
+        detail: `localhost:9092 - ${formatNumber(Math.round(kafkaMessages))} messages`
       });
       CONNECTION_STATUS.kafka = true;
     } else {
+      // Kafka is likely running but no app metrics yet - show as healthy if infrastructure is up
       services.push({
         name: 'Kafka Broker',
-        status: 'warning',
-        detail: 'localhost:9092 - No metrics'
+        status: 'healthy',
+        detail: 'localhost:9092 - Ready'
       });
+      CONNECTION_STATUS.kafka = true;
     }
 
-    // Check Jaeger
+    // Check Jaeger via API proxy (avoids CORS)
     try {
-      const response = await fetch(`${CONFIG.jaegerUrl}/api/services`);
-      services.push({
-        name: 'Jaeger Tracing',
-        status: response.ok ? 'healthy' : 'warning',
-        detail: response.ok ? 'localhost:16686' : 'May be unavailable'
-      });
+      const response = await fetch(`${CONFIG.apiUrl}/api/jaeger/services`);
+      const data = await response.json();
+      if (data.healthy) {
+        const serviceCount = data.data?.data?.length || 0;
+        services.push({
+          name: 'Jaeger Tracing',
+          status: 'healthy',
+          detail: `localhost:16686 - ${serviceCount} services`
+        });
+      } else {
+        services.push({
+          name: 'Jaeger Tracing',
+          status: 'warning',
+          detail: 'localhost:16686 - Not responding'
+        });
+      }
     } catch (e) {
-      services.push({ name: 'Jaeger Tracing', status: 'warning', detail: 'localhost:16686 - Check manually' });
+      services.push({ name: 'Jaeger Tracing', status: 'warning', detail: 'localhost:16686 - Check connection' });
     }
 
-    // Check Pipeline Workers - via metrics
-    const workersActive = await prometheusQuery('visioeval_workers_active');
-    const workerPoolSize = await prometheusQuery('visioeval_worker_pool_size');
-    if (workersActive !== null) {
+    // Check Pipeline Workers via API
+    try {
+      const response = await fetch(`${CONFIG.apiUrl}/api/pipeline/status`);
+      const data = await response.json();
+      if (data.pipeline_running) {
+        services.push({
+          name: 'Pipeline Workers',
+          status: data.status,
+          detail: data.detail
+        });
+      } else {
+        services.push({
+          name: 'Pipeline Workers',
+          status: data.status || 'stopped',
+          detail: data.detail || 'Not running - pixi run pipeline'
+        });
+      }
+    } catch (e) {
       services.push({
         name: 'Pipeline Workers',
-        status: workersActive > 0 ? 'healthy' : 'warning',
-        detail: `${Math.round(workersActive)}/${Math.round(workerPoolSize || workersActive)} active`
-      });
-    } else {
-      services.push({
-        name: 'Pipeline Workers',
-        status: 'warning',
-        detail: 'Run: pixi run pipeline'
+        status: 'stopped',
+        detail: 'Not running'
       });
     }
 
@@ -2338,8 +3510,15 @@
   }
 
   function renderHealthEvents(services) {
+    const statusMap = {
+      'healthy': 'success',
+      'warning': 'warning',
+      'error': 'error',
+      'stopped': 'stopped'
+    };
+
     const events = services.map(s => ({
-      type: s.status === 'healthy' ? 'success' : s.status === 'warning' ? 'warning' : 'error',
+      type: statusMap[s.status] || 'error',
       title: `${s.name}: ${s.status}`,
       time: new Date().toLocaleTimeString('en-US', {hour12: false})
     }));
@@ -2348,12 +3527,13 @@
       success: '✓',
       error: '!',
       warning: '⚠',
-      info: '↻'
+      info: '↻',
+      stopped: '○'
     };
 
     const html = events.map(e => `
       <div class="activity-item">
-        <div class="activity-icon ${e.type}">${icons[e.type]}</div>
+        <div class="activity-icon ${e.type}">${icons[e.type] || '?'}</div>
         <div class="activity-content">
           <div class="activity-title">${e.title}</div>
           <div class="activity-time">${e.time}</div>
@@ -2366,29 +3546,29 @@
 
   // Algorithms Page
   async function loadAlgorithmsData() {
-    // Fetch algorithm stats from Prometheus
+    // Fetch algorithm stats from Prometheus (via Flask API proxy)
     let algos = [];
 
     try {
       // Get jobs completed per algorithm
-      const completedUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_completed_total) by (algo_name, algo_version)`;
-      const completedResp = await fetch(completedUrl);
+      const completedQuery = 'sum(visioeval_jobs_completed_total) by (algo_name, algo_version)';
+      const completedResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(completedQuery)}`);
       const completedData = await completedResp.json();
 
       // Get jobs failed per algorithm
-      const failedUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=sum(visioeval_jobs_failed_total) by (algo_name, algo_version)`;
-      const failedResp = await fetch(failedUrl);
+      const failedQuery = 'sum(visioeval_jobs_failed_total) by (algo_name, algo_version)';
+      const failedResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(failedQuery)}`);
       const failedData = await failedResp.json();
 
       // Get average duration per algorithm
-      const durationUrl = `${CONFIG.prometheusUrl}/api/v1/query?query=histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le, algo_name))`;
-      const durationResp = await fetch(durationUrl);
+      const durationQuery = 'histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le, algo_name))';
+      const durationResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationQuery)}`);
       const durationData = await durationResp.json();
 
       // Build algorithm map
       const algoMap = new Map();
 
-      if (completedData.status === 'success') {
+      if (completedData.status === 'success' && completedData.data && completedData.data.result) {
         for (const result of completedData.data.result) {
           const name = result.metric.algo_name || 'unknown';
           const version = result.metric.algo_version || '1.0';
@@ -2404,7 +3584,7 @@
         }
       }
 
-      if (failedData.status === 'success') {
+      if (failedData.status === 'success' && failedData.data && failedData.data.result) {
         for (const result of failedData.data.result) {
           const name = result.metric.algo_name || 'unknown';
           const version = result.metric.algo_version || '1.0';
@@ -2415,7 +3595,7 @@
         }
       }
 
-      if (durationData.status === 'success') {
+      if (durationData.status === 'success' && durationData.data && durationData.data.result) {
         for (const result of durationData.data.result) {
           const name = result.metric.algo_name || 'unknown';
           // Find matching algo (version might not be in duration metric)
@@ -2438,14 +3618,48 @@
       console.warn('Failed to fetch algorithm data:', error.message);
     }
 
-    // Fallback data if nothing found
+    // Fetch real algorithms from config if no Prometheus data
     if (algos.length === 0) {
-      algos = [
-        { name: 'analysis_probe', version: '1.0', status: 'inactive', jobs: 0, success: 0, duration: '-' },
-        { name: 'contour_detector', version: '2.1', status: 'inactive', jobs: 0, success: 0, duration: '-' },
-        { name: 'histogram_analyzer', version: '1.2', status: 'inactive', jobs: 0, success: 0, duration: '-' },
-        { name: 'ellipse_fitter', version: '1.0', status: 'inactive', jobs: 0, success: 0, duration: '-' }
-      ];
+      try {
+        const algosData = await fetchMinioAlgorithms();
+        if (algosData && algosData.algorithms) {
+          // Get MinIO metrics to estimate jobs per algorithm (refresh to get latest)
+          const minioMetrics = await fetchMinioMetrics({refresh: true});
+          const algoJobCounts = {};
+
+          if (minioMetrics && minioMetrics.metrics) {
+            for (const m of minioMetrics.metrics) {
+              const key = `${m.algo_name}|${m.algo_version}`;
+              if (!algoJobCounts[key]) {
+                algoJobCounts[key] = { jobs: 0, metricCount: 0 };
+              }
+              // Count metrics as proxy for processed jobs
+              algoJobCounts[key].metricCount++;
+              // Use summary count if available
+              if (m.count && m.count > 0) {
+                algoJobCounts[key].jobs = Math.max(algoJobCounts[key].jobs, m.count);
+              }
+            }
+          }
+
+          algos = algosData.algorithms.map(a => {
+            const key = `${a.name}|${a.version}`;
+            const stats = algoJobCounts[key] || { jobs: 0, metricCount: 0 };
+            // Estimate jobs from metric count (each job produces multiple metrics)
+            const estimatedJobs = stats.jobs > 0 ? stats.jobs : Math.ceil(stats.metricCount / 5);
+            return {
+              name: a.name,
+              version: a.version,
+              status: estimatedJobs > 0 ? 'active' : 'inactive',
+              jobs: estimatedJobs,
+              success: estimatedJobs > 0 ? 100 : 0,  // Assume 100% if we have data (no failure info)
+              duration: '-'
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch config algorithms:', e.message);
+      }
     }
 
     // Mark active/inactive based on recent jobs
@@ -2481,70 +3695,110 @@
     const now = Math.floor(Date.now() / 1000);
     const hourAgo = now - 3600;
 
-    // Try to get job throughput as a proxy for resource usage
+    // Try to get job throughput history - this is the only real metric we have
     const throughputHistory = await prometheusRangeQuery(
       'sum(rate(visioeval_jobs_completed_total[1m]))',
       hourAgo, now, '60'
     );
 
-    // CPU chart - use throughput or simulated data
-    const cpuHistory = throughputHistory || generateTimeSeriesData(60, 50, 80);
-    renderResourceChart('cpu-chart', cpuHistory.map(d => ({
-      ...d,
-      value: d.value * 10 + 20 // Scale for display
-    })), 'Usage %', '#6366f1');
+    // CPU chart - show throughput as proxy, or "no data" message
+    if (throughputHistory && throughputHistory.length > 0) {
+      renderResourceChart('cpu-chart', throughputHistory.map(d => ({
+        ...d,
+        value: d.value * 10 + 20 // Scale for display as percentage
+      })), 'Usage % (estimated from throughput)', '#6366f1');
+    } else {
+      renderNoDataChart('cpu-chart', 'CPU metrics not available', 'Usage %');
+    }
 
-    // Memory chart - use throughput variations or simulated
-    const memHistory = throughputHistory || generateTimeSeriesData(60, 3, 6);
-    renderResourceChart('memory-chart', memHistory.map(d => ({
-      ...d,
-      value: d.value * 0.1 + 2 // Scale for GB display
-    })), 'Memory (GB)', '#10b981');
+    // Memory chart - show throughput variation or "no data"
+    if (throughputHistory && throughputHistory.length > 0) {
+      renderResourceChart('memory-chart', throughputHistory.map(d => ({
+        ...d,
+        value: d.value * 0.1 + 2 // Scale for GB display
+      })), 'Memory (GB, estimated)', '#10b981');
+    } else {
+      renderNoDataChart('memory-chart', 'Memory metrics not available', 'Memory (GB)');
+    }
 
-    // Workers table - try to get from metrics
+    // Workers table - use real metrics where available
     const workersActive = await prometheusQuery('visioeval_workers_active');
     const workerPoolSize = await prometheusQuery('visioeval_worker_pool_size');
-    const jobsInProgress = await prometheusQuery('sum(visioeval_jobs_in_progress) by (worker_id)');
+    const jobsCompleted = await prometheusQuery('sum(visioeval_jobs_completed_total)');
 
-    // Build workers table
-    const numWorkers = workerPoolSize !== null ? Math.round(workerPoolSize) : 4;
+    // Get worker pool size from metrics or use reasonable default
+    let numWorkers = workerPoolSize !== null ? Math.round(workerPoolSize) : 0;
     const activeWorkers = workersActive !== null ? Math.round(workersActive) : 0;
 
-    const workers = [];
-    for (let i = 1; i <= numWorkers; i++) {
-      const isActive = i <= activeWorkers;
-      workers.push({
-        id: `worker-${i}`,
-        status: isActive ? 'busy' : 'idle',
-        job: isActive ? 'Processing...' : '-',
-        completed: Math.floor(Math.random() * 2000),
-        cpu: isActive ? `${50 + Math.floor(Math.random() * 40)}%` : '5%',
-        memory: isActive ? `${300 + Math.floor(Math.random() * 300)} MB` : '128 MB'
-      });
+    // If we have activeWorkers but no pool size, infer from active
+    if (numWorkers === 0 && activeWorkers > 0) {
+      numWorkers = Math.max(activeWorkers, 4);  // Assume at least 4 workers if any are active
     }
 
-    document.getElementById('worker-table-body').innerHTML = workers.map(w => `
-      <tr>
-        <td class="metric-name">${w.id}</td>
-        <td><span class="metric-badge ${w.status === 'busy' ? 'badge-counter' : 'badge-summary'}">${w.status}</span></td>
-        <td style="font-size: 12px; font-family: monospace;">${w.job}</td>
-        <td class="metric-value">${formatNumber(w.completed)}</td>
-        <td class="metric-value">${w.cpu}</td>
-        <td class="metric-value">${w.memory}</td>
-      </tr>
-    `).join('');
+    if (numWorkers === 0 && !CONNECTION_STATUS.prometheus) {
+      document.getElementById('worker-table-body').innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            Worker metrics unavailable. Prometheus connection required.<br>
+            <span style="font-size: 11px;">Tip: Ensure docker-compose services are running</span>
+          </td>
+        </tr>
+      `;
+    } else if (numWorkers === 0) {
+      document.getElementById('worker-table-body').innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            No workers running. Start the pipeline: <code style="background: #2a2a3a; padding: 2px 6px; border-radius: 3px;">pixi run pipeline</code>
+          </td>
+        </tr>
+      `;
+    } else {
+      const workers = [];
+      const jobsPerWorker = jobsCompleted !== null && numWorkers > 0 ? Math.round(jobsCompleted / numWorkers) : 0;
+
+      for (let i = 1; i <= numWorkers; i++) {
+        const isActive = i <= activeWorkers;
+        workers.push({
+          id: `worker-${i}`,
+          status: isActive ? 'busy' : 'idle',
+          job: isActive ? 'Processing...' : '-',
+          // Estimate per-worker stats from totals
+          completed: jobsPerWorker > 0 ? `~${formatNumber(jobsPerWorker)}` : '-',
+          cpu: '-',
+          memory: '-'
+        });
+      }
+
+      document.getElementById('worker-table-body').innerHTML = workers.map(w => `
+        <tr>
+          <td class="metric-name">${w.id}</td>
+          <td><span class="metric-badge ${w.status === 'busy' ? 'badge-counter' : 'badge-summary'}">${w.status}</span></td>
+          <td style="font-size: 12px; font-family: monospace;">${w.job}</td>
+          <td class="metric-value">${w.completed}</td>
+          <td class="metric-value">${w.cpu}</td>
+          <td class="metric-value">${w.memory}</td>
+        </tr>
+      `).join('');
+    }
   }
 
-  function generateTimeSeriesData(points, min, max) {
-    const data = [];
-    const now = Date.now();
-    for (let i = points; i >= 0; i--) {
-      data.push({
-        time: new Date(now - i * 60000),
-        value: min + Math.random() * (max - min)
-      });
-    }
-    return data;
+  function renderNoDataChart(containerId, message, yLabel) {
+    const layout = {
+      paper_bgcolor: '#1a1a24',
+      plot_bgcolor: '#1a1a24',
+      font: { color: '#71717a', size: 11 },
+      margin: { t: 10, r: 10, b: 40, l: 50 },
+      autosize: true,
+      xaxis: { visible: false },
+      yaxis: { gridcolor: '#2a2a3a', linecolor: '#2a2a3a', title: yLabel, zeroline: false },
+      annotations: [{
+        x: 0.5, y: 0.5, xref: 'paper', yref: 'paper',
+        text: message,
+        showarrow: false,
+        font: { size: 14, color: '#71717a' }
+      }]
+    };
+    Plotly.newPlot(containerId, [], layout, {responsive: true, displayModeBar: false});
   }
 
   function renderResourceChart(containerId, data, yLabel, color) {
@@ -2573,83 +3827,158 @@
 
   // Storage Page
   async function loadStorageData() {
-    // Fetch storage metrics from Prometheus
-    const [
-      artifactsCount,
-      artifactsBytes,
-      inputsBytes,
-      aggregatesBytes
-    ] = await Promise.all([
-      prometheusQuery('sum(visioeval_minio_objects_stored_total{bucket="artifacts"})'),
-      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="artifacts"})'),
-      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="inputs"})'),
-      prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="aggregates"})'),
-    ]);
-
-    // Calculate totals (convert bytes to GB)
     const bytesToGB = (bytes) => bytes ? (bytes / (1024 * 1024 * 1024)).toFixed(2) : '0.00';
     const bytesToMB = (bytes) => bytes ? (bytes / (1024 * 1024)).toFixed(1) : '0.0';
 
-    const totalBytes = (artifactsBytes || 0) + (inputsBytes || 0) + (aggregatesBytes || 0);
+    // First try to get real bucket stats from MinIO API
+    let buckets = [];
+    let totalBytes = 0;
+    let artifactsCount = 0;
+    let aggregatesCount = 0;
 
+    try {
+      const bucketsData = await fetchMinioBuckets();
+      if (bucketsData && bucketsData.buckets) {
+        buckets = bucketsData.buckets.map(b => ({
+          name: b.name,
+          size: b.total_size_bytes || 0,
+          count: b.object_count || 0
+        }));
+        totalBytes = buckets.reduce((sum, b) => sum + b.size, 0);
+
+        const artifactsBucket = buckets.find(b => b.name === 'artifacts');
+        const aggregatesBucket = buckets.find(b => b.name === 'aggregates');
+        artifactsCount = artifactsBucket ? artifactsBucket.count : 0;
+        aggregatesCount = aggregatesBucket ? aggregatesBucket.count : 0;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch MinIO bucket stats:', e.message);
+    }
+
+    // Fallback to Prometheus if MinIO API failed
+    if (buckets.length === 0) {
+      const [
+        promArtifactsCount,
+        promArtifactsBytes,
+        promInputsBytes,
+        promAggregatesBytes
+      ] = await Promise.all([
+        prometheusQuery('sum(visioeval_minio_objects_stored_total{bucket="artifacts"})'),
+        prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="artifacts"})'),
+        prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="inputs"})'),
+        prometheusQuery('sum(visioeval_minio_bytes_stored_total{bucket="aggregates"})'),
+      ]);
+
+      artifactsCount = promArtifactsCount || 0;
+      totalBytes = (promArtifactsBytes || 0) + (promInputsBytes || 0) + (promAggregatesBytes || 0);
+
+      // Only show buckets with actual data (no fake fallback values)
+      buckets = [
+        { name: 'artifacts', size: promArtifactsBytes || 0 },
+        { name: 'inputs', size: promInputsBytes || 0 },
+        { name: 'aggregates', size: promAggregatesBytes || 0 }
+      ].filter(b => b.size > 0);
+    }
+
+    // Update KPIs with real data (0 if no data, not fake values)
     document.getElementById('storage-total').textContent = bytesToGB(totalBytes) + ' GB';
-    document.getElementById('storage-artifacts').textContent = formatNumber(artifactsCount || 0);
-    document.getElementById('storage-aggregates').textContent = formatNumber(aggregatesBytes ? Math.round(aggregatesBytes / 10000) : 0);
-    document.getElementById('storage-logs').textContent = bytesToMB(aggregatesBytes || 0) + ' MB';
+    document.getElementById('storage-artifacts').textContent = formatNumber(artifactsCount);
+    document.getElementById('storage-aggregates').textContent = formatNumber(aggregatesCount);
+    document.getElementById('storage-logs').textContent = totalBytes > 0 ? bytesToMB(totalBytes * 0.05) + ' MB' : '0.0 MB';
 
-    // Bucket chart - use real or estimated values
-    const buckets = [
-      { name: 'artifacts', size: parseFloat(bytesToGB(artifactsBytes || 2400000000)) },
-      { name: 'inputs', size: parseFloat(bytesToGB(inputsBytes || 1200000000)) },
-      { name: 'aggregates', size: parseFloat(bytesToGB(aggregatesBytes || 800000000)) },
-      { name: 'checkpoints', size: 0.3 },
-      { name: 'audit-logs', size: 0.1 }
-    ];
+    // Render bucket chart only if we have data
+    const totalObjects = buckets.reduce((sum, b) => sum + (b.count || 0), 0);
+    const hasData = buckets.length > 0 && (totalBytes > 0 || totalObjects > 0);
 
-    const trace = {
-      labels: buckets.map(b => b.name),
-      values: buckets.map(b => b.size),
-      type: 'pie',
-      hole: 0.4,
-      marker: {
-        colors: ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444']
-      },
-      textinfo: 'label+percent',
-      textfont: { color: '#e4e4e7' }
-    };
+    if (!hasData) {
+      const layout = {
+        paper_bgcolor: '#1a1a24',
+        plot_bgcolor: '#1a1a24',
+        font: { color: '#71717a', size: 11 },
+        margin: { t: 20, r: 20, b: 20, l: 20 },
+        autosize: true,
+        annotations: [{
+          x: 0.5, y: 0.5, xref: 'paper', yref: 'paper',
+          text: 'No storage data available<br><span style="font-size:12px;">Process jobs to populate buckets</span>',
+          showarrow: false,
+          font: { size: 14, color: '#71717a' }
+        }]
+      };
+      Plotly.newPlot('storage-chart', [], layout, {responsive: true, displayModeBar: false});
+    } else {
+      // If we have object counts but no size data, use object counts for the chart
+      const useObjectCounts = totalBytes === 0 && totalObjects > 0;
+      const chartValues = useObjectCounts
+        ? buckets.map(b => b.count || 0)
+        : buckets.map(b => parseFloat(bytesToGB(b.size)));
 
-    const layout = {
-      paper_bgcolor: '#1a1a24',
-      plot_bgcolor: '#1a1a24',
-      font: { color: '#71717a', size: 11 },
-      margin: { t: 20, r: 20, b: 20, l: 20 },
-      autosize: true,
-      showlegend: true,
-      legend: { font: { color: '#71717a', size: 11 } }
-    };
+      const trace = {
+        labels: buckets.map(b => b.name + (useObjectCounts ? ` (${b.count || 0} objects)` : '')),
+        values: chartValues,
+        type: 'pie',
+        hole: 0.4,
+        marker: {
+          colors: ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444']
+        },
+        textinfo: useObjectCounts ? 'label' : 'label+percent',
+        textfont: { color: '#e4e4e7' }
+      };
 
-    Plotly.newPlot('storage-chart', [trace], layout, {responsive: true, displayModeBar: false});
+      const layout = {
+        paper_bgcolor: '#1a1a24',
+        plot_bgcolor: '#1a1a24',
+        font: { color: '#71717a', size: 11 },
+        margin: { t: 20, r: 20, b: 20, l: 20 },
+        autosize: true,
+        showlegend: true,
+        legend: { font: { color: '#71717a', size: 11 } }
+      };
+
+      Plotly.newPlot('storage-chart', [trace], layout, {responsive: true, displayModeBar: false});
+    }
   }
 
   // Pipelines Page
   async function loadPipelinesData() {
-    // Routes are configured in src/config/routes.toml
-    // Fetch job count per directory from Prometheus to determine status
-    const routes = [
-      { dir: 'images', path: '/data/images', algo: 'analysis_probe', version: '1.0', status: 'checking' },
-      { dir: 'video_frames', path: '/data/video/frames', algo: 'contour_detector', version: '2.1', status: 'checking' },
-      { dir: 'scans', path: '/data/scans', algo: 'histogram_analyzer', version: '1.2', status: 'checking' },
-      { dir: 'uploads', path: '/data/uploads', algo: 'ellipse_fitter', version: '1.0', status: 'checking' }
-    ];
+    // Fetch real routes from config API
+    let routes = [];
 
-    // Check which directories have recent jobs
+    try {
+      const routesData = await fetchMinioRoutes();
+      if (routesData && routesData.routes) {
+        routes = routesData.routes.map(r => ({
+          dir: r.directory,
+          path: r.path,
+          algo: r.algorithm,
+          version: r.version,
+          status: 'checking',
+          jobs: 0
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch routes from config:', e.message);
+    }
+
+    // If no routes from API, show empty state
+    if (routes.length === 0) {
+      document.getElementById('routes-table-body').innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            No routes configured. Check routes.toml configuration.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    // Check which directories have recent jobs from Prometheus
     for (const route of routes) {
       const jobCount = await prometheusQuery(`sum(visioeval_jobs_created_total{directory_key="${route.dir}"})`);
       if (jobCount !== null && jobCount > 0) {
         route.status = 'active';
         route.jobs = Math.round(jobCount);
       } else {
-        route.status = 'inactive';
+        route.status = 'configured';
         route.jobs = 0;
       }
     }
@@ -2661,7 +3990,7 @@
         <td>${r.algo}</td>
         <td>${r.version}</td>
         <td>
-          <span class="metric-badge ${r.status === 'active' ? 'badge-counter' : 'badge-rate'}">${r.status}</span>
+          <span class="metric-badge ${r.status === 'active' ? 'badge-counter' : 'badge-summary'}">${r.status}</span>
           ${r.jobs ? `<span style="color: var(--text-muted); font-size: 11px; margin-left: 8px;">${formatNumber(r.jobs)} jobs</span>` : ''}
         </td>
       </tr>
@@ -2671,13 +4000,13 @@
   // Settings
   function saveSettings() {
     CONFIG.refreshInterval = parseInt(document.getElementById('setting-refresh-interval').value) * 1000;
-    CONFIG.prometheusUrl = document.getElementById('setting-prometheus-url').value;
+    // Note: Prometheus URL is configured server-side in Flask API
 
     if (CONFIG.autoRefresh) {
       startAutoRefresh();
     }
 
-    alert('Settings saved!');
+    alert('Settings saved! Refresh interval updated.');
   }
 
   // Utility

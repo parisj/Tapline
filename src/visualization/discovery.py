@@ -114,6 +114,7 @@ class DiscoveryService:
         algo_version: str | None = None,
         *,
         refresh: bool = False,
+        time_range_minutes: int | None = None,
     ) -> list[MetricInfo]:
         """Discover available metrics by listing objects in the aggregates bucket.
 
@@ -123,17 +124,26 @@ class DiscoveryService:
             algo_name: Filter by algorithm name (optional)
             algo_version: Filter by algorithm version (optional)
             refresh: Force refresh of cached metrics
+            time_range_minutes: Filter to only include windows within last N minutes
 
         Returns:
             List of MetricInfo objects for discovered metrics
 
         """
-        cache_key = f"{algo_name or '*'}|{algo_version or '*'}"
+        import time as time_module
+
+        cache_key = f"{algo_name or '*'}|{algo_version or '*'}|{time_range_minutes or '*'}"
         if not refresh and cache_key in self._metrics_cache:
             return self._metrics_cache[cache_key]
 
         metrics: list[MetricInfo] = []
-        seen: set[str] = set()
+        # Aggregate stats across all time windows for each unique metric
+        aggregated: dict[str, dict[str, Any]] = {}
+
+        # Calculate time cutoff if time_range_minutes specified
+        time_cutoff: float | None = None
+        if time_range_minutes is not None:
+            time_cutoff = time_module.time() - (time_range_minutes * 60)
 
         try:
             bucket = self._storage.buckets["aggregates"]
@@ -143,6 +153,12 @@ class DiscoveryService:
                 try:
                     data = self._storage.retrieve_by_key(bucket, obj["key"])
                     doc = json.loads(data.decode("utf-8"))
+
+                    # Apply time filter if specified
+                    if time_cutoff is not None:
+                        window_end = doc.get("window_end_unix")
+                        if window_end is not None and window_end < time_cutoff:
+                            continue
 
                     doc_algo = doc.get("algo_name", "")
                     doc_version = doc.get("algo_version", "")
@@ -157,23 +173,64 @@ class DiscoveryService:
                         continue
 
                     metric_key = f"{doc_algo}|{doc_version}|{metric_name}"
-                    if metric_key in seen:
-                        continue
-                    seen.add(metric_key)
+                    summary = doc.get("summary", {})
 
-                    metrics.append(
-                        MetricInfo(
-                            metric_name=metric_name,
-                            algo_name=doc_algo,
-                            algo_version=doc_version,
-                            analysis_mask=doc.get("analysis_mask", 0),
-                            summary=doc.get("summary", {}),
-                            artifact_key=obj["key"],
-                        ),
-                    )
+                    if metric_key not in aggregated:
+                        # Initialize with first occurrence
+                        aggregated[metric_key] = {
+                            "metric_name": metric_name,
+                            "algo_name": doc_algo,
+                            "algo_version": doc_version,
+                            "analysis_mask": doc.get("analysis_mask", 0),
+                            "artifact_key": obj["key"],
+                            "count": summary.get("count", 0),
+                            "sum": summary.get("sum", 0),
+                            "min": summary.get("min"),
+                            "max": summary.get("max"),
+                        }
+                    else:
+                        # Aggregate with existing data
+                        existing = aggregated[metric_key]
+                        existing["count"] = (existing.get("count") or 0) + (summary.get("count") or 0)
+                        existing["sum"] = (existing.get("sum") or 0) + (summary.get("sum") or 0)
+                        if summary.get("min") is not None:
+                            if existing["min"] is None:
+                                existing["min"] = summary["min"]
+                            else:
+                                existing["min"] = min(existing["min"], summary["min"])
+                        if summary.get("max") is not None:
+                            if existing["max"] is None:
+                                existing["max"] = summary["max"]
+                            else:
+                                existing["max"] = max(existing["max"], summary["max"])
+                        # Keep latest artifact key
+                        existing["artifact_key"] = obj["key"]
+
                 except (json.JSONDecodeError, UnicodeDecodeError) as e:
                     logger.debug("Failed to parse aggregate object %s: %s", obj["key"], e)
                     continue
+
+            # Convert aggregated data to MetricInfo objects
+            for agg in aggregated.values():
+                count = agg.get("count", 0)
+                total = agg.get("sum", 0)
+                avg = total / count if count > 0 else None
+                metrics.append(
+                    MetricInfo(
+                        metric_name=agg["metric_name"],
+                        algo_name=agg["algo_name"],
+                        algo_version=agg["algo_version"],
+                        analysis_mask=agg["analysis_mask"],
+                        summary={
+                            "count": count,
+                            "sum": total,
+                            "avg": avg,
+                            "min": agg["min"],
+                            "max": agg["max"],
+                        },
+                        artifact_key=agg["artifact_key"],
+                    ),
+                )
 
         except Exception as e:
             logger.warning("Failed to discover metrics from MinIO: %s", e)

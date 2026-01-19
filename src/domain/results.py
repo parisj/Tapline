@@ -64,7 +64,7 @@ class Artifact:
 class AlgoResult:
     """Algorithm output, independent from persistence and threading concerns."""
 
-    metrics: dict[str, MetricValue] = None
+    metrics: dict[str, MetricValue] | None = None
     artifacts: tuple[Artifact, ...] = ()
 
 

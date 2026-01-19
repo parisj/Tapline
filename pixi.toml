@@ -16,8 +16,10 @@ opentelemetry-api = ">=1.20"
 opentelemetry-sdk = ">=1.20"
 opentelemetry-exporter-otlp = ">=1.20"
 prometheus-client = ">=0.19"
-# Visualization
-bokeh = ">=3.3"
+# Visualization (Flask-based dashboard)
+flask = ">=3.0"
+flask-cors = ">=4.0"
+requests = ">=2.31"
 # Performance (optional, falls back to stdlib json)
 orjson = ">=3.9"
 
@@ -53,5 +55,5 @@ format = "ruff format ."
 benchmark = "python -m benchmarks.load_generator"
 benchmark-kafka = "python -m benchmarks.kafka_benchmark"
 
-# Dashboard
-dashboard = "bokeh serve src/visualization/server.py --port 5006 --allow-websocket-origin=localhost:5006"
+# Dashboard (Flask-based)
+dashboard = "python -m src.visualization.api_server"

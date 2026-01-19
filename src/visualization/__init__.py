@@ -1,4 +1,8 @@
-"""Visualization components and dashboards."""
+"""Visualization components - Flask-based dashboard.
+
+The dashboard is served by Flask at http://localhost:5007.
+Run with: pixi run dashboard
+"""
 
 from src.visualization.discovery import (
     AlgorithmInfo,
@@ -6,17 +10,12 @@ from src.visualization.discovery import (
     DiscoveryService,
     MetricInfo,
 )
-from src.visualization.layouts import DashboardLayout
 from src.visualization.readers import MinioArtifactReader
-from src.visualization.widgets import DashboardSelectors, create_summary_table
 
 __all__ = [
     "AlgorithmInfo",
-    "DashboardLayout",
-    "DashboardSelectors",
     "DirectoryInfo",
     "DiscoveryService",
     "MetricInfo",
     "MinioArtifactReader",
-    "create_summary_table",
 ]

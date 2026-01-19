@@ -253,7 +253,7 @@ def metric_emitted_payload(
     algo_name: str,
     algo_version: str,
     metric_name: str,
-    value: float | str | None,
+    value: float | str | dict[str, Any] | bool | None,
     analysis_mask: int,
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
