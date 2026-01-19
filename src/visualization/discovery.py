@@ -259,6 +259,200 @@ class DiscoveryService:
             logger.warning("Failed to retrieve metric artifact: %s", e)
             return None
 
+    def get_metric_values(
+        self,
+        algo_name: str,
+        algo_version: str,
+        metric_name: str,
+        time_range_minutes: int | None = None,
+    ) -> list[Any]:
+        """Retrieve raw metric values from the metric-values bucket.
+
+        Args:
+            algo_name: Algorithm name
+            algo_version: Algorithm version
+            metric_name: Metric name
+            time_range_minutes: Filter to only include windows within last N minutes
+
+        Returns:
+            List of raw metric values aggregated across time windows
+
+        """
+        import time as time_module
+
+        values: list[Any] = []
+        analysis_mask = 0
+        meta: dict[str, Any] | None = None
+
+        # Calculate time cutoff
+        time_cutoff: float | None = None
+        if time_range_minutes is not None:
+            time_cutoff = time_module.time() - (time_range_minutes * 60)
+
+        try:
+            bucket = self._storage.buckets.get("metric-values", "metric-values")
+            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+
+            for obj in objects:
+                try:
+                    data = self._storage.retrieve_by_key(bucket, obj["key"])
+                    doc = json.loads(data.decode("utf-8"))
+
+                    # Filter by metric identity
+                    if doc.get("algo_name") != algo_name:
+                        continue
+                    if doc.get("algo_version") != algo_version:
+                        continue
+                    if doc.get("metric_name") != metric_name:
+                        continue
+
+                    # Apply time filter
+                    if time_cutoff is not None:
+                        window_end = doc.get("window_end_unix")
+                        if window_end is not None and window_end < time_cutoff:
+                            continue
+
+                    # Collect values
+                    doc_values = doc.get("values", [])
+                    values.extend(doc_values)
+
+                    # Capture analysis_mask and meta from first match
+                    if analysis_mask == 0:
+                        analysis_mask = doc.get("analysis_mask", 0)
+                    if meta is None:
+                        meta = doc.get("meta")
+
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logger.debug("Failed to parse metric values object %s: %s", obj["key"], e)
+                    continue
+
+        except Exception as e:
+            logger.warning("Failed to retrieve metric values from MinIO: %s", e)
+
+        return values
+
+    def get_metric_values_with_meta(
+        self,
+        algo_name: str,
+        algo_version: str,
+        metric_name: str,
+        time_range_minutes: int | None = None,
+    ) -> dict[str, Any]:
+        """Retrieve raw metric values with metadata.
+
+        Checks both the metric-values bucket (from metric_values_collector)
+        and the aggregates bucket (from Python aggregation which includes values).
+
+        Args:
+            algo_name: Algorithm name
+            algo_version: Algorithm version
+            metric_name: Metric name
+            time_range_minutes: Filter to only include windows within last N minutes
+
+        Returns:
+            Dict with 'values', 'analysis_mask', and 'meta' keys
+
+        """
+        import time as time_module
+
+        values: list[Any] = []
+        analysis_mask = 0
+        meta: dict[str, Any] | None = None
+
+        # Calculate time cutoff
+        time_cutoff: float | None = None
+        if time_range_minutes is not None:
+            time_cutoff = time_module.time() - (time_range_minutes * 60)
+
+        # First, try the metric-values bucket
+        try:
+            bucket = self._storage.buckets.get("metric-values", "metric-values")
+            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+
+            for obj in objects:
+                try:
+                    data = self._storage.retrieve_by_key(bucket, obj["key"])
+                    doc = json.loads(data.decode("utf-8"))
+
+                    # Filter by metric identity
+                    if doc.get("algo_name") != algo_name:
+                        continue
+                    if doc.get("algo_version") != algo_version:
+                        continue
+                    if doc.get("metric_name") != metric_name:
+                        continue
+
+                    # Apply time filter
+                    if time_cutoff is not None:
+                        window_end = doc.get("window_end_unix")
+                        if window_end is not None and window_end < time_cutoff:
+                            continue
+
+                    # Collect values
+                    doc_values = doc.get("values", [])
+                    values.extend(doc_values)
+
+                    # Capture analysis_mask and meta from first match
+                    if analysis_mask == 0:
+                        analysis_mask = doc.get("analysis_mask", 0)
+                    if meta is None:
+                        meta = doc.get("meta")
+
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logger.debug("Failed to parse metric values object %s: %s", obj["key"], e)
+                    continue
+
+        except Exception as e:
+            logger.debug("No values in metric-values bucket: %s", e)
+
+        # Also check the aggregates bucket (Python aggregation stores values there)
+        try:
+            bucket = self._storage.buckets.get("aggregates", "aggregates")
+            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+
+            for obj in objects:
+                try:
+                    data = self._storage.retrieve_by_key(bucket, obj["key"])
+                    doc = json.loads(data.decode("utf-8"))
+
+                    # Filter by metric identity
+                    if doc.get("algo_name") != algo_name:
+                        continue
+                    if doc.get("algo_version") != algo_version:
+                        continue
+                    if doc.get("metric_name") != metric_name:
+                        continue
+
+                    # Apply time filter
+                    if time_cutoff is not None:
+                        window_end = doc.get("window_end_unix")
+                        if window_end is not None and window_end < time_cutoff:
+                            continue
+
+                    # Collect values (from Python aggregation, values are stored in aggregate)
+                    doc_values = doc.get("values", [])
+                    if doc_values:
+                        values.extend(doc_values)
+
+                        # Capture analysis_mask and meta if not already set
+                        if analysis_mask == 0:
+                            analysis_mask = doc.get("analysis_mask", 0)
+                        if meta is None:
+                            meta = doc.get("meta")
+
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logger.debug("Failed to parse aggregate object %s: %s", obj["key"], e)
+                    continue
+
+        except Exception as e:
+            logger.debug("No values in aggregates bucket: %s", e)
+
+        return {
+            "values": values,
+            "analysis_mask": analysis_mask,
+            "meta": meta,
+        }
+
     def clear_cache(self) -> None:
         """Clear the metrics discovery cache."""
         self._metrics_cache.clear()

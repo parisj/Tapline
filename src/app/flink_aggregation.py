@@ -1,8 +1,17 @@
-"""Flink metric aggregation entry point.
+"""Python-based metric aggregation (default aggregation method).
 
 This job runs separately from the main streaming pipeline.
 It consumes METRIC_EMITTED events from Kafka, aggregates them
-in time windows, and stores results to MinIO.
+in time windows, and stores results directly to MinIO.
+
+Key features:
+- Preserves raw values (numeric, boolean, 2D points) in aggregates
+- Stores analysis_mask for AnalysisKind-aware processing
+- Supports all value types for COUNTER, RATE, ELLIPSE_2D, CONTOUR_2D, etc.
+- Writes directly to MinIO aggregates bucket
+
+Note: This is the default aggregation method. For Flink SQL aggregation,
+set VISIOEVAL_USE_FLINK_SQL=true environment variable.
 
 Usage:
     pixi run run-flink-agg
@@ -51,45 +60,82 @@ _LOG_INTERVAL_SEC = 30.0
 
 @dataclass
 class MetricAggregate:
-    """Accumulated metrics for a single key within a window."""
+    """Accumulated metrics for a single key within a window.
+
+    Handles both numeric values (for SUMMARY, DISTRIBUTION_1D, etc.) and
+    structured values like {x, y} dicts (for ELLIPSE_2D, CONTOUR_2D).
+    """
 
     algo_name: str
     algo_version: str
     metric_name: str
     analysis_mask: int
-    values: list[float] = field(default_factory=list)
+    meta: dict[str, Any] | None = None
+    values: list[Any] = field(default_factory=list)  # Can be float, bool, dict, etc.
 
     @property
     def count(self) -> int:
         return len(self.values)
 
     @property
+    def numeric_values(self) -> list[float]:
+        """Extract only numeric values for statistical calculations."""
+        return [float(v) for v in self.values if isinstance(v, (int, float))]
+
+    @property
+    def point_values(self) -> list[dict[str, float]]:
+        """Extract 2D point values ({x, y} dicts) for ELLIPSE_2D/CONTOUR_2D."""
+        return [
+            {"x": float(v["x"]), "y": float(v["y"])}
+            for v in self.values
+            if isinstance(v, dict) and "x" in v and "y" in v
+        ]
+
+    @property
+    def has_2d_data(self) -> bool:
+        """Check if this aggregate contains 2D point data."""
+        return len(self.point_values) > 0
+
+    @property
     def sum(self) -> float:
-        return sum(self.values) if self.values else 0.0
+        nums = self.numeric_values
+        return sum(nums) if nums else 0.0
 
     @property
     def mean(self) -> float:
-        return self.sum / self.count if self.count > 0 else 0.0
+        nums = self.numeric_values
+        return self.sum / len(nums) if nums else 0.0
 
     @property
     def min(self) -> float | None:
-        return min(self.values) if self.values else None
+        nums = self.numeric_values
+        return min(nums) if nums else None
 
     @property
     def max(self) -> float | None:
-        return max(self.values) if self.values else None
+        nums = self.numeric_values
+        return max(nums) if nums else None
 
     @property
     def std(self) -> float:
-        if self.count < _MIN_VALUES_FOR_STD:
+        nums = self.numeric_values
+        if len(nums) < _MIN_VALUES_FOR_STD:
             return 0.0
         mean = self.mean
-        variance = sum((v - mean) ** 2 for v in self.values) / self.count
+        variance = sum((v - mean) ** 2 for v in nums) / len(nums)
         return variance**0.5
 
     def to_summary(self) -> dict[str, Any]:
-        return {
+        """Generate summary statistics.
+
+        Includes numeric stats and 2D point stats when applicable.
+        """
+        nums = self.numeric_values
+        points = self.point_values
+
+        summary: dict[str, Any] = {
             "count": self.count,
+            "numeric_count": len(nums),
             "sum": self.sum,
             "mean": self.mean,
             "std": self.std,
@@ -100,19 +146,35 @@ class MetricAggregate:
             "p99": self._percentile(99),
         }
 
+        # Add 2D point summary if we have point data
+        if points:
+            xs = [p["x"] for p in points]
+            ys = [p["y"] for p in points]
+            summary["point_count"] = len(points)
+            summary["x_mean"] = sum(xs) / len(xs) if xs else None
+            summary["y_mean"] = sum(ys) / len(ys) if ys else None
+            summary["x_min"] = min(xs) if xs else None
+            summary["x_max"] = max(xs) if xs else None
+            summary["y_min"] = min(ys) if ys else None
+            summary["y_max"] = max(ys) if ys else None
+
+        return summary
+
     def _median(self) -> float | None:
-        if not self.values:
+        nums = self.numeric_values
+        if not nums:
             return None
-        sorted_vals = sorted(self.values)
+        sorted_vals = sorted(nums)
         mid = len(sorted_vals) // 2
         if len(sorted_vals) % 2 == 0:
             return (sorted_vals[mid - 1] + sorted_vals[mid]) / 2
         return sorted_vals[mid]
 
     def _percentile(self, p: int) -> float | None:
-        if not self.values:
+        nums = self.numeric_values
+        if not nums:
             return None
-        sorted_vals = sorted(self.values)
+        sorted_vals = sorted(nums)
         idx = int(len(sorted_vals) * p / 100)
         return sorted_vals[min(idx, len(sorted_vals) - 1)]
 
@@ -143,16 +205,23 @@ class TumblingWindowAggregator:
         self._aggregates_produced = 0
 
     def add_metric(self, event_payload: dict[str, Any]) -> None:
-        """Add a metric event to the current window."""
+        """Add a metric event to the current window.
+
+        Handles all value types:
+        - Numeric (int, float): For SUMMARY, DISTRIBUTION_1D, COUNTER, RATE
+        - Boolean: For COUNTER (converted to 0/1)
+        - Dict with x,y: For ELLIPSE_2D, CONTOUR_2D (2D point data)
+        """
         try:
             algo_name = event_payload.get("algo_name", "unknown")
             algo_version = event_payload.get("algo_version", "0.0.0")
             metric_name = event_payload.get("metric_name", "unknown")
             value = event_payload.get("value")
             analysis_mask = event_payload.get("analysis_mask", 0)
+            meta = event_payload.get("meta")
 
-            # Skip non-numeric values
-            if not isinstance(value, (int, float)):
+            # Skip None values
+            if value is None:
                 return
 
             key = (algo_name, algo_version, metric_name)
@@ -175,9 +244,21 @@ class TumblingWindowAggregator:
                         algo_version=algo_version,
                         metric_name=metric_name,
                         analysis_mask=analysis_mask,
+                        meta=meta,
                     )
 
-                self._current_window[key].values.append(float(value))
+                # Store value as appropriate type
+                if isinstance(value, bool):
+                    # Convert boolean to int for counting
+                    self._current_window[key].values.append(1 if value else 0)
+                elif isinstance(value, (int, float)):
+                    self._current_window[key].values.append(float(value))
+                elif isinstance(value, dict):
+                    # Preserve dict values (e.g., {x, y} for 2D points)
+                    self._current_window[key].values.append(value)
+                else:
+                    # Store other types as-is (strings, etc.)
+                    self._current_window[key].values.append(value)
 
         except Exception as e:
             logger.warning("Failed to add metric: %s", e)
@@ -219,8 +300,11 @@ class TumblingWindowAggregator:
                 "algo_version": aggregate.algo_version,
                 "metric_name": aggregate.metric_name,
                 "analysis_mask": aggregate.analysis_mask,
+                "meta": aggregate.meta,
                 "window_start": window_start.isoformat(),
                 "window_end": window_end.isoformat(),
+                "window_start_unix": int(window_start.timestamp()),
+                "window_end_unix": int(window_end.timestamp()),
                 "window_size_sec": self._window_size_sec,
                 "summary": aggregate.to_summary(),
                 "values": aggregate.values,  # Include raw values for detailed analysis

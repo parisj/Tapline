@@ -326,6 +326,7 @@ def _store_aggregate(aggregate: dict, storage: MinioStorageService) -> bool:
         "algo_name": aggregate.get("algo_name", "unknown"),
         "algo_version": aggregate.get("algo_version", "0.0.0"),
         "metric_name": aggregate.get("metric_name", "unknown"),
+        "analysis_mask": aggregate.get("analysis_mask", 0),
         "window_start": window_start,
         "window_end": window_end,
         "window_start_unix": _parse_flink_timestamp(window_start),

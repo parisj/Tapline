@@ -65,6 +65,7 @@ class MinioStorageService:
             self._config.bucket_artifacts,
             self._config.bucket_inputs,
             self._config.bucket_aggregates,
+            self._config.bucket_metric_values,
         ]
         for bucket in buckets:
             if not self._client.bucket_exists(bucket):
@@ -396,6 +397,36 @@ class MinioStorageService:
             msg,
         ) from last_error
 
+    def store_with_key(
+        self,
+        data: bytes,
+        bucket: str,
+        key: str,
+        *,
+        mime: str = "application/octet-stream",
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        """Store data with explicit key (no content-addressing).
+
+        Use for deterministic keys like time-windowed data.
+
+        Args:
+            data: Binary data to store
+            bucket: Target bucket name
+            key: Object key
+            mime: MIME type
+            metadata: Optional object metadata
+
+        """
+        self._put_object_with_retry(
+            bucket=bucket,
+            key=key,
+            data=data,
+            mime=mime,
+            metadata=metadata,
+        )
+        logger.debug("Stored object with key: %s/%s", bucket, key)
+
     @property
     def buckets(self) -> dict[str, str]:
         """Get configured bucket names."""
@@ -403,4 +434,5 @@ class MinioStorageService:
             "artifacts": self._config.bucket_artifacts,
             "inputs": self._config.bucket_inputs,
             "aggregates": self._config.bucket_aggregates,
+            "metric-values": self._config.bucket_metric_values,
         }

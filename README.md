@@ -377,11 +377,11 @@ This is a test/probe algorithm, not a production CV model.
 
 ## **Streaming Architecture**
 
-VisioEval uses a Kafka/Flink/MinIO-based architecture for scalable event streaming:
+VisioEval uses a Kafka/MinIO-based architecture for scalable event streaming:
 
 - **Kafka** - Event backbone with topics for jobs, results, metrics, and audit logs
-- **Flink** - Distributed stream processing with time-windowed aggregation (SQL or PyFlink)
-- **MinIO** - Content-addressed object storage for artifacts
+- **Python Aggregation** - Lightweight time-windowed aggregation (default) or Flink SQL (optional)
+- **MinIO** - Content-addressed object storage for artifacts and aggregates
 - **Prometheus/Grafana** - Metrics collection and dashboards
 - **Jaeger** - Distributed tracing via OpenTelemetry
 
@@ -396,11 +396,14 @@ pixi run pipeline
 
 # Individual components (for development/debugging)
 pixi run run              # Main pipeline only (ingest + workers)
-pixi run run-flink-job    # Submit Flink SQL aggregation job
-pixi run aggregate-sink   # Kafka aggregate consumer -> MinIO
+pixi run run-flink-agg    # Python aggregation standalone
+pixi run aggregate-sink   # Metric values collector
+
+# Optional: Use Flink SQL instead of Python aggregation
+VISIOEVAL_USE_FLINK_SQL=true pixi run pipeline
 
 # Visualization
-pixi run dashboard        # Bokeh dashboard at http://localhost:5006
+pixi run dashboard        # Flask dashboard at http://localhost:5007
 ```
 
 ### Pipeline Architecture
@@ -413,42 +416,49 @@ The full pipeline (`pixi run pipeline`) spawns three separate processes for bett
 │                  (pipeline_runner.py)                           │
 │                                                                 │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
-│  │  Main Pipeline  │  │   Flink SQL     │  │ Aggregate Sink │  │
-│  │   (main.py)     │  │     Job         │  │(aggregate_sink)│  │
+│  │  Main Pipeline  │  │ Python Agg Job  │  │ Aggregate Sink │  │
+│  │   (main.py)     │  │(flink_agg.py)   │  │                │  │
 │  │                 │  │                 │  │                │  │
-│  │ • Ingest files  │  │ • 1-min windows │  │ • Kafka →      │  │
-│  │ • Kafka jobs    │  │ • Aggregates    │  │   MinIO        │  │
-│  │ • Worker pool   │  │   metrics       │  │ • Stores       │  │
-│  │ • Algorithm     │  │ • Publishes to  │  │   aggregates   │  │
-│  │   execution     │  │   visio.agg     │  │                │  │
+│  │ • Ingest files  │  │ • 1-min windows │  │ • Metric       │  │
+│  │ • Kafka jobs    │  │ • Aggregates    │  │   values       │  │
+│  │ • Worker pool   │  │   all metrics   │  │   collector    │  │
+│  │ • Algorithm     │  │ • Preserves raw │  │                │  │
+│  │   execution     │  │   values & mask │  │                │  │
 │  └────────┬────────┘  └────────┬────────┘  └───────┬────────┘  │
 │           │                    │                   │            │
 └───────────┼────────────────────┼───────────────────┼────────────┘
             │                    │                   │
             ▼                    ▼                   ▼
-     ┌──────────┐         ┌──────────┐        ┌──────────┐
-     │  Kafka   │◄───────►│  Flink   │        │  MinIO   │
-     │ Topics   │         │ Cluster  │        │ Storage  │
-     └──────────┘         └──────────┘        └──────────┘
+     ┌──────────┐         ┌──────────────────────────────┐
+     │  Kafka   │────────►│           MinIO              │
+     │ Topics   │         │  (aggregates + metric-values)│
+     └──────────┘         └──────────────────────────────┘
 ```
+
+**Why Python aggregation (default)?**
+- Preserves raw values for all metric types (numeric, boolean, 2D points)
+- Supports all AnalysisKinds (ELLIPSE_2D, CONTOUR_2D, COUNTER, RATE, etc.)
+- Writes directly to MinIO (simpler data flow)
+- No Flink cluster dependency for basic aggregation
 
 **Why separate processes?**
 - Python's GIL limits true parallelism within a single process
 - I/O-bound operations (Kafka, MinIO) benefit from process isolation
-- Independent restart capability (aggregate sink auto-restarts if it crashes)
+- Independent restart capability (components auto-restart if they crash)
 - Better resource utilization across CPU cores
 
 | Service | Port | Purpose |
 |---------|------|---------|
 | Kafka | 9092, 9093 | Event streaming (external, internal) |
 | Schema Registry | 8085 | Avro schemas |
-| Flink JobManager | 8081 | Stream processing UI |
+| Flink JobManager | 8081 | Stream processing UI (optional) |
 | MinIO | 9000, 9001 | Object storage (API, Console) |
 | Zookeeper | 2181 | Kafka coordination |
 | Prometheus | 9091 | Metrics collection |
 | Grafana | 3000 | Dashboards (admin/admin) |
 | Jaeger | 16686 | Distributed tracing UI |
-| Bokeh Dashboard | 5006 | Visualization dashboard |
+| VisioEval Dashboard | 5007 | Flask API + web dashboard |
+| Pipeline Metrics | 8000 | Prometheus metrics endpoint |
 
 
 ## **Observability**
@@ -488,73 +498,97 @@ Access Prometheus at http://localhost:9091 and Grafana dashboards at http://loca
 
 ## **Visualization Dashboard**
 
-VisioEval includes a Bokeh-based visualization dashboard with a dark minimal theme.
+VisioEval includes a Flask-based REST API and web dashboard with a dark minimal theme.
 
 ### Features
 
 - **KPI Cards** - Real-time metrics: jobs processed, throughput, errors, active sources
-- **Time-series Charts** - Throughput history from Prometheus
-- **Data Explorer** - Browse and visualize aggregated metrics by algorithm/version
-- **Auto-refresh** - Configurable polling interval (default 30s)
-- **Prometheus Integration** - Live connection status indicator
+- **Metrics Explorer** - Browse and visualize aggregated metrics by algorithm/version
+- **AnalysisKind Support** - Automatic artifact computation (histograms, ellipses, contours, rates)
+- **Time Filtering** - Filter metrics by time range (last 10, 60, 120 minutes)
+- **Prometheus Integration** - Live pipeline status and worker stats
+- **Audit Chain Verification** - Hash chain integrity checking
 
 ### Running the Dashboard
 
 ```bash
-pixi run dashboard        # Start at http://localhost:5006/server
+pixi run dashboard        # Start at http://localhost:5007
 ```
+
+### REST API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/metrics` | List available metrics with summaries |
+| `GET /api/metrics/<name>/data` | Get metric detail with computed artifacts |
+| `GET /api/prometheus/query` | Proxy Prometheus instant queries |
+| `GET /api/pipeline/status` | Get pipeline worker status |
+| `GET /api/audit/verify` | Verify audit chain integrity |
 
 ### Architecture
 
 ```
 src/visualization/
-├── server.py             # Bokeh server entry point
-├── layouts/
-│   └── main_layout.py    # Dashboard layout with sections
+├── api_server.py         # Flask API server
+├── static/
+│   └── dashboard.html    # Frontend HTML/JS dashboard
+├── discovery.py          # Metric discovery from MinIO
 ├── data/
-│   ├── prometheus_client.py  # Prometheus HTTP API client
-│   └── kafka_stats.py        # Kafka topic statistics
-├── plots/
-│   ├── common.py         # Theme colors and utilities
-│   ├── time_series.py    # Throughput charts
-│   ├── histogram.py      # Distribution plots
-│   └── ...               # Other chart types
-├── widgets/
-│   ├── kpi_card.py       # KPI card components
-│   ├── selectors.py      # Dropdown selectors
-│   └── stats_table.py    # Summary tables
+│   └── prometheus_client.py  # Prometheus HTTP API client
 └── readers/
     └── minio_reader.py   # MinIO artifact reader
 ```
 
-The dashboard reads aggregated metrics from MinIO and queries Prometheus for real-time KPIs.
+The dashboard reads aggregated metrics from MinIO and computes AnalysisKind-specific artifacts on-demand.
 
 
-## **Flink Aggregation**
+## **Metric Aggregation**
 
-Metrics are aggregated in real-time using Flink SQL:
+Metrics are aggregated in real-time using 1-minute tumbling windows. By default, VisioEval uses Python-based aggregation which:
 
-```sql
--- 1-minute tumbling windows
-SELECT
-    algo_name, algo_version, metric_name,
-    TUMBLE_START(proc_time, INTERVAL '1' MINUTE) AS window_start,
-    COUNT(*) AS metric_count,
-    AVG(value) AS metric_avg,
-    MIN(value) AS metric_min,
-    MAX(value) AS metric_max
-FROM metrics_source
-GROUP BY algo_name, algo_version, metric_name, TUMBLE(...)
+- **Preserves raw values** - Including non-numeric types like `{x, y}` points for 2D analysis
+- **Maintains analysis_mask** - So dashboard knows which AnalysisKinds to compute
+- **Writes directly to MinIO** - No intermediate Kafka topic needed
+
+### Supported Value Types
+
+| Type | AnalysisKind | Example |
+|------|--------------|---------|
+| Numeric (int, float) | SUMMARY, DISTRIBUTION_1D, OUTLIERS_1D | `0.87` |
+| Boolean | COUNTER, RATE | `True/False` (stored as 1/0) |
+| 2D Point (dict) | ELLIPSE_2D, CONTOUR_2D | `{"x": 8.65, "y": 5.00}` |
+| String | INFO | `"model_v2.onnx"` |
+
+### On-Demand Artifact Computation
+
+AnalysisKind-specific artifacts (histograms, ellipses, contours, rates) are computed **on-demand** by the dashboard API when raw values are available:
+
+```python
+# API computes based on analysis_mask
+if analysis_mask & AnalysisKind.DISTRIBUTION_1D:
+    artifacts["histogram"] = _compute_histogram(raw_values)
+if analysis_mask & AnalysisKind.ELLIPSE_2D:
+    artifacts["ellipse"] = _compute_ellipse(raw_values)
+if analysis_mask & AnalysisKind.CONTOUR_2D:
+    artifacts["contour"] = _compute_contour(raw_values)
 ```
 
 **Topics:**
 - Source: `visio.metrics` (METRIC_EMITTED events)
-- Sink: `visio.aggregates` (aggregated results)
+- Storage: MinIO `aggregates` bucket (with raw values)
 
 **Commands:**
 ```bash
-pixi run run-flink-job    # Submit SQL job to Flink cluster
-pixi run run-flink-agg    # Run standalone Python aggregation
+pixi run run-flink-agg    # Run Python aggregation standalone
+pixi run pipeline         # Full pipeline (includes aggregation)
+```
+
+### Optional: Flink SQL Mode
+
+For high-throughput scenarios, you can use Flink SQL (note: only supports numeric values):
+
+```bash
+VISIOEVAL_USE_FLINK_SQL=true pixi run pipeline
 ```
 
 **Monitor at:** http://localhost:8081 (Flink UI)
@@ -591,6 +625,43 @@ All modules use a shared structured logging approach with JSON output and trace 
 Logs include `trace_id`, `span_id`, and `correlation_id` for distributed tracing correlation.
 
 
+## **Modularity**
+
+VisioEval is designed for **zero-configuration extensibility**. Adding new algorithms or metrics requires no changes to storage, Kafka, or dashboard code.
+
+### Adding a New Algorithm
+
+1. Create a class extending `Algorithm` base class
+2. Return `MetricValue` objects with appropriate `AnalysisKind` flags
+3. Register in `build_default_registry()`
+4. Add route in `routes.toml`
+
+**That's it.** Everything else happens automatically:
+
+| Layer | Auto-Configured |
+|-------|-----------------|
+| Kafka events | `METRIC_EMITTED` published with `analysis_mask` |
+| Aggregation | Python aggregator handles all value types |
+| MinIO storage | Content-addressed, no bucket config needed |
+| Dashboard | Metrics auto-discovered from MinIO |
+| Visualization | Artifacts computed based on `analysis_mask` |
+
+### How It Works
+
+```
+Algorithm.run()
+    ↓ returns MetricValue(value, analysis=AnalysisKind.ELLIPSE_2D | AnalysisKind.CONTOUR_2D)
+    ↓
+KafkaWorkerPool publishes METRIC_EMITTED with analysis_mask=96
+    ↓
+TumblingWindowAggregator stores to MinIO (preserves raw values + mask)
+    ↓
+Dashboard API reads analysis_mask, computes ellipse + contour on-demand
+```
+
+No hardcoded algorithm names, metric names, or storage paths anywhere in the pipeline.
+
+
 ## **Project Status**
 
 VisioEval is under active development.
@@ -598,8 +669,9 @@ VisioEval is under active development.
 - core pipeline implemented
 - analyzers implemented
 - base unit tests exist (coverage enforced)
-- Bokeh visualization dashboard implemented
+- Flask-based visualization dashboard with REST API
 - three-process architecture for full pipeline
+- Python-based aggregation (default) with Flink SQL optional
 
 No performance claims are made at this stage.
 
@@ -607,9 +679,10 @@ No performance claims are made at this stage.
 ## **Roadmap**
 
 - ~~observability stack (Prometheus, Grafana, Jaeger)~~ done
-- ~~distributed Flink aggregation~~ done
+- ~~distributed Flink aggregation~~ done (Python default, Flink SQL optional)
 - ~~read-only query layer for dashboards~~ done
-- ~~visualization module (Bokeh dashboard)~~ done
+- ~~visualization module (Flask dashboard)~~ done
+- ~~modular algorithm/metric discovery~~ done
 - richer analysis types (quantiles/sketches, robust stats)
 - operational tooling (migrations, admin helpers)
 

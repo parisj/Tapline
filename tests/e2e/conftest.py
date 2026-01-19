@@ -172,6 +172,7 @@ def minio_config(e2e_config: E2ETestConfig):
         bucket_artifacts="artifacts",
         bucket_inputs="inputs",
         bucket_aggregates="aggregates",
+        bucket_metric_values="metric-values",
         path_prefix_length=4,
         max_object_size=104857600,
         max_retries=3,

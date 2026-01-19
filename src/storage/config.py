@@ -26,6 +26,7 @@ class MinioConfig:
     bucket_artifacts: str
     bucket_inputs: str
     bucket_aggregates: str
+    bucket_metric_values: str
 
     # Storage settings
     path_prefix_length: int
@@ -59,6 +60,7 @@ def load_minio_config(path: Path) -> MinioConfig:
         bucket_artifacts=buckets.get("artifacts", "artifacts"),
         bucket_inputs=buckets.get("inputs", "inputs"),
         bucket_aggregates=buckets.get("aggregates", "aggregates"),
+        bucket_metric_values=buckets.get("metric_values", "metric-values"),
         # Storage
         path_prefix_length=storage.get("path_prefix_length", 4),
         max_object_size=storage.get("max_object_size", 104857600),

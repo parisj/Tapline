@@ -395,9 +395,9 @@
                     <rect x="390" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
                     <circle cx="399" cy="37" r="3" fill="#1f2937"/>
 
-                    <!-- Flink -->
+                    <!-- Python Aggregation -->
                     <rect x="310" y="110" width="100" height="50" rx="6" fill="#1f2937" stroke="#ec4899" stroke-width="2"/>
-                    <text x="360" y="132" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Flink</text>
+                    <text x="360" y="132" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Python Agg</text>
                     <text x="360" y="146" text-anchor="middle" fill="#9ca3af" font-size="8">Aggregation</text>
                     <!-- Observed tag -->
                     <rect x="390" y="112" width="18" height="10" rx="2" fill="#ef4444"/>
@@ -416,9 +416,9 @@
                     <!-- Visualization -->
                     <rect x="620" y="50" width="100" height="70" rx="6" fill="#1f2937" stroke="#60a5fa" stroke-width="2"/>
                     <text x="670" y="72" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Dashboard</text>
-                    <text x="670" y="86" text-anchor="middle" fill="#9ca3af" font-size="8">Bokeh :5006</text>
+                    <text x="670" y="86" text-anchor="middle" fill="#9ca3af" font-size="8">Flask :5007</text>
                     <text x="670" y="100" text-anchor="middle" fill="#60a5fa" font-size="7">KPIs + Charts</text>
-                    <text x="670" y="112" text-anchor="middle" fill="#60a5fa" font-size="7">Data Explorer</text>
+                    <text x="670" y="112" text-anchor="middle" fill="#60a5fa" font-size="7">Metrics Explorer</text>
 
                     <!-- ============ ARROWS ============ -->
 
@@ -478,9 +478,9 @@
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 1rem; text-align: center;">
                 <strong>Kafka</strong> is the central event hub. <strong>Ingest</strong> detects files and produces job events.
                 <strong>Processing</strong> consumes jobs, executes algorithms, and produces metrics back to Kafka.
-                <strong>Flink</strong> consumes metrics for windowed aggregation and produces aggregates back to Kafka.
-                <strong>Aggregate Sink</strong> (separate process) consumes aggregates and stores to <strong>MinIO</strong>.
-                <strong>Dashboard</strong> reads from MinIO to visualize metrics. Components marked with <span style="color: #ef4444;">●</span> emit traces and metrics.
+                <strong>Python Agg</strong> (default) or Flink SQL consumes metrics for windowed aggregation and writes directly to <strong>MinIO</strong>.
+                <strong>Aggregate Sink</strong> (separate process) runs the metric values collector.
+                <strong>Dashboard</strong> reads from MinIO and computes AnalysisKind-specific artifacts on-demand. Components marked with <span style="color: #ef4444;">●</span> emit traces and metrics.
             </p>
         </section>
 
@@ -619,23 +619,23 @@
                     </ul>
                 </div>
                 <div class="component-card">
-                    <h3>Flink Aggregation <span class="phase-tag aggregation">Aggregation</span></h3>
-                    <p>Real-time streaming aggregation over visio.metrics topic.</p>
+                    <h3>Python Aggregation <span class="phase-tag aggregation">Aggregation</span></h3>
+                    <p>Real-time streaming aggregation (default method).</p>
                     <ul class="feature-list">
-                        <li>Consumes METRIC_EMITTED events</li>
+                        <li>Consumes METRIC_EMITTED events from Kafka</li>
                         <li>1-min tumbling windows, groups by algo/metric</li>
-                        <li>Computes count, sum, avg, min, max</li>
-                        <li>Publishes to visio.aggregates topic</li>
+                        <li>Preserves raw values (numeric, bool, 2D points)</li>
+                        <li>Writes directly to MinIO aggregates bucket</li>
                     </ul>
                 </div>
                 <div class="component-card">
                     <h3>Aggregate Sink <span class="phase-tag storage">Storage</span></h3>
-                    <p>Separate process consuming Flink output to MinIO.</p>
+                    <p>Metric values collector (separate process).</p>
                     <ul class="feature-list">
-                        <li>Consumes visio.aggregates topic</li>
                         <li>Runs as separate process (GIL isolation)</li>
                         <li>Auto-restarts on failure</li>
-                        <li>Writes JSON + NPZ to MinIO aggregates bucket</li>
+                        <li>Collects raw metric values for analysis</li>
+                        <li>Optional: Flink SQL mode consumes visio.aggregates</li>
                     </ul>
                 </div>
                 <div class="component-card">
@@ -659,13 +659,13 @@
                     </ul>
                 </div>
                 <div class="component-card">
-                    <h3>Bokeh Dashboard <span class="phase-tag" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">Visualization</span></h3>
-                    <p>Real-time web dashboard with dark theme.</p>
+                    <h3>Flask Dashboard <span class="phase-tag" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">Visualization</span></h3>
+                    <p>REST API + web dashboard with dark theme.</p>
                     <ul class="feature-list">
                         <li>KPI cards: jobs, throughput, errors, sources</li>
-                        <li>Time-series charts from Prometheus</li>
-                        <li>Data Explorer for metric visualization</li>
-                        <li>Auto-refresh with configurable interval</li>
+                        <li>Metrics Explorer with Plotly.js charts</li>
+                        <li>On-demand artifact computation (histogram, ellipse, contour)</li>
+                        <li>Auto-discovers algorithms and metrics from MinIO</li>
                     </ul>
                 </div>
             </div>
@@ -739,7 +739,7 @@
                     <tr><td>Grafana</td><td><span class="port-badge">3000</span></td><td>Dashboards</td></tr>
                     <tr><td>Jaeger</td><td><span class="port-badge">16686</span><span class="port-badge">4317</span></td><td>Distributed tracing</td></tr>
                     <tr><td>Zookeeper</td><td><span class="port-badge">2181</span></td><td>Kafka coordination</td></tr>
-                    <tr><td>Bokeh Dashboard</td><td><span class="port-badge">5006</span></td><td>Visualization dashboard</td></tr>
+                    <tr><td>Flask Dashboard</td><td><span class="port-badge">5007</span></td><td>REST API + Visualization</td></tr>
                 </tbody>
             </table>
         </section>
@@ -775,40 +775,82 @@
         </section>
 
         <section>
-            <h2>AnalysisKind &amp; Extensibility</h2>
+            <h2>Modularity &amp; Zero-Config Extensibility</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">VisioEval is designed for <strong>zero-configuration extensibility</strong>. Adding new algorithms or metrics requires no changes to storage, Kafka, or dashboard code.</p>
+            <div class="flow-card" style="margin-bottom: 1rem;">
+                <h3>Adding a New Algorithm</h3>
+                <div class="flow-steps">
+                    <div class="flow-step"><span class="step-number">1</span><span>Create class extending <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">Algorithm</code> base class</span></div>
+                    <div class="flow-step"><span class="step-number">2</span><span>Return <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">MetricValue</code> objects with appropriate <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">AnalysisKind</code> flags</span></div>
+                    <div class="flow-step"><span class="step-number">3</span><span>Register in <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">build_default_registry()</code></span></div>
+                    <div class="flow-step"><span class="step-number">4</span><span>Add route in <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">routes.toml</code></span></div>
+                    <div class="flow-step"><span class="step-number">✓</span><span><strong>That's it!</strong> Everything else happens automatically.</span></div>
+                </div>
+            </div>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h3>Auto-Configured: Kafka</h3>
+                    <p><code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">METRIC_EMITTED</code> events published with <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">analysis_mask</code></p>
+                </div>
+                <div class="component-card">
+                    <h3>Auto-Configured: Aggregation</h3>
+                    <p>Python aggregator handles all value types (numeric, bool, dict)</p>
+                </div>
+                <div class="component-card">
+                    <h3>Auto-Configured: MinIO</h3>
+                    <p>Content-addressed storage, no bucket configuration needed</p>
+                </div>
+                <div class="component-card">
+                    <h3>Auto-Configured: Dashboard</h3>
+                    <p>Metrics auto-discovered from MinIO via DiscoveryService</p>
+                </div>
+                <div class="component-card">
+                    <h3>Auto-Configured: Visualization</h3>
+                    <p>Artifacts computed on-demand based on <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">analysis_mask</code></p>
+                </div>
+                <div class="component-card">
+                    <h3>No Hardcoding</h3>
+                    <p>No hardcoded algorithm names, metric names, or storage paths anywhere</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>AnalysisKind &amp; Value Types</h2>
             <p style="color: var(--text-secondary); margin-bottom: 1rem;">Metrics declare their analysis type via <code style="background: var(--bg-tertiary); padding: 0.1rem 0.3rem; border-radius: 3px;">AnalysisKind</code> flags. The system routes them to appropriate Analyzers automatically.</p>
             <div class="component-grid">
                 <div class="component-card">
                     <h3>SUMMARY</h3>
-                    <p>Numeric statistics: count, mean, median, min, max, std, variance. Produces NPZ artifact with raw values.</p>
+                    <p>Numeric statistics: count, mean, median, min, max, std, variance. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">float</code></p>
                 </div>
                 <div class="component-card">
                     <h3>DISTRIBUTION_1D</h3>
-                    <p>Histogram computation with configurable bins. Produces NPZ artifact with edges and counts for visualization.</p>
-                </div>
-                <div class="component-card">
-                    <h3>OUTLIERS_1D</h3>
-                    <p>Robust outlier detection using IQR or MAD methods. Flags anomalous values for investigation.</p>
+                    <p>Histogram computed on-demand with configurable bins. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">float</code></p>
                 </div>
                 <div class="component-card">
                     <h3>COUNTER</h3>
-                    <p>Categorical frequency table for discrete/string values. Tracks occurrence counts per category.</p>
+                    <p>Categorical frequency table. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">bool</code> or <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">str</code></p>
                 </div>
                 <div class="component-card">
                     <h3>RATE</h3>
-                    <p>Boolean pass/fail rate with Wilson confidence intervals. Accepts bool, 0/1, or yes/no strings.</p>
+                    <p>Boolean pass/fail rate with Wilson CI. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">bool</code> (stored as 0/1)</p>
                 </div>
                 <div class="component-card">
-                    <h3>ELLIPSE_2D / CONTOUR_2D</h3>
-                    <p>2D covariance ellipse and density contours for bivariate data visualization.</p>
+                    <h3>ELLIPSE_2D</h3>
+                    <p>2D covariance ellipse parameters. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">{"x": float, "y": float}</code></p>
+                </div>
+                <div class="component-card">
+                    <h3>CONTOUR_2D</h3>
+                    <p>2D density grid for contour plotting. Value type: <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">{"x": float, "y": float}</code></p>
                 </div>
             </div>
             <div class="flow-card" style="margin-top: 1rem;">
-                <h3>Extensibility Model</h3>
+                <h3>Adding New Analysis Kinds</h3>
                 <div class="flow-steps">
-                    <div class="flow-step"><span class="step-number">1</span><span><strong>Add algorithms</strong> - Implement Algorithm base class, register in registry, add route config. No pipeline changes needed.</span></div>
-                    <div class="flow-step"><span class="step-number">2</span><span><strong>Add analysis kinds</strong> - Add flag to AnalysisKind enum, implement Analyzer protocol, register in ANALYSIS_PIPELINE.</span></div>
-                    <div class="flow-step"><span class="step-number">3</span><span><strong>Nothing else changes</strong> - Kafka topics, Flink jobs, storage, and observability work automatically with new algorithms and analyzers.</span></div>
+                    <div class="flow-step"><span class="step-number">1</span><span><strong>Add flag</strong> - Add to AnalysisKind enum in <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">src/domain/evaluation.py</code></span></div>
+                    <div class="flow-step"><span class="step-number">2</span><span><strong>Implement Analyzer</strong> - Create class implementing Analyzer protocol</span></div>
+                    <div class="flow-step"><span class="step-number">3</span><span><strong>Register</strong> - Add to ANALYSIS_PIPELINE mapping</span></div>
+                    <div class="flow-step"><span class="step-number">4</span><span><strong>Add dashboard compute</strong> - Add <code style="background: var(--bg-tertiary); padding: 0.1rem 0.2rem; border-radius: 2px; font-size: 0.75rem;">_compute_*</code> function in api_server.py</span></div>
                 </div>
             </div>
         </section>

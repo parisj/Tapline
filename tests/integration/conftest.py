@@ -149,6 +149,7 @@ def minio_storage(test_config: TestConfig, minio_available: bool, unique_bucket_
         bucket_artifacts=f"{unique_bucket_name}-artifacts",
         bucket_inputs=f"{unique_bucket_name}-inputs",
         bucket_aggregates=f"{unique_bucket_name}-aggregates",
+        bucket_metric_values=f"{unique_bucket_name}-metric-values",
         path_prefix_length=4,
         max_object_size=104857600,
         max_retries=3,

@@ -17,6 +17,9 @@ inputs = "inputs"
 # Aggregate artifacts from Flink (histograms, plots, etc.)
 aggregates = "aggregates"
 
+# Raw metric values for analysis computation (histograms, ellipses, etc.)
+metric_values = "metric-values"
+
 [storage]
 # Content-addressed path format: bucket/ab/cd/{full_hash}
 # Uses first 4 chars of hash for directory sharding

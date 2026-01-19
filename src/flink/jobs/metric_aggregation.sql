@@ -1,8 +1,17 @@
 -- ============================================================================
--- VisioEval Metric Aggregation - Flink SQL Job
+-- VisioEval Metric Aggregation - Flink SQL Job (OPTIONAL)
 -- ============================================================================
+-- NOTE: Python-based aggregation (src/app/flink_aggregation.py) is now the
+-- default and recommended method as it:
+--   - Preserves raw values (including non-numeric types like {x,y} points)
+--   - Supports all AnalysisKinds (ELLIPSE_2D, CONTOUR_2D, COUNTER, RATE, etc.)
+--   - Writes directly to MinIO (no extra Kafka consumer needed)
+--
+-- To use this Flink SQL job instead, set: VISIOEVAL_USE_FLINK_SQL=true
+--
 -- This SQL job reads METRIC_EMITTED events from Kafka, aggregates metrics
 -- in tumbling time windows, and writes results to the aggregates topic.
+-- LIMITATION: Only handles numeric values; raw values are not preserved.
 --
 -- Submit via Flink SQL Client:
 --   docker exec -it flink-jobmanager /opt/flink/bin/sql-client.sh
@@ -45,6 +54,7 @@ CREATE TABLE aggregates_sink (
     algo_name STRING,
     algo_version STRING,
     metric_name STRING,
+    analysis_mask INT,
     window_start TIMESTAMP(3),
     window_end TIMESTAMP(3),
     metric_count BIGINT,
@@ -60,11 +70,13 @@ CREATE TABLE aggregates_sink (
 );
 
 -- Run aggregation query with event time windows
+-- Note: analysis_mask is preserved using MAX since it should be constant per metric
 INSERT INTO aggregates_sink
 SELECT
     payload.algo_name AS algo_name,
     payload.algo_version AS algo_version,
     payload.metric_name AS metric_name,
+    MAX(payload.analysis_mask) AS analysis_mask,
     TUMBLE_START(event_time, INTERVAL '1' MINUTE) AS window_start,
     TUMBLE_END(event_time, INTERVAL '1' MINUTE) AS window_end,
     COUNT(*) AS metric_count,
