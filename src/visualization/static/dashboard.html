@@ -1039,7 +1039,10 @@
           </div>
           <div class="row" id="viz-content">
             <div class="col-md-8">
-              <div id="metric-chart" class="chart-container"></div>
+              <!-- Container for multiple charts -->
+              <div id="metric-charts-container">
+                <div id="metric-chart" class="chart-container"></div>
+              </div>
             </div>
             <div class="col-md-4">
               <h4 style="font-size: 13px; margin-bottom: 12px; color: var(--text-secondary);">Statistics</h4>
@@ -1219,7 +1222,7 @@
           </div>
         </div>
 
-        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="kpi-grid" style="grid-template-columns: repeat(5, 1fr);">
           <div class="kpi-card">
             <div class="kpi-label">Total Storage</div>
             <div class="kpi-value" style="color: var(--accent-primary);" id="storage-total">-- GB</div>
@@ -1231,6 +1234,10 @@
           <div class="kpi-card">
             <div class="kpi-label">Aggregates</div>
             <div class="kpi-value" style="color: var(--accent-info);" id="storage-aggregates">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Metric Values</div>
+            <div class="kpi-value" style="color: var(--accent-secondary);" id="storage-metric-values">--</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Audit Logs</div>
@@ -2160,6 +2167,7 @@
           algo: m.algo_name,
           version: m.algo_version,
           type: m.analysis_kinds && m.analysis_kinds.length > 0 ? m.analysis_kinds[0] : getAnalysisType(m.analysis_mask),
+          allTypes: m.analysis_kinds || [],
           count: m.count || 0,
           avg: m.avg,
           min: m.min,
@@ -2335,21 +2343,31 @@
       'INFO': 'Info'
     };
 
-    const html = metrics.map(m => `
+    const html = metrics.map(m => {
+      // Render all analysis kinds as badges
+      const allTypes = m.allTypes && m.allTypes.length > 0 ? m.allTypes : [m.type];
+      const typeBadges = allTypes.map(t =>
+        `<span class="metric-badge ${badgeClass[t] || 'badge-summary'}" style="margin-right: 4px; margin-bottom: 2px;">${badgeLabel[t] || t}</span>`
+      ).join('');
+
+      // Encode all types as JSON for the onclick handler
+      const allTypesJson = JSON.stringify(allTypes).replace(/"/g, '&quot;');
+
+      return `
       <tr>
         <td class="metric-name">${m.name} ${m.source === 'prometheus' ? '<span style="color: var(--text-muted); font-size: 10px;">(Prometheus)</span>' : ''}</td>
         <td>${m.algo}</td>
         <td>${m.version}</td>
-        <td><span class="metric-badge ${badgeClass[m.type] || 'badge-summary'}">${badgeLabel[m.type] || m.type}</span></td>
+        <td style="max-width: 200px;">${typeBadges}</td>
         <td class="metric-value">${formatNumber(m.count)}</td>
         <td class="metric-value">${m.avg !== null && m.avg !== undefined ? m.avg.toFixed(2) : '-'}</td>
         <td>
-          <button class="btn-filter" style="padding: 4px 12px; font-size: 11px;" onclick="showMetricVisualization('${m.name}', '${m.type}', '${m.algo}', '${m.version}', '${m.source || 'minio'}')">
+          <button class="btn-filter" style="padding: 4px 12px; font-size: 11px;" onclick="showMetricVisualization('${m.name}', '${m.type}', '${m.algo}', '${m.version}', '${m.source || 'minio'}', ${allTypesJson})">
             View
           </button>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
 
     document.getElementById('metrics-table-body').innerHTML = html;
   }
@@ -2381,12 +2399,15 @@
   // Store current visualization context for time range updates
   let currentVizContext = null;
 
-  async function showMetricVisualization(metricName, metricType, algo, version, source = 'minio') {
+  async function showMetricVisualization(metricName, metricType, algo, version, source = 'minio', allTypes = null) {
+    // If allTypes not provided, use the single metricType
+    const analysisTypes = allTypes && allTypes.length > 0 ? allTypes : [metricType];
+
     // Store context for time range updates
-    currentVizContext = { metricName, metricType, algo, version, source };
+    currentVizContext = { metricName, metricType, algo, version, source, allTypes: analysisTypes };
 
     document.getElementById('metric-visualization-card').style.display = 'block';
-    document.getElementById('selected-metric-title').textContent = metricName + ' - ' + metricType;
+    document.getElementById('selected-metric-title').textContent = metricName + ' - ' + analysisTypes.join(' | ');
 
     // Reset visibility state
     document.getElementById('viz-no-data').style.display = 'none';
@@ -2533,14 +2554,134 @@
       data.statsOnly = true;
     }
 
-    // Render the appropriate chart for the analysis type
-    renderMetricChart(metricType, data);
+    // Render charts for ALL analysis types (not just the primary one)
+    renderAllMetricCharts(analysisTypes, data);
 
-    // Update stats table based on metric type
-    renderMetricStats(metricType, data);
+    // Update stats table - combine stats from all analysis types
+    renderAllMetricStats(analysisTypes, data);
 
     // Scroll to visualization
     document.getElementById('metric-visualization-card').scrollIntoView({behavior: 'smooth'});
+  }
+
+  // Render multiple charts for all analysis types
+  function renderAllMetricCharts(analysisTypes, data) {
+    const container = document.getElementById('metric-charts-container');
+
+    // If only one type or no data, use single chart
+    if (analysisTypes.length <= 1 || data.noData) {
+      container.innerHTML = '<div id="metric-chart" class="chart-container"></div>';
+      renderMetricChart(analysisTypes[0] || 'SUMMARY', data);
+      return;
+    }
+
+    // Create multiple chart containers
+    const chartHtml = analysisTypes.map((type, idx) => `
+      <div style="margin-bottom: 16px;">
+        <h5 style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">${type.replace('_', ' ')}</h5>
+        <div id="metric-chart-${idx}" class="chart-container" style="height: 250px;"></div>
+      </div>
+    `).join('');
+
+    container.innerHTML = chartHtml;
+
+    // Render each chart
+    analysisTypes.forEach((type, idx) => {
+      renderMetricChartToElement(`metric-chart-${idx}`, type, data);
+    });
+  }
+
+  // Combine stats from all analysis types
+  function renderAllMetricStats(analysisTypes, data) {
+    let statsHtml = '';
+
+    // Always show basic stats first
+    statsHtml += `
+      <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 8px;">Basic Stats</td></tr>
+      <tr><td class="label">Count</td><td class="value">${formatNumber(data.count)}</td></tr>
+      <tr><td class="label">Sum</td><td class="value">${formatValue(data.sum)}</td></tr>
+      <tr><td class="label">Mean</td><td class="value">${formatValue(data.avg)}</td></tr>
+      <tr><td class="label">Min</td><td class="value">${formatValue(data.min)}</td></tr>
+      <tr><td class="label">Max</td><td class="value">${formatValue(data.max)}</td></tr>
+      <tr><td class="label">Std Dev</td><td class="value">${formatValue(data.std)}</td></tr>
+    `;
+
+    // Add type-specific stats
+    for (const type of analysisTypes) {
+      switch(type) {
+        case 'RATE':
+          if (data.rate) {
+            const rate = data.rate;
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">Rate Analysis</td></tr>
+              <tr><td class="label">Rate</td><td class="value">${(rate.value * 100).toFixed(2)}%</td></tr>
+              <tr><td class="label">CI (95%)</td><td class="value">[${(rate.ci_lower * 100).toFixed(1)}%, ${(rate.ci_upper * 100).toFixed(1)}%]</td></tr>
+              <tr><td class="label">Yes / No</td><td class="value">${rate.yes || 0} / ${rate.no || 0}</td></tr>
+            `;
+          }
+          break;
+
+        case 'COUNTER':
+          if (data.categories) {
+            const total = Object.values(data.categories).reduce((a, b) => a + b, 0);
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">Counter Categories</td></tr>
+            `;
+            const sorted = Object.entries(data.categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            sorted.forEach(([cat, count]) => {
+              const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+              statsHtml += `<tr><td class="label">${cat}</td><td class="value">${formatNumber(count)} (${pct}%)</td></tr>`;
+            });
+          }
+          break;
+
+        case 'ELLIPSE_2D':
+          if (data.ellipse) {
+            const e = data.ellipse;
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">2D Ellipse</td></tr>
+              <tr><td class="label">Center</td><td class="value">(${formatValue(e.center_x)}, ${formatValue(e.center_y)})</td></tr>
+              <tr><td class="label">Semi-Major</td><td class="value">${formatValue(e.semi_major)}</td></tr>
+              <tr><td class="label">Semi-Minor</td><td class="value">${formatValue(e.semi_minor)}</td></tr>
+              <tr><td class="label">Angle</td><td class="value">${formatValue(e.angle)}°</td></tr>
+            `;
+          }
+          break;
+
+        case 'CONTOUR_2D':
+          if (data.contour) {
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">2D Contour</td></tr>
+              <tr><td class="label">Grid Size</td><td class="value">${data.contour.density ? data.contour.density.length : '-'}</td></tr>
+              <tr><td class="label">X Range</td><td class="value">[${formatValue(data.contour.x_min)}, ${formatValue(data.contour.x_max)}]</td></tr>
+              <tr><td class="label">Y Range</td><td class="value">[${formatValue(data.contour.y_min)}, ${formatValue(data.contour.y_max)}]</td></tr>
+            `;
+          }
+          break;
+
+        case 'DISTRIBUTION_1D':
+          if (data.bins || data.counts) {
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">Distribution</td></tr>
+              <tr><td class="label">Bins</td><td class="value">${data.bins?.length || data.counts?.length || 30}</td></tr>
+            `;
+          }
+          break;
+
+        case 'OUTLIERS_1D':
+          if (data.outliers) {
+            const outlierCount = data.outliers.count || data.outliers.indices?.length || 0;
+            statsHtml += `
+              <tr><td class="label" colspan="2" style="font-weight: 600; color: var(--text-primary); padding-top: 12px;">Outliers</td></tr>
+              <tr><td class="label">Outlier Count</td><td class="value">${formatNumber(outlierCount)}</td></tr>
+              <tr><td class="label">Outlier %</td><td class="value">${data.count > 0 ? ((outlierCount / data.count) * 100).toFixed(2) : 0}%</td></tr>
+            `;
+          }
+          break;
+      }
+    }
+
+    document.getElementById('metric-stats').innerHTML = statsHtml;
   }
 
   function renderMetricStats(metricType, data) {
@@ -2676,15 +2817,21 @@
   function updateVisualizationTimeRange() {
     // Re-render visualization with new time range
     if (currentVizContext) {
-      const { metricName, metricType, algo, version, source } = currentVizContext;
-      showMetricVisualization(metricName, metricType, algo, version, source);
+      const { metricName, metricType, algo, version, source, allTypes } = currentVizContext;
+      showMetricVisualization(metricName, metricType, algo, version, source, allTypes);
     }
   }
 
   // NOTE: generateSampleData function removed - dashboard now shows "no data" message
   // instead of fake/simulated data when real metrics are unavailable
 
+  // Wrapper function to render to default chart element
   function renderMetricChart(type, data) {
+    renderMetricChartToElement('metric-chart', type, data);
+  }
+
+  // Render a chart to a specific element
+  function renderMetricChartToElement(elementId, type, data) {
     let traces = [];
     let layout = {};
 
@@ -2725,7 +2872,7 @@
           font: { size: 14, color: '#71717a' }
         }]
       };
-      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      Plotly.newPlot(elementId, traces, layout, {responsive: true, displayModeBar: false});
       return;
     }
 
@@ -2748,7 +2895,7 @@
         yaxis: { ...axisStyle, title: 'Value' },
         showlegend: false
       };
-      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      Plotly.newPlot(elementId, traces, layout, {responsive: true, displayModeBar: false});
       return;
     }
 
@@ -2795,7 +2942,7 @@
           font: { size: 12, color: '#71717a' }
         }]
       };
-      Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+      Plotly.newPlot(elementId, traces, layout, {responsive: true, displayModeBar: false});
       return;
     }
 
@@ -3167,7 +3314,7 @@
       }
     }
 
-    Plotly.newPlot('metric-chart', traces, layout, {responsive: true, displayModeBar: false});
+    Plotly.newPlot(elementId, traces, layout, {responsive: true, displayModeBar: false});
   }
 
   // Health Page
@@ -3835,6 +3982,7 @@
     let totalBytes = 0;
     let artifactsCount = 0;
     let aggregatesCount = 0;
+    let metricValuesCount = 0;
 
     try {
       const bucketsData = await fetchMinioBuckets();
@@ -3848,8 +3996,10 @@
 
         const artifactsBucket = buckets.find(b => b.name === 'artifacts');
         const aggregatesBucket = buckets.find(b => b.name === 'aggregates');
+        const metricValuesBucket = buckets.find(b => b.name === 'metric-values');
         artifactsCount = artifactsBucket ? artifactsBucket.count : 0;
         aggregatesCount = aggregatesBucket ? aggregatesBucket.count : 0;
+        metricValuesCount = metricValuesBucket ? metricValuesBucket.count : 0;
       }
     } catch (e) {
       console.warn('Failed to fetch MinIO bucket stats:', e.message);
@@ -3884,6 +4034,7 @@
     document.getElementById('storage-total').textContent = bytesToGB(totalBytes) + ' GB';
     document.getElementById('storage-artifacts').textContent = formatNumber(artifactsCount);
     document.getElementById('storage-aggregates').textContent = formatNumber(aggregatesCount);
+    document.getElementById('storage-metric-values').textContent = formatNumber(metricValuesCount);
     document.getElementById('storage-logs').textContent = totalBytes > 0 ? bytesToMB(totalBytes * 0.05) + ' MB' : '0.0 MB';
 
     // Render bucket chart only if we have data

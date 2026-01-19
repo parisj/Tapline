@@ -20,12 +20,18 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 from src.audit.chain import HashChainVerifier
 from src.config.loader import load_runtime_config
 from src.dispatch.routes import load_routes_toml
+from src.domain.evaluation import AnalysisKind
 from src.domain.events import EventEnvelope, EventType
 from src.storage.config import load_minio_config
 from src.storage.minio_service import MinioStorageService
 from src.utils.logging import get_logger
 from src.visualization.discovery import DiscoveryService
 from src.visualization.readers import MinioArtifactReader
+
+
+def _mask_to_kind_names(mask: int) -> list[str]:
+    """Convert AnalysisKind bitmask to list of kind names."""
+    return [kind.name for kind in AnalysisKind if mask & kind.value]
 
 logger = get_logger(__name__)
 
@@ -460,7 +466,22 @@ def get_metric_data(metric_name: str) -> tuple:
             "artifacts": {},
         }
 
-        # Include any additional data from the artifact document
+        # Try to get raw values from the metric-values bucket first
+        raw_values = None
+        values_data = discovery.get_metric_values_with_meta(
+            algo_name=metric.algo_name,
+            algo_version=metric.algo_version,
+            metric_name=metric.metric_name,
+            time_range_minutes=time_range_minutes,
+        )
+        if values_data.get("values"):
+            raw_values = values_data["values"]
+            # Update analysis_mask if not set
+            if metric.analysis_mask == 0 and values_data.get("analysis_mask"):
+                response["analysis_mask"] = values_data["analysis_mask"]
+                response["analysis_kinds"] = _mask_to_kind_names(values_data["analysis_mask"])
+
+        # Fall back to artifact document values
         if artifact_doc:
             # Include histogram data if present
             if "histogram" in artifact_doc:
@@ -468,42 +489,49 @@ def get_metric_data(metric_name: str) -> tuple:
             # Include quantiles if present
             if "quantiles" in artifact_doc:
                 response["artifacts"]["quantiles"] = artifact_doc["quantiles"]
-            # Include raw values if present
-            if "values" in artifact_doc:
+            # Include raw values from artifact if not already set
+            if raw_values is None and "values" in artifact_doc:
                 raw_values = artifact_doc["values"]
-                response["artifacts"]["values"] = raw_values
-
-                # Compute on-the-fly artifacts based on analysis_mask
-                analysis_mask = metric.analysis_mask
-
-                # Generate histogram for DISTRIBUTION_1D (mask value 2)
-                if analysis_mask & 2 and "histogram" not in response["artifacts"]:
-                    histogram = _compute_histogram(raw_values)
-                    if histogram:
-                        response["artifacts"]["histogram"] = histogram
-
-                # Generate categories for COUNTER (mask value 8)
-                if analysis_mask & 8 and "categories" not in response["artifacts"]:
-                    categories = _compute_categories(raw_values)
-                    if categories:
-                        response["artifacts"]["categories"] = categories
-
-                # Generate rate CI for RATE (mask value 16)
-                if analysis_mask & 16 and "rate" not in response["artifacts"]:
-                    rate_data = _compute_rate(raw_values)
-                    if rate_data:
-                        response["artifacts"]["rate"] = rate_data
-
-                # Generate ellipse data for ELLIPSE_2D (mask value 32)
-                if analysis_mask & 32 and "ellipse" not in response["artifacts"]:
-                    ellipse_data = _compute_ellipse(raw_values)
-                    if ellipse_data:
-                        response["artifacts"]["ellipse"] = ellipse_data
 
             # Include any other artifact data
             for key in ["ellipse", "contour", "categories", "outliers", "rate"]:
                 if key in artifact_doc and key not in response["artifacts"]:
                     response["artifacts"][key] = artifact_doc[key]
+
+        # Compute on-the-fly artifacts based on analysis_mask and raw values
+        if raw_values:
+            response["artifacts"]["values"] = raw_values
+            analysis_mask = response.get("analysis_mask") or metric.analysis_mask
+
+            # Generate histogram for DISTRIBUTION_1D (mask value 2)
+            if analysis_mask & 2 and "histogram" not in response["artifacts"]:
+                histogram = _compute_histogram(raw_values)
+                if histogram:
+                    response["artifacts"]["histogram"] = histogram
+
+            # Generate categories for COUNTER (mask value 8)
+            if analysis_mask & 8 and "categories" not in response["artifacts"]:
+                categories = _compute_categories(raw_values)
+                if categories:
+                    response["artifacts"]["categories"] = categories
+
+            # Generate rate CI for RATE (mask value 16)
+            if analysis_mask & 16 and "rate" not in response["artifacts"]:
+                rate_data = _compute_rate(raw_values)
+                if rate_data:
+                    response["artifacts"]["rate"] = rate_data
+
+            # Generate ellipse data for ELLIPSE_2D (mask value 32)
+            if analysis_mask & 32 and "ellipse" not in response["artifacts"]:
+                ellipse_data = _compute_ellipse(raw_values)
+                if ellipse_data:
+                    response["artifacts"]["ellipse"] = ellipse_data
+
+            # Generate contour data for CONTOUR_2D (mask value 64)
+            if analysis_mask & 64 and "contour" not in response["artifacts"]:
+                contour_data = _compute_contour(raw_values)
+                if contour_data:
+                    response["artifacts"]["contour"] = contour_data
 
         return jsonify(response)
     except Exception as e:
@@ -625,6 +653,55 @@ def _compute_ellipse(values: list) -> dict | None:
         return None
 
 
+def _compute_contour(values: list, grid_size: int = 50) -> dict | None:
+    """Compute 2D density grid for contour plotting from 2D point values."""
+    try:
+        pts = []
+        for v in values:
+            if isinstance(v, dict) and "x" in v and "y" in v:
+                pts.append((float(v["x"]), float(v["y"])))
+            elif isinstance(v, (list, tuple)) and len(v) == 2:
+                pts.append((float(v[0]), float(v[1])))
+
+        if len(pts) < 3:
+            return None
+
+        arr = np.array(pts)
+        x_vals = arr[:, 0]
+        y_vals = arr[:, 1]
+
+        # Create grid
+        x_min, x_max = x_vals.min(), x_vals.max()
+        y_min, y_max = y_vals.min(), y_vals.max()
+
+        # Add some padding
+        x_pad = (x_max - x_min) * 0.1 or 1.0
+        y_pad = (y_max - y_min) * 0.1 or 1.0
+        x_min -= x_pad
+        x_max += x_pad
+        y_min -= y_pad
+        y_max += y_pad
+
+        x_edges = np.linspace(x_min, x_max, grid_size + 1)
+        y_edges = np.linspace(y_min, y_max, grid_size + 1)
+
+        # Compute 2D histogram as density grid
+        density, _, _ = np.histogram2d(x_vals, y_vals, bins=[x_edges, y_edges])
+
+        return {
+            "density": density.T.tolist(),  # Transpose for proper orientation
+            "x_edges": x_edges.tolist(),
+            "y_edges": y_edges.tolist(),
+            "x_min": float(x_min),
+            "x_max": float(x_max),
+            "y_min": float(y_min),
+            "y_max": float(y_max),
+            "points": arr.tolist(),
+        }
+    except Exception:
+        return None
+
+
 @app.route("/api/buckets", methods=["GET"])
 def get_buckets() -> tuple:
     """Get MinIO bucket statistics."""
@@ -632,7 +709,7 @@ def get_buckets() -> tuple:
         return jsonify({"error": "Storage service not initialized"}), 503
 
     try:
-        buckets = ["artifacts", "inputs", "aggregates"]
+        buckets = ["artifacts", "inputs", "aggregates", "metric-values"]
         result = []
 
         for bucket_name in buckets:
