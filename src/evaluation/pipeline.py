@@ -1,6 +1,5 @@
 # src/evaluation/pipeline.py
 from collections.abc import Callable
-from typing import Any
 
 from src.domain.evaluation import AnalysisKind
 from src.evaluation.analyzers import (
@@ -8,30 +7,34 @@ from src.evaluation.analyzers import (
     CounterAnalyzer,
     CovEllipseAnalyzer,
     HistogramAnalyzer,
+    OutliersAnalyzer,
     RateAnalyzer,
     SummaryAnalyzer,
 )
 from src.evaluation.analyzers.base import Analyzer
 
-AnalyzerFactory = Callable[[dict[str, Any]], Analyzer]
+AnalyzerFactory = Callable[[], Analyzer]
 
 ANALYSIS_PIPELINE: dict[AnalysisKind, list[AnalyzerFactory]] = {
     AnalysisKind.SUMMARY: [
-        lambda: SummaryAnalyzer(),
+        SummaryAnalyzer,
     ],
     AnalysisKind.DISTRIBUTION_1D: [
-        lambda: HistogramAnalyzer(),
+        HistogramAnalyzer,
+    ],
+    AnalysisKind.OUTLIERS_1D: [
+        OutliersAnalyzer,
     ],
     AnalysisKind.COUNTER: [
-        lambda: CounterAnalyzer(),
+        CounterAnalyzer,
     ],
     AnalysisKind.RATE: [
-        lambda: RateAnalyzer(),
+        RateAnalyzer,
     ],
     AnalysisKind.ELLIPSE_2D: [
-        lambda: CovEllipseAnalyzer(),
+        CovEllipseAnalyzer,
     ],
     AnalysisKind.CONTOUR_2D: [
-        lambda: ContourAnalyzer(),
+        ContourAnalyzer,
     ],
 }

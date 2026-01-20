@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from src.domain.results import Artifact
-from src.evaluation.analyzers.base import Analyzer
+from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
 # Confidence level thresholds for z-score lookup
 _CONFIDENCE_99 = 0.99
@@ -28,7 +28,7 @@ class RateAnalyzer(Analyzer):
       confidence: float (default 0.95)
     """
 
-    def run(self, *, values: list[Any], meta: dict[str, Any]) -> dict[str, Any]:
+    def run(self, *, values: list[Any], meta: dict[str, Any]) -> AnalyzerResult:
         missing = 0
         n = 0
         yes = 0
@@ -43,15 +43,18 @@ class RateAnalyzer(Analyzer):
             yes += 1 if parsed else 0
 
         if n == 0:
-            return {
-                "count": 0,
-                "missing": missing,
-                "yes": 0,
-                "no": 0,
-                "rate": None,
-                "wilson_low": None,
-                "wilson_high": None,
-            }
+            return AnalyzerResult(
+                summary={
+                    "count": 0,
+                    "missing": missing,
+                    "yes": 0,
+                    "no": 0,
+                    "rate": None,
+                    "wilson_low": None,
+                    "wilson_high": None,
+                },
+                artifact=None,
+            )
 
         rate = yes / n
         low, high = _wilson_interval(yes=yes, n=n, confidence=conf)
@@ -63,8 +66,8 @@ class RateAnalyzer(Analyzer):
             n=n,
         )
 
-        return {
-            "summary": {
+        return AnalyzerResult(
+            summary={
                 "missing": missing,
                 "yes": yes,
                 "no": n - yes,
@@ -72,8 +75,8 @@ class RateAnalyzer(Analyzer):
                 "wilson_low": low,
                 "wilson_high": high,
             },
-            "artifact": Artifact(name="rate.npz", mime="rate/x-npz", data=buf.getvalue()),
-        }
+            artifact=Artifact(name="rate.npz", mime="rate/x-npz", data=buf.getvalue()),
+        )
 
 
 def _parse_bool(v: object) -> bool | None:

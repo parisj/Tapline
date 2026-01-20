@@ -14,7 +14,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Self
 
-from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
+from confluent_kafka import Consumer, KafkaError, KafkaException, Message, TopicPartition
 
 from src.domain.events import EventEnvelope
 from src.observability.availability import get_tracer
@@ -75,7 +75,7 @@ class EventConsumer:
         self._group_id = group_id or config.consumer_group_id
         self._on_assign_callback = on_assign_callback
 
-        consumer_config = {
+        consumer_config: dict[str, str | int | bool] = {
             "bootstrap.servers": config.bootstrap_servers,
             "client.id": f"{config.client_id}-consumer",
             "group.id": self._group_id,
@@ -86,12 +86,12 @@ class EventConsumer:
             "max.poll.interval.ms": config.consumer_max_poll_interval_ms,
         }
 
-        self._consumer = Consumer(consumer_config)
+        self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]
         self._consumer.subscribe(topics, on_assign=self._on_assign, on_revoke=self._on_revoke)
 
         self._closed = False
         self._stop = threading.Event()
-        self._current_message = None
+        self._current_message: Message | None = None
         self._paused_partitions: set[tuple[str, int]] = set()
         self._partitions_assigned = threading.Event()
 
@@ -153,17 +153,17 @@ class EventConsumer:
             msg = "Consumer is closed"
             raise RuntimeError(msg)
 
-        msg = self._consumer.poll(timeout=timeout)
-        if msg is None:
+        polled_msg = self._consumer.poll(timeout=timeout)
+        if polled_msg is None:
             return None
 
-        if msg.error():
-            error = msg.error()
-            if error.code() == KafkaError._PARTITION_EOF:
+        error = polled_msg.error()
+        if error is not None:
+            if error.code() == KafkaError._PARTITION_EOF:  # type: ignore[attr-defined]
                 logger.debug(
                     "Reached end of partition: topic=%s, partition=%s",
-                    msg.topic(),
-                    msg.partition(),
+                    polled_msg.topic(),
+                    polled_msg.partition(),
                 )
                 return None
             self._errors += 1
@@ -172,34 +172,37 @@ class EventConsumer:
             # Record error metrics
             if _OBSERVABILITY_AVAILABLE:
                 KAFKA_CONSUME_ERRORS.labels(
-                    topic=msg.topic() or "unknown",
+                    topic=polled_msg.topic() or "unknown",
                     error_type=str(error.code()),
                 ).inc()
 
             raise KafkaException(error)
 
-        self._current_message = msg
+        self._current_message = polled_msg
         self._messages_consumed += 1
 
         # Extract and propagate correlation ID from headers
         if _OBSERVABILITY_AVAILABLE:
-            propagate_from_kafka_headers(msg.headers())
+            propagate_from_kafka_headers(polled_msg.headers())  # type: ignore[arg-type]
 
         # Record metrics
         if _OBSERVABILITY_AVAILABLE:
             KAFKA_MESSAGES_CONSUMED.labels(
-                topic=msg.topic(),
+                topic=polled_msg.topic(),
                 consumer_group=self._group_id,
             ).inc()
 
         try:
-            value = msg.value().decode("utf-8")
+            msg_value = polled_msg.value()
+            if msg_value is None:
+                return None
+            value = msg_value.decode("utf-8")
             return EventEnvelope.from_json(value)
         except Exception as e:
             logger.exception(
                 "Failed to deserialize message: topic=%s, partition=%s, error=%s",
-                msg.topic(),
-                msg.partition(),
+                polled_msg.topic(),
+                polled_msg.partition(),
                 e,
             )
             self._errors += 1
@@ -207,7 +210,7 @@ class EventConsumer:
             # Record error metrics
             if _OBSERVABILITY_AVAILABLE:
                 KAFKA_CONSUME_ERRORS.labels(
-                    topic=msg.topic() or "unknown",
+                    topic=polled_msg.topic() or "unknown",
                     error_type="deserialization_error",
                 ).inc()
 
@@ -231,7 +234,10 @@ class EventConsumer:
             return
 
         try:
-            self._consumer.commit(message=self._current_message, asynchronous=asynchronous)
+            if asynchronous:
+                self._consumer.commit(message=self._current_message, asynchronous=True)
+            else:
+                self._consumer.commit(message=self._current_message, asynchronous=False)
             self._messages_committed += 1
             self._current_message = None
         except KafkaException as e:
@@ -251,7 +257,10 @@ class EventConsumer:
 
         """
         try:
-            self._consumer.commit(offsets=offsets, asynchronous=asynchronous)
+            if asynchronous:
+                self._consumer.commit(offsets=offsets, asynchronous=True)
+            else:
+                self._consumer.commit(offsets=offsets, asynchronous=False)
         except KafkaException as e:
             logger.exception("Failed to commit offsets: %s", e)
             raise
@@ -265,10 +274,12 @@ class EventConsumer:
         if self._current_message is None:
             return
 
-        tp = TopicPartition(
-            self._current_message.topic(),
-            self._current_message.partition(),
-        )
+        topic = self._current_message.topic()
+        partition = self._current_message.partition()
+        if topic is None or partition is None:
+            return
+
+        tp = TopicPartition(topic, partition)
         self._consumer.pause([tp])
         self._paused_partitions.add((tp.topic, tp.partition))
 
@@ -283,10 +294,12 @@ class EventConsumer:
         if self._current_message is None:
             return
 
-        tp = TopicPartition(
-            self._current_message.topic(),
-            self._current_message.partition(),
-        )
+        topic = self._current_message.topic()
+        partition = self._current_message.partition()
+        if topic is None or partition is None:
+            return
+
+        tp = TopicPartition(topic, partition)
         self._consumer.resume([tp])
         self._paused_partitions.discard((tp.topic, tp.partition))
 
@@ -414,7 +427,7 @@ class BatchEventConsumer:
         self._batch_timeout = batch_timeout
         self._group_id = group_id or config.consumer_group_id
 
-        consumer_config = {
+        consumer_config: dict[str, str | int | bool] = {
             "bootstrap.servers": config.bootstrap_servers,
             "client.id": f"{config.client_id}-batch-consumer",
             "group.id": self._group_id,
@@ -425,7 +438,7 @@ class BatchEventConsumer:
             "max.poll.interval.ms": config.consumer_max_poll_interval_ms,
         }
 
-        self._consumer = Consumer(consumer_config)
+        self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]
         self._consumer.subscribe(topics)
         self._closed = False
         self._stop = threading.Event()
@@ -456,17 +469,21 @@ class BatchEventConsumer:
             if remaining <= 0:
                 break
 
-            msg = self._consumer.poll(timeout=min(remaining, 0.1))
-            if msg is None:
+            polled_msg = self._consumer.poll(timeout=min(remaining, 0.1))
+            if polled_msg is None:
                 continue
 
-            if msg.error():
-                if msg.error().code() != KafkaError._PARTITION_EOF:
-                    logger.error("Consumer error: %s", msg.error())
+            err = polled_msg.error()
+            if err is not None:
+                if err.code() != KafkaError._PARTITION_EOF:  # type: ignore[attr-defined]
+                    logger.error("Consumer error: %s", err)
                 continue
 
             try:
-                value = msg.value().decode("utf-8")
+                msg_value = polled_msg.value()
+                if msg_value is None:
+                    continue
+                value = msg_value.decode("utf-8")
                 event = EventEnvelope.from_json(value)
                 batch.append(event)
             except Exception as e:

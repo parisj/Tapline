@@ -55,7 +55,7 @@ class MetricInfo:
 
 def _mask_to_kind_names(mask: int) -> list[str]:
     """Convert AnalysisKind bitmask to list of kind names."""
-    return [kind.name for kind in AnalysisKind if mask & kind.value]
+    return [kind.name for kind in AnalysisKind if mask & kind.value and kind.name is not None]
 
 
 class DiscoveryService:
@@ -254,7 +254,8 @@ class DiscoveryService:
         try:
             bucket = self._storage.buckets["aggregates"]
             data = self._storage.retrieve_by_key(bucket, metric.artifact_key)
-            return json.loads(data.decode("utf-8"))
+            result: dict[str, Any] = json.loads(data.decode("utf-8"))
+            return result
         except Exception as e:
             logger.warning("Failed to retrieve metric artifact: %s", e)
             return None

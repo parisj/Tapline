@@ -212,7 +212,7 @@ class KafkaWorkerPool:
             context = ExecutionContext(
                 job=job,
                 algo=plan.algo,
-                settings=plan.settings,
+                settings=dict(plan.settings),
                 image_bytes=image_bytes,
             )
 
@@ -324,4 +324,4 @@ class KafkaWorkerPool:
         Future: Use historical timing data or algorithm hints.
         """
         # Placeholder - consider jobs slow if algorithm is ML inference
-        return plan.algo.name.startswith("model_")
+        return bool(plan.algo.name.startswith("model_"))

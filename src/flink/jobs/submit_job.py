@@ -17,27 +17,30 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import requests
 
 
-def check_flink_cluster(flink_url: str) -> dict | None:
+def check_flink_cluster(flink_url: str) -> dict[str, Any] | None:
     """Check if Flink cluster is available and return info."""
     try:
         response = requests.get(f"{flink_url}/overview", timeout=5)
         if response.status_code == http.HTTPStatus.OK:
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
     except requests.exceptions.RequestException:
         pass
     return None
 
 
-def get_jobs(flink_url: str) -> list[dict]:
+def get_jobs(flink_url: str) -> list[dict[str, Any]]:
     """Get list of all jobs."""
     try:
         response = requests.get(f"{flink_url}/jobs", timeout=5)
         if response.status_code == http.HTTPStatus.OK:
-            return response.json().get("jobs", [])
+            jobs: list[dict[str, Any]] = response.json().get("jobs", [])
+            return jobs
     except requests.exceptions.RequestException:
         pass
     return []

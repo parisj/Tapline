@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 try:
     import tomllib
 except ModuleNotFoundError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 T = TypeVar("T")
 
@@ -62,4 +62,5 @@ def get_section(doc: dict[str, Any], key: str, default: dict | None = None) -> d
         Section dict or default
 
     """
-    return doc.get(key, default or {})
+    result: dict[str, Any] = doc.get(key, default or {})
+    return result

@@ -126,8 +126,8 @@ class JobStateProcessor(KeyedProcessFunction):
         timestamp = datetime.fromisoformat(value.timestamp) if isinstance(value.timestamp, str) else value.timestamp
 
         # Get current state
-        state_json = self._state.value()
-        job_state = JobState.from_dict(json.loads(state_json)) if state_json else None
+        state_value = self._state.value() if self._state else None
+        job_state = JobState.from_dict(json.loads(state_value)) if state_value else None
 
         # Process based on event type
         if event_type == "JOB_CREATED":
@@ -169,7 +169,8 @@ class JobStateProcessor(KeyedProcessFunction):
                 job_state.events = job_state.events[-_MAX_EVENT_HISTORY:]
 
             # Update state
-            self._state.update(json.dumps(job_state.to_dict()))
+            if self._state is not None:
+                self._state.update(json.dumps(job_state.to_dict()))
 
             # Emit state change
             yield Row(
@@ -246,7 +247,8 @@ class JobStateTrackerJob:
         """Execute the Flink job."""
         if self._env is None:
             self.build_job()
-        self._env.execute(job_name)
+        if self._env is not None:
+            self._env.execute(job_name)
 
 
 def parse_job_event(json_str: str) -> Row | None:

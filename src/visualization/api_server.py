@@ -10,11 +10,11 @@ Or: pixi run dashboard
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
+from typing import Any
 
-import numpy as np
 import requests
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 from src.audit.chain import HashChainVerifier
@@ -27,11 +27,16 @@ from src.storage.minio_service import MinioStorageService
 from src.utils.logging import get_logger
 from src.visualization.discovery import DiscoveryService
 from src.visualization.readers import MinioArtifactReader
+from src.visualization.services import ArtifactComputer, PrometheusService
+from src.visualization.services.prometheus_service import JaegerService
+
+# Type alias for Flask route responses (single Response or Response with status code)
+FlaskResponse = Response | tuple[Response, int]
 
 
 def _mask_to_kind_names(mask: int) -> list[str]:
     """Convert AnalysisKind bitmask to list of kind names."""
-    return [kind.name for kind in AnalysisKind if mask & kind.value]
+    return [kind.name for kind in AnalysisKind if mask & kind.value and kind.name is not None]
 
 
 logger = get_logger(__name__)
@@ -86,11 +91,14 @@ def add_security_headers(response: Response) -> Response:
 storage: MinioStorageService | None = None
 discovery: DiscoveryService | None = None
 reader: MinioArtifactReader | None = None
+prometheus_service: PrometheusService | None = None
+jaeger_service: JaegerService | None = None
+artifact_computer: ArtifactComputer | None = None
 
 
 def init_services() -> None:
     """Initialize MinIO and discovery services."""
-    global storage, discovery, reader
+    global storage, discovery, reader, prometheus_service, jaeger_service, artifact_computer
 
     try:
         runtime_cfg = load_runtime_config(CONFIG_ROOT / "pipeline.toml")
@@ -100,6 +108,9 @@ def init_services() -> None:
         storage = MinioStorageService(minio_cfg)
         discovery = DiscoveryService(runtime_cfg, routes, storage)
         reader = MinioArtifactReader(storage)
+        prometheus_service = PrometheusService(PROMETHEUS_URL)
+        jaeger_service = JaegerService()
+        artifact_computer = ArtifactComputer()
 
         logger.info("API server services initialized successfully")
     except Exception:
@@ -129,32 +140,21 @@ def serve_static(filename: str) -> Response:
 
 
 @app.route("/api/prometheus/query", methods=["GET"])
-def prometheus_query() -> Response:
+def prometheus_query() -> FlaskResponse:
     """Proxy Prometheus instant query to avoid CORS issues."""
     query = request.args.get("query", "")
     if not query:
         return jsonify({"error": "Missing query parameter"}), 400
 
-    try:
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query",
-            params={"query": query},
-            timeout=10,
-        )
-        return jsonify(resp.json())
-    except requests.RequestException as e:
-        logger.warning("Prometheus query failed: %s", e)
-        return jsonify(
-            {
-                "status": "error",
-                "error": str(e),
-                "data": {"result": []},
-            }
-        )
+    if prometheus_service is None:
+        return jsonify({"error": "Prometheus service not initialized"}), 503
+
+    result = prometheus_service.query(query)
+    return jsonify(result.data)
 
 
 @app.route("/api/prometheus/query_range", methods=["GET"])
-def prometheus_query_range() -> Response:
+def prometheus_query_range() -> FlaskResponse:
     """Proxy Prometheus range query to avoid CORS issues."""
     query = request.args.get("query", "")
     start = request.args.get("start", "")
@@ -164,113 +164,55 @@ def prometheus_query_range() -> Response:
     if not query or not start or not end:
         return jsonify({"error": "Missing required parameters (query, start, end)"}), 400
 
-    try:
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query_range",
-            params={"query": query, "start": start, "end": end, "step": step},
-            timeout=30,
-        )
-        return jsonify(resp.json())
-    except requests.RequestException as e:
-        logger.warning("Prometheus range query failed: %s", e)
-        return jsonify(
-            {
-                "status": "error",
-                "error": str(e),
-                "data": {"result": []},
-            }
-        )
+    if prometheus_service is None:
+        return jsonify({"error": "Prometheus service not initialized"}), 503
+
+    result = prometheus_service.query_range(query, start, end, step)
+    return jsonify(result.data)
 
 
 @app.route("/api/prometheus/healthy", methods=["GET"])
-def prometheus_healthy() -> Response:
+def prometheus_healthy() -> FlaskResponse:
     """Check if Prometheus is reachable."""
-    try:
-        resp = requests.get(f"{PROMETHEUS_URL}/-/healthy", timeout=5)
-        return jsonify({"healthy": resp.ok})
-    except requests.RequestException:
+    if prometheus_service is None:
         return jsonify({"healthy": False})
+    return jsonify({"healthy": prometheus_service.is_healthy()})
 
 
 @app.route("/api/jaeger/services", methods=["GET"])
-def jaeger_services() -> tuple:
+def jaeger_services() -> FlaskResponse:
     """Proxy Jaeger services API to avoid CORS issues."""
-    try:
-        resp = requests.get("http://localhost:16686/api/services", timeout=5)
-        if resp.ok:
-            return jsonify({"healthy": True, "data": resp.json()})
-        return jsonify({"healthy": False, "error": "Jaeger returned error"}), resp.status_code
-    except requests.RequestException as e:
-        return jsonify({"healthy": False, "error": str(e)}), 503
+    if jaeger_service is None:
+        return jsonify({"healthy": False, "error": "Jaeger service not initialized"}), 503
+
+    result = jaeger_service.get_services()
+    if result["healthy"]:
+        return jsonify(result)
+    return jsonify(result), 503
 
 
 @app.route("/api/pipeline/status", methods=["GET"])
-def pipeline_status() -> tuple:
+def pipeline_status() -> FlaskResponse:
     """Get pipeline worker status from Prometheus metrics."""
-    try:
-        workers_active = 0
-        worker_pool_size = 0
-        pipeline_up = False
-
-        # Query pipeline_up to check if pipeline is running
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query",
-            params={"query": "visioeval_pipeline_up"},
-            timeout=5,
-        )
-        if resp.ok:
-            data = resp.json()
-            if data.get("status") == "success":
-                result = data.get("data", {}).get("result", [])
-                if result:
-                    pipeline_up = int(float(result[0].get("value", [0, 0])[1])) == 1
-
-        # Query workers_active (number currently processing jobs)
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query",
-            params={"query": "visioeval_workers_active"},
-            timeout=5,
-        )
-        if resp.ok:
-            data = resp.json()
-            if data.get("status") == "success":
-                result = data.get("data", {}).get("result", [])
-                if result:
-                    workers_active = int(float(result[0].get("value", [0, 0])[1]))
-
-        # Query worker_pool_size
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query",
-            params={"query": "visioeval_worker_pool_size"},
-            timeout=5,
-        )
-        if resp.ok:
-            data = resp.json()
-            if data.get("status") == "success":
-                result = data.get("data", {}).get("result", [])
-                if result:
-                    worker_pool_size = int(float(result[0].get("value", [0, 0])[1]))
-
-        # Determine status and detail message
-        if pipeline_up:
-            if workers_active > 0:
-                status = "healthy"
-                detail = f"{workers_active}/{worker_pool_size} processing"
-            else:
-                status = "healthy"  # Pipeline is running, workers are idle
-                detail = f"{worker_pool_size} workers idle"
-        else:
-            status = "stopped"
-            detail = "Pipeline not running"
-
+    if prometheus_service is None:
         return jsonify(
             {
-                "pipeline_running": pipeline_up,
-                "workers_active": workers_active,
-                "worker_pool_size": worker_pool_size,
-                "status": status,
-                "detail": detail,
-            }
+                "error": "Prometheus service not initialized",
+                "pipeline_running": False,
+                "status": "unknown",
+            },
+        ), 503
+
+    try:
+        status = prometheus_service.get_pipeline_status()
+        return jsonify(
+            {
+                "pipeline_running": status.pipeline_running,
+                "workers_active": status.workers_active,
+                "worker_pool_size": status.worker_pool_size,
+                "status": status.status,
+                "detail": status.detail,
+            },
         )
     except Exception as e:
         logger.exception("Failed to get pipeline status")
@@ -283,19 +225,19 @@ def pipeline_status() -> tuple:
 
 
 @app.route("/api/health", methods=["GET"])
-def health() -> tuple:
+def health() -> FlaskResponse:
     """Health check endpoint."""
     return jsonify(
         {
             "status": "ok",
             "minio": storage is not None,
             "discovery": discovery is not None,
-        }
+        },
     )
 
 
 @app.route("/api/directories", methods=["GET"])
-def get_directories() -> tuple:
+def get_directories() -> FlaskResponse:
     """Get list of configured directories."""
     if discovery is None:
         return jsonify({"error": "Discovery service not initialized"}), 503
@@ -311,7 +253,7 @@ def get_directories() -> tuple:
 
 
 @app.route("/api/algorithms", methods=["GET"])
-def get_algorithms() -> tuple:
+def get_algorithms() -> FlaskResponse:
     """Get list of available algorithms."""
     if discovery is None:
         return jsonify({"error": "Discovery service not initialized"}), 503
@@ -327,7 +269,7 @@ def get_algorithms() -> tuple:
 
 
 @app.route("/api/routes", methods=["GET"])
-def get_routes() -> tuple:
+def get_routes() -> FlaskResponse:
     """Get configured routes (directory -> algorithm mapping)."""
     if discovery is None:
         return jsonify({"error": "Discovery service not initialized"}), 503
@@ -343,7 +285,7 @@ def get_routes() -> tuple:
                         "path": str(dir_info.path),
                         "algorithm": algo_info.name,
                         "version": algo_info.version,
-                    }
+                    },
                 )
         return jsonify({"routes": routes})
     except Exception as e:
@@ -352,7 +294,7 @@ def get_routes() -> tuple:
 
 
 @app.route("/api/metrics", methods=["GET"])
-def get_metrics() -> tuple:
+def get_metrics() -> FlaskResponse:
     """Get available metrics from MinIO aggregates bucket.
 
     Query parameters:
@@ -409,7 +351,7 @@ def get_metrics() -> tuple:
                     "max": summary.get("max"),
                     "std": summary.get("std"),
                     "artifact_key": m.artifact_key,
-                }
+                },
             )
 
         return jsonify(
@@ -417,7 +359,7 @@ def get_metrics() -> tuple:
                 "metrics": result,
                 "count": len(result),
                 "time_range_minutes": time_range_minutes,
-            }
+            },
         )
     except Exception as e:
         logger.exception("Failed to discover metrics")
@@ -425,7 +367,7 @@ def get_metrics() -> tuple:
 
 
 @app.route("/api/metrics/<metric_name>/data", methods=["GET"])
-def get_metric_data(metric_name: str) -> tuple:
+def get_metric_data(metric_name: str) -> FlaskResponse:
     """Get detailed metric data including histogram/distribution from MinIO.
 
     Query parameters:
@@ -485,7 +427,7 @@ def get_metric_data(metric_name: str) -> tuple:
                     "artifacts": {},
                     "no_data": True,
                     "time_range_minutes": time_range_minutes,
-                }
+                },
             )
 
         metric = matching[0]
@@ -495,7 +437,8 @@ def get_metric_data(metric_name: str) -> tuple:
         summary = metric.summary or {}
 
         # Build response with summary stats and any additional artifact data
-        response = {
+        artifacts: dict[str, Any] = {}
+        response: dict[str, Any] = {
             "metric_name": metric.metric_name,
             "algo_name": metric.algo_name,
             "algo_version": metric.algo_version,
@@ -510,7 +453,7 @@ def get_metric_data(metric_name: str) -> tuple:
             "median": summary.get("median"),
             "p95": summary.get("p95"),
             "p99": summary.get("p99"),
-            "artifacts": {},
+            "artifacts": artifacts,
         }
 
         # Try to get raw values from the metric-values bucket first
@@ -532,53 +475,53 @@ def get_metric_data(metric_name: str) -> tuple:
         if artifact_doc:
             # Include histogram data if present
             if "histogram" in artifact_doc:
-                response["artifacts"]["histogram"] = artifact_doc["histogram"]
+                artifacts["histogram"] = artifact_doc["histogram"]
             # Include quantiles if present
             if "quantiles" in artifact_doc:
-                response["artifacts"]["quantiles"] = artifact_doc["quantiles"]
+                artifacts["quantiles"] = artifact_doc["quantiles"]
             # Include raw values from artifact if not already set
             if raw_values is None and "values" in artifact_doc:
                 raw_values = artifact_doc["values"]
 
             # Include any other artifact data
             for key in ["ellipse", "contour", "categories", "outliers", "rate"]:
-                if key in artifact_doc and key not in response["artifacts"]:
-                    response["artifacts"][key] = artifact_doc[key]
+                if key in artifact_doc and key not in artifacts:
+                    artifacts[key] = artifact_doc[key]
 
         # Compute on-the-fly artifacts based on analysis_mask and raw values
-        if raw_values:
-            response["artifacts"]["values"] = raw_values
-            analysis_mask = response.get("analysis_mask") or metric.analysis_mask
+        if raw_values and artifact_computer:
+            artifacts["values"] = raw_values
+            analysis_mask: int = response.get("analysis_mask") or metric.analysis_mask
 
             # Generate histogram for DISTRIBUTION_1D (mask value 2)
-            if analysis_mask & 2 and "histogram" not in response["artifacts"]:
-                histogram = _compute_histogram(raw_values)
+            if analysis_mask & 2 and "histogram" not in artifacts:
+                histogram = artifact_computer.compute_histogram(raw_values)
                 if histogram:
-                    response["artifacts"]["histogram"] = histogram
+                    artifacts["histogram"] = histogram
 
             # Generate categories for COUNTER (mask value 8)
-            if analysis_mask & 8 and "categories" not in response["artifacts"]:
-                categories = _compute_categories(raw_values)
+            if analysis_mask & 8 and "categories" not in artifacts:
+                categories = artifact_computer.compute_categories(raw_values)
                 if categories:
-                    response["artifacts"]["categories"] = categories
+                    artifacts["categories"] = categories
 
             # Generate rate CI for RATE (mask value 16)
-            if analysis_mask & 16 and "rate" not in response["artifacts"]:
-                rate_data = _compute_rate(raw_values)
+            if analysis_mask & 16 and "rate" not in artifacts:
+                rate_data = artifact_computer.compute_rate(raw_values)
                 if rate_data:
-                    response["artifacts"]["rate"] = rate_data
+                    artifacts["rate"] = rate_data
 
             # Generate ellipse data for ELLIPSE_2D (mask value 32)
-            if analysis_mask & 32 and "ellipse" not in response["artifacts"]:
-                ellipse_data = _compute_ellipse(raw_values)
+            if analysis_mask & 32 and "ellipse" not in artifacts:
+                ellipse_data = artifact_computer.compute_ellipse(raw_values)
                 if ellipse_data:
-                    response["artifacts"]["ellipse"] = ellipse_data
+                    artifacts["ellipse"] = ellipse_data
 
             # Generate contour data for CONTOUR_2D (mask value 64)
-            if analysis_mask & 64 and "contour" not in response["artifacts"]:
-                contour_data = _compute_contour(raw_values)
+            if analysis_mask & 64 and "contour" not in artifacts:
+                contour_data = artifact_computer.compute_contour(raw_values)
                 if contour_data:
-                    response["artifacts"]["contour"] = contour_data
+                    artifacts["contour"] = contour_data
 
         return jsonify(response)
     except Exception as e:
@@ -586,171 +529,8 @@ def get_metric_data(metric_name: str) -> tuple:
         return jsonify({"error": str(e)}), 500
 
 
-def _compute_histogram(values: list, bins: int = 30) -> dict | None:
-    """Compute histogram from raw values."""
-    try:
-        nums = [v for v in values if isinstance(v, (int, float))]
-        if len(nums) < 2:
-            return None
-
-        arr = np.array(nums)
-        counts, edges = np.histogram(arr, bins=bins)
-        return {
-            "counts": counts.tolist(),
-            "edges": edges.tolist(),
-            "bins": bins,
-        }
-    except Exception:
-        return None
-
-
-def _compute_categories(values: list) -> dict | None:
-    """Compute category counts from values."""
-    try:
-        categories: dict = {}
-        for v in values:
-            if v is None:
-                continue
-            if isinstance(v, bool):
-                key = "true" if v else "false"
-            elif isinstance(v, (int, float)):
-                # For numeric values, treat as boolean if 0/1
-                key = ("true" if v else "false") if v in (0, 1, 0.0, 1.0) else str(v)
-            else:
-                key = str(v)
-            categories[key] = categories.get(key, 0) + 1
-
-        return categories if categories else None
-    except Exception:
-        return None
-
-
-def _compute_rate(values: list) -> dict | None:
-    """Compute rate with Wilson confidence interval."""
-    try:
-        yes = 0
-        n = 0
-
-        for v in values:
-            if v is None:
-                continue
-            if isinstance(v, bool) or (isinstance(v, (int, float)) and v in (0, 1, 0.0, 1.0)):
-                n += 1
-                if v:
-                    yes += 1
-
-        if n == 0:
-            return None
-
-        rate = yes / n
-        # Wilson confidence interval (95%)
-        z = 1.96
-        denom = 1.0 + (z * z) / n
-        center = (rate + (z * z) / (2.0 * n)) / denom
-        margin = (z / denom) * math.sqrt((rate * (1.0 - rate) / n) + (z * z) / (4.0 * n * n))
-
-        return {
-            "value": rate,
-            "ci_lower": max(0.0, center - margin),
-            "ci_upper": min(1.0, center + margin),
-            "yes": yes,
-            "no": n - yes,
-            "n": n,
-        }
-    except Exception:
-        return None
-
-
-def _compute_ellipse(values: list) -> dict | None:
-    """Compute covariance ellipse parameters from 2D point values."""
-    try:
-        pts = []
-        for v in values:
-            if isinstance(v, dict) and "x" in v and "y" in v:
-                pts.append((float(v["x"]), float(v["y"])))
-            elif isinstance(v, (list, tuple)) and len(v) == 2:
-                pts.append((float(v[0]), float(v[1])))
-
-        if len(pts) < 2:
-            return None
-
-        arr = np.array(pts)
-        mx, my = arr.mean(axis=0)
-        cov = np.cov(arr.T)
-
-        # Eigendecomposition for ellipse parameters
-        vals, vecs = np.linalg.eigh(cov)
-        order = np.argsort(vals)[::-1]
-        vals = vals[order]
-        vecs = vecs[:, order]
-
-        angle = math.atan2(vecs[1, 0], vecs[0, 0])
-        semi_major = math.sqrt(max(vals[0], 0)) * 2  # 2 sigma
-        semi_minor = math.sqrt(max(vals[1], 0)) * 2
-
-        return {
-            "center_x": float(mx),
-            "center_y": float(my),
-            "semi_major": float(semi_major),
-            "semi_minor": float(semi_minor),
-            "angle": float(math.degrees(angle)),
-            "points": arr.tolist(),
-        }
-    except Exception:
-        return None
-
-
-def _compute_contour(values: list, grid_size: int = 50) -> dict | None:
-    """Compute 2D density grid for contour plotting from 2D point values."""
-    try:
-        pts = []
-        for v in values:
-            if isinstance(v, dict) and "x" in v and "y" in v:
-                pts.append((float(v["x"]), float(v["y"])))
-            elif isinstance(v, (list, tuple)) and len(v) == 2:
-                pts.append((float(v[0]), float(v[1])))
-
-        if len(pts) < 3:
-            return None
-
-        arr = np.array(pts)
-        x_vals = arr[:, 0]
-        y_vals = arr[:, 1]
-
-        # Create grid
-        x_min, x_max = x_vals.min(), x_vals.max()
-        y_min, y_max = y_vals.min(), y_vals.max()
-
-        # Add some padding
-        x_pad = (x_max - x_min) * 0.1 or 1.0
-        y_pad = (y_max - y_min) * 0.1 or 1.0
-        x_min -= x_pad
-        x_max += x_pad
-        y_min -= y_pad
-        y_max += y_pad
-
-        x_edges = np.linspace(x_min, x_max, grid_size + 1)
-        y_edges = np.linspace(y_min, y_max, grid_size + 1)
-
-        # Compute 2D histogram as density grid
-        density, _, _ = np.histogram2d(x_vals, y_vals, bins=[x_edges, y_edges])
-
-        return {
-            "density": density.T.tolist(),  # Transpose for proper orientation
-            "x_edges": x_edges.tolist(),
-            "y_edges": y_edges.tolist(),
-            "x_min": float(x_min),
-            "x_max": float(x_max),
-            "y_min": float(y_min),
-            "y_max": float(y_max),
-            "points": arr.tolist(),
-        }
-    except Exception:
-        return None
-
-
 @app.route("/api/buckets", methods=["GET"])
-def get_buckets() -> tuple:
+def get_buckets() -> FlaskResponse:
     """Get MinIO bucket statistics."""
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
@@ -769,7 +549,7 @@ def get_buckets() -> tuple:
                         "object_count": len(objects),
                         "total_size_bytes": total_size,
                         "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    }
+                    },
                 )
             except Exception as e:
                 logger.warning("Failed to get stats for bucket %s: %s", bucket_name, e)
@@ -780,7 +560,7 @@ def get_buckets() -> tuple:
                         "total_size_bytes": 0,
                         "total_size_mb": 0,
                         "error": str(e),
-                    }
+                    },
                 )
 
         return jsonify({"buckets": result})
@@ -790,7 +570,7 @@ def get_buckets() -> tuple:
 
 
 @app.route("/api/cache/clear", methods=["POST"])
-def clear_cache() -> tuple:
+def clear_cache() -> FlaskResponse:
     """Clear the discovery service cache to force fresh data on next request."""
     if discovery is None:
         return jsonify({"error": "Discovery service not initialized"}), 503
@@ -804,7 +584,7 @@ def clear_cache() -> tuple:
 
 
 @app.route("/api/artifacts", methods=["GET"])
-def list_artifacts() -> tuple:
+def list_artifacts() -> FlaskResponse:
     """List artifacts from MinIO."""
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
@@ -836,7 +616,7 @@ def list_artifacts() -> tuple:
                 "bucket": bucket,
                 "objects": objects,
                 "count": len(objects),
-            }
+            },
         )
     except Exception as e:
         logger.exception("Failed to list artifacts")
@@ -844,7 +624,7 @@ def list_artifacts() -> tuple:
 
 
 @app.route("/api/artifact/<bucket>/<path:key>", methods=["GET"])
-def get_artifact(bucket: str, key: str) -> tuple:
+def get_artifact(bucket: str, key: str) -> FlaskResponse:
     """Get a specific artifact's metadata and content."""
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
@@ -876,7 +656,7 @@ def get_artifact(bucket: str, key: str) -> tuple:
                 "bucket": bucket,
                 "key": key,
                 "content": content,
-            }
+            },
         )
     except Exception as e:
         logger.exception("Failed to get artifact")
@@ -889,7 +669,7 @@ def get_artifact(bucket: str, key: str) -> tuple:
 
 
 @app.route("/api/audit/verify", methods=["GET"])
-def verify_audit_chain() -> tuple:
+def verify_audit_chain() -> FlaskResponse:
     """Verify the audit chain integrity.
 
     Checks that the hash chain in the audit log is intact and untampered.
@@ -984,7 +764,7 @@ def verify_audit_chain() -> tuple:
                     "no_events": "No audit events found - run the pipeline to generate audit trail",
                     "unknown": "Unable to verify audit chain",
                 }.get(chain_status, "Unknown status"),
-            }
+            },
         )
     except Exception as e:
         logger.exception("Failed to verify audit chain")
@@ -992,7 +772,7 @@ def verify_audit_chain() -> tuple:
 
 
 @app.route("/api/audit/stats", methods=["GET"])
-def audit_stats() -> tuple:
+def audit_stats() -> FlaskResponse:
     """Get audit chain statistics without full verification."""
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
@@ -1027,6 +807,7 @@ def audit_stats() -> tuple:
 
 def main() -> None:
     """Run the dashboard server."""
+    load_dotenv()
     init_services()
     logger.info("=" * 60)
     logger.info("VisioEval Dashboard Server")

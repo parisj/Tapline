@@ -24,6 +24,10 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 from dotenv import load_dotenv
 from pyflink.common import WatermarkStrategy
@@ -83,7 +87,7 @@ class MetricParser(MapFunction):
 class MetricWindowAggregator(ProcessWindowFunction):
     """Aggregate metrics within a time window and compute statistics."""
 
-    def process(self, _key: str, context: ProcessWindowFunction.Context, elements: list[str]) -> None:
+    def process(self, _key: str, context: ProcessWindowFunction.Context, elements: list[str]) -> Iterator[str]:
         """Process all elements in the window and emit aggregate."""
         values = []
         algo_name = "unknown"

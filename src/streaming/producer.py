@@ -123,7 +123,7 @@ class EventProducer:
         self._chain_tracker = chain_tracker or HashChainTracker()
         self._delivery_report = DeliveryReport()
 
-        producer_config = {
+        producer_config: dict[str, str | int | bool] = {
             "bootstrap.servers": config.bootstrap_servers,
             "client.id": f"{config.client_id}-producer",
             "acks": config.producer_acks,
@@ -135,7 +135,7 @@ class EventProducer:
             "enable.idempotence": config.producer_enable_idempotence,
         }
 
-        self._producer = Producer(producer_config)
+        self._producer = Producer(producer_config)  # type: ignore[arg-type]
         self._closed = False
 
         # Get tracer if available
@@ -169,8 +169,8 @@ class EventProducer:
 
         # Create span for tracing
         span_ctx = None
-        if self._tracer:
-            span_ctx = self._tracer.start_as_current_span(
+        if self._tracer is not None:
+            span_ctx = self._tracer.start_as_current_span(  # type: ignore[attr-defined]
                 f"kafka.publish.{topic}",
                 attributes={
                     "kafka.topic": topic,
@@ -203,7 +203,7 @@ class EventProducer:
                 topic=topic,
                 key=partition_key,
                 value=value,
-                headers=kafka_headers if kafka_headers else None,
+                headers=kafka_headers if kafka_headers else None,  # type: ignore[arg-type]
                 callback=self._delivery_report.on_delivery,
             )
 

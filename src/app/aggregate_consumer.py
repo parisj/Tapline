@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
@@ -31,24 +31,27 @@ from src.utils.logging import get_logger
 try:
     import orjson
 
-    def json_loads(data: bytes | str) -> dict:
+    def json_loads(data: bytes | str) -> dict[str, Any]:
         if isinstance(data, str):
             data = data.encode("utf-8")
-        return orjson.loads(data)
+        result: dict[str, Any] = orjson.loads(data)
+        return result
 
-    def json_dumps(obj: dict) -> bytes:
-        return orjson.dumps(obj)
+    def json_dumps(obj: dict[str, Any]) -> bytes:
+        result: bytes = orjson.dumps(obj)
+        return result
 
     _USING_ORJSON = True
 except ImportError:
     import json
 
-    def json_loads(data: bytes | str) -> dict:
+    def json_loads(data: bytes | str) -> dict[str, Any]:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
-        return json.loads(data)
+        result: dict[str, Any] = json.loads(data)
+        return result
 
-    def json_dumps(obj: dict) -> bytes:
+    def json_dumps(obj: dict[str, Any]) -> bytes:
         return json.dumps(obj, separators=(",", ":")).encode("utf-8")
 
     _USING_ORJSON = False
@@ -72,7 +75,7 @@ _STORAGE_WORKERS = 4  # Parallel MinIO writers
 
 def _create_consumer(kafka_config: KafkaConfig, group_id: str, topic: str) -> Consumer:
     """Create a Kafka consumer for raw JSON messages."""
-    consumer_config = {
+    consumer_config: dict[str, str | int | bool] = {
         "bootstrap.servers": kafka_config.bootstrap_servers,
         "client.id": f"{kafka_config.client_id}-aggregate-consumer",
         "group.id": group_id,
@@ -82,7 +85,7 @@ def _create_consumer(kafka_config: KafkaConfig, group_id: str, topic: str) -> Co
         "heartbeat.interval.ms": kafka_config.consumer_heartbeat_interval_ms,
         "max.poll.interval.ms": kafka_config.consumer_max_poll_interval_ms,
     }
-    consumer = Consumer(consumer_config)
+    consumer = Consumer(consumer_config)  # type: ignore[arg-type]
     consumer.subscribe([topic])
     return consumer
 
@@ -101,9 +104,10 @@ def _handle_kafka_error(
     state: _ConsumerState,
 ) -> bool:
     """Handle Kafka errors, return True if should continue polling."""
-    if error.code() == KafkaError._PARTITION_EOF:
+    err_code = error.code()
+    if err_code == KafkaError._PARTITION_EOF:  # type: ignore[attr-defined]
         return True
-    if error.code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+    if err_code == KafkaError.UNKNOWN_TOPIC_OR_PART:  # type: ignore[attr-defined]
         logger.info(
             "Topic %s not available yet, will retry...",
             topic,
@@ -169,13 +173,17 @@ def _poll_batch(
         if msg is None:
             continue
 
-        if msg.error():
-            if not _handle_kafka_error(msg.error(), topic, state):
+        err = msg.error()
+        if err:
+            if not _handle_kafka_error(err, topic, state):
                 continue
             continue
 
         try:
-            aggregate = json_loads(msg.value())
+            msg_value = msg.value()
+            if msg_value is None:
+                continue
+            aggregate = json_loads(msg_value)
             batch.append(aggregate)
         except Exception as e:
             logger.warning(

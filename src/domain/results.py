@@ -94,9 +94,10 @@ def metrics_to_jsonable(metrics: Mapping[str, Any]) -> dict[str, Any]:
         if hasattr(mv, "value") and hasattr(mv, "analysis"):
             analysis = getattr(mv, "analysis", None)
             meta = getattr(mv, "meta", None) or {}
+            analysis_value = getattr(analysis, "value", 0)
             out[name] = {
                 "value": getattr(mv, "value", None),
-                "analysis_mask": int(getattr(analysis, "value", None)),
+                "analysis_mask": int(analysis_value) if analysis_value is not None else 0,
                 "meta": dict(meta) if isinstance(meta, Mapping) else {},
             }
             continue

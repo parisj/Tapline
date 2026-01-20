@@ -26,6 +26,7 @@ orjson = ">=3.9"
 pip-audit = ">=2.7"
 bandit = ">=1.7"
 mypy = ">=1.14"
+types-requests = ">=2.31"
 pre-commit = ">=4.0"
 
 [dependencies]

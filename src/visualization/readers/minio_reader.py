@@ -35,9 +35,11 @@ class MinioArtifactReader:
 
     def _init_cache(self) -> None:
         """Initialize the LRU cached methods with configured size."""
+        # Type alias for NPZ cache data: (keys, arrays_bytes, dtypes, shapes)
+        NpzCacheData = tuple[tuple[str, ...], dict[str, bytes], dict[str, str], dict[str, Any]]
 
         @lru_cache(maxsize=self._cache_size)
-        def _cached_fetch_npz(bucket: str, content_hash: str) -> tuple[tuple[str, ...], dict[str, bytes]]:
+        def _cached_fetch_npz(bucket: str, content_hash: str) -> NpzCacheData:
             return self._do_fetch_npz(bucket, content_hash)
 
         @lru_cache(maxsize=self._cache_size)
@@ -47,7 +49,9 @@ class MinioArtifactReader:
         self._cached_fetch_npz = _cached_fetch_npz
         self._cached_fetch_json = _cached_fetch_json
 
-    def _do_fetch_npz(self, bucket: str, content_hash: str) -> tuple[tuple[str, ...], dict[str, bytes]]:
+    def _do_fetch_npz(
+        self, bucket: str, content_hash: str,
+    ) -> tuple[tuple[str, ...], dict[str, bytes], dict[str, str], dict[str, Any]]:
         """Internal: fetch and serialize NPZ data for caching.
 
         Security note: allow_pickle=False to prevent arbitrary code execution.
@@ -141,7 +145,8 @@ class MinioArtifactReader:
         if json_str is None:
             return None
         try:
-            return json.loads(json_str)
+            result: dict[str, Any] = json.loads(json_str)
+            return result
         except json.JSONDecodeError as e:
             logger.warning("Failed to parse JSON %s/%s: %s", bucket, key, e)
             return None

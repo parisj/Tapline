@@ -123,7 +123,7 @@ class MetricAggregate:
             return 0.0
         mean = self.mean
         variance = sum((v - mean) ** 2 for v in nums) / len(nums)
-        return variance**0.5
+        return float(variance**0.5)
 
     def to_summary(self) -> dict[str, Any]:
         """Generate summary statistics.
@@ -233,7 +233,7 @@ class TumblingWindowAggregator:
                     self._init_window(now)
 
                 # Check if we need to flush and start new window
-                if now >= self._window_end:
+                if self._window_end is not None and now >= self._window_end:
                     self._flush_window()
                     self._init_window(now)
 
@@ -289,6 +289,10 @@ class TumblingWindowAggregator:
 
         window_start = self._window_start
         window_end = self._window_end
+
+        # Ensure both window bounds are set
+        if window_start is None or window_end is None:
+            return
 
         for aggregate in self._current_window.values():
             if aggregate.count == 0:

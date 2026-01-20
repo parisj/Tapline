@@ -33,14 +33,16 @@ def is_available() -> bool:
 def get_tracer(name: str) -> object | None:
     """Get a tracer if available, otherwise return None."""
     if _tracer:
-        return _tracer.get_tracer(name)
+        result: object = _tracer.get_tracer(name)
+        return result
     return None
 
 
 def get_correlation_id() -> str | None:
     """Get current correlation ID if available."""
     if _correlation:
-        return _correlation.get_correlation_id()
+        result: str = _correlation.get_correlation_id()
+        return result
     return None
 
 

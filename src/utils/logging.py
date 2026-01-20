@@ -187,6 +187,7 @@ def configure_logging(config: ObservabilityConfig | None = None) -> None:
         include_caller = False
 
     # Create formatter based on format type
+    formatter: logging.Formatter
     if log_format == "json":
         formatter = StructuredLogFormatter(
             include_trace_context=include_trace,

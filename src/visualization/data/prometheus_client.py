@@ -143,7 +143,7 @@ class PrometheusClient:
 
     def _parse_instant_response(self, data: dict[str, Any]) -> list[MetricSample]:
         """Parse instant query response."""
-        samples = []
+        samples: list[MetricSample] = []
 
         if data.get("status") != "success":
             logger.warning("Prometheus query returned error: %s", data.get("error"))
@@ -176,7 +176,7 @@ class PrometheusClient:
 
     def _parse_range_response(self, data: dict[str, Any]) -> list[RangeVector]:
         """Parse range query response."""
-        vectors = []
+        vectors: list[RangeVector] = []
 
         if data.get("status") != "success":
             logger.warning("Prometheus range query returned error: %s", data.get("error"))

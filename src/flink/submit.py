@@ -10,6 +10,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -37,12 +38,12 @@ def check_flink_available(flink_url: str | None = None) -> bool:
     url = flink_url or os.getenv("FLINK_REST_URL", DEFAULT_FLINK_URL)
     try:
         response = requests.get(f"{url}/overview", timeout=5)
-        return response.status_code == http.HTTPStatus.OK
+        return bool(response.status_code == http.HTTPStatus.OK)
     except requests.exceptions.RequestException:
         return False
 
 
-def get_running_jobs(flink_url: str | None = None) -> list[dict]:
+def get_running_jobs(flink_url: str | None = None) -> list[dict[str, Any]]:
     """Get list of running Flink jobs.
 
     Args:
@@ -56,7 +57,7 @@ def get_running_jobs(flink_url: str | None = None) -> list[dict]:
     try:
         response = requests.get(f"{url}/jobs", timeout=5)
         if response.status_code == http.HTTPStatus.OK:
-            jobs = response.json().get("jobs", [])
+            jobs: list[dict[str, Any]] = response.json().get("jobs", [])
             return [j for j in jobs if j.get("status") == "RUNNING"]
     except requests.exceptions.RequestException:
         pass

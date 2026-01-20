@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from src.domain.results import Artifact
-from src.evaluation.analyzers.base import Analyzer
+from src.evaluation.analyzers.base import Analyzer, AnalyzerResult
 
 # Constants
 _MIN_SAMPLES_FOR_VARIANCE = 2
@@ -21,7 +21,7 @@ class SummaryAnalyzer(Analyzer):
       count, missing, mean, median, min, max, std, variance
     """
 
-    def run(self, *, values: list[Any], meta: dict[str, Any]) -> dict[str, Any]:
+    def run(self, *, values: list[Any], meta: dict[str, Any]) -> AnalyzerResult:
         nums: list[float] = []
         missing = 0
 
@@ -39,8 +39,8 @@ class SummaryAnalyzer(Analyzer):
                 missing += 1
 
         if not nums:
-            return {
-                "summary": {
+            return AnalyzerResult(
+                summary={
                     "count": 0,
                     "missing": 0,
                     "mean": 0,
@@ -50,8 +50,8 @@ class SummaryAnalyzer(Analyzer):
                     "std": 0,
                     "variance": 0,
                 },
-                "artifact": None,
-            }
+                artifact=None,
+            )
 
         mean = statistics.fmean(nums)
         median = statistics.median(nums)
@@ -65,12 +65,12 @@ class SummaryAnalyzer(Analyzer):
         else:
             variance = 0.0
             std = 0.0
-        values = np.array(nums)
+        np_values = np.array(nums)
         buf = io.BytesIO()
-        np.savez_compressed(buf, value=values)
+        np.savez_compressed(buf, value=np_values)
 
-        return {
-            "summary": {
+        return AnalyzerResult(
+            summary={
                 "count": len(nums),
                 "missing": missing,
                 "mean": mean,
@@ -80,9 +80,9 @@ class SummaryAnalyzer(Analyzer):
                 "std": std,
                 "variance": variance,
             },
-            "artifact": Artifact(
+            artifact=Artifact(
                 name="summary.npz",
                 mime="summary/x-npz",
                 data=buf.getvalue(),
             ),
-        }
+        )

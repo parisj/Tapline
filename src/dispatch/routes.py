@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 try:
     import tomllib
 except ModuleNotFoundError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 
 class RoutesConfigError(ValueError):

@@ -333,7 +333,7 @@ class MinioStorageService:
             List of object info dicts
 
         """
-        objects = []
+        objects: list[dict[str, object]] = []
         for obj in self._client.list_objects(bucket, prefix=prefix, recursive=True):
             if len(objects) >= limit:
                 break
@@ -376,7 +376,7 @@ class MinioStorageService:
                     data=io.BytesIO(data),
                     length=len(data),
                     content_type=mime,
-                    metadata=metadata,
+                    metadata=metadata,  # type: ignore[arg-type]
                 )
                 return
             except S3Error as e:

@@ -27,23 +27,26 @@ from src.utils.logging import get_logger
 try:
     import orjson
 
-    def json_loads(data: bytes | str) -> dict:
+    def json_loads(data: bytes | str) -> dict[str, Any]:
         if isinstance(data, str):
             data = data.encode("utf-8")
-        return orjson.loads(data)
+        result: dict[str, Any] = orjson.loads(data)
+        return result
 
-    def json_dumps(obj: dict) -> bytes:
-        return orjson.dumps(obj)
+    def json_dumps(obj: dict[str, Any]) -> bytes:
+        result: bytes = orjson.dumps(obj)
+        return result
 
 except ImportError:
     import json
 
-    def json_loads(data: bytes | str) -> dict:
+    def json_loads(data: bytes | str) -> dict[str, Any]:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
-        return json.loads(data)
+        result: dict[str, Any] = json.loads(data)
+        return result
 
-    def json_dumps(obj: dict) -> bytes:
+    def json_dumps(obj: dict[str, Any]) -> bytes:
         return json.dumps(obj, separators=(",", ":")).encode("utf-8")
 
 
@@ -64,7 +67,7 @@ _FLUSH_INTERVAL_SEC = 60.0  # Flush values every minute (match Flink window)
 
 def _create_consumer(kafka_config: KafkaConfig, group_id: str, topic: str) -> Consumer:
     """Create a Kafka consumer for metric events."""
-    consumer_config = {
+    consumer_config: dict[str, str | int | bool] = {
         "bootstrap.servers": kafka_config.bootstrap_servers,
         "client.id": f"{kafka_config.client_id}-values-collector",
         "group.id": group_id,
@@ -74,7 +77,7 @@ def _create_consumer(kafka_config: KafkaConfig, group_id: str, topic: str) -> Co
         "heartbeat.interval.ms": kafka_config.consumer_heartbeat_interval_ms,
         "max.poll.interval.ms": kafka_config.consumer_max_poll_interval_ms,
     }
-    consumer = Consumer(consumer_config)
+    consumer = Consumer(consumer_config)  # type: ignore[arg-type]
     consumer.subscribe([topic])
     return consumer
 
@@ -111,7 +114,7 @@ class MetricValuesWindow:
                 "value": value,
                 "analysis_mask": analysis_mask,
                 "meta": meta,
-            }
+            },
         )
 
 
@@ -277,18 +280,23 @@ def run_metric_values_collector(
             if msg is None:
                 continue
 
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
+            err = msg.error()
+            if err:
+                err_code = err.code()
+                if err_code == KafkaError._PARTITION_EOF:  # type: ignore[attr-defined]
                     continue
-                if msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                if err_code == KafkaError.UNKNOWN_TOPIC_OR_PART:  # type: ignore[attr-defined]
                     logger.info("Topic %s not available yet...", topic)
                     state.needs_reconnect = True
                     continue
-                logger.error("Consumer error: %s", msg.error())
+                logger.error("Consumer error: %s", err)
                 continue
 
             try:
-                event = json_loads(msg.value())
+                msg_value = msg.value()
+                if msg_value is None:
+                    continue
+                event = json_loads(msg_value)
 
                 # Only process METRIC_EMITTED events
                 if event.get("event_type") != "METRIC_EMITTED":
