@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.domain.events import EventType
 from src.domain.results import MetricValue
+from src.observability.metrics import WORKERS_ACTIVE
 from src.utils.logging import get_logger
 from src.workers.lifecycle import AlgoLifecycle
 from src.workers.offload import ExecutionContext, LocalWorkerStrategy
@@ -190,6 +191,8 @@ class KafkaWorkerPool:
             job.job_id,
         )
 
+        # Track active workers for metrics
+        WORKERS_ACTIVE.inc()
         try:
             # Get dispatch plan
             plan = self._dispatcher.dispatch(job)
@@ -317,6 +320,9 @@ class KafkaWorkerPool:
                 algo_version=algo_version,
                 error_type=type(e).__name__,
             )
+        finally:
+            # Always decrement active workers when done
+            WORKERS_ACTIVE.dec()
 
     def _is_slow_job(self, plan: Any) -> bool:
         """Determine if a job is expected to be slow.

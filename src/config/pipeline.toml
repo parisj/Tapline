@@ -27,9 +27,25 @@ min_workers = 2
 [evaluation]
 interval_sec = 10.0
 
+[gpu]
+# Enable GPU acceleration for supported algorithms
+enabled = true
+# Device ID to use (-1 = auto-select, 0 = first GPU, 1 = second GPU)
+device_id = 0
+# Fallback to CPU if GPU is unavailable
+fallback_to_cpu = true
+# Memory limit per worker in MB (0 = no limit)
+memory_limit_mb = 0
+
 # REAL filesystem paths
 # This is the single source of truth for directory_key → path
 [directories]
 path0 = "/home/elliot/repos/VisioEval/paths_test/path0"
 path1 = "/home/elliot/repos/VisioEval/paths_test/path1"
+path2 = "/home/elliot/repos/VisioEval/paths_test/path2"
+path3 = "/home/elliot/repos/VisioEval/paths_test/path3"
+path4 = "/home/elliot/repos/VisioEval/paths_test/path4"
+path5 = "/home/elliot/repos/VisioEval/paths_test/path5"
+path6 = "/home/elliot/repos/VisioEval/paths_test/path6"
+path7 = "/home/elliot/repos/VisioEval/paths_test/path7"
 #pathXX = "./input/pathXX"

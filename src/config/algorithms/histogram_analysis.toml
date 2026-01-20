@@ -1,0 +1,17 @@
+# Histogram Analysis Configuration
+# Algorithm: histogram_analysis v1.0.0
+#
+# Analyzes intensity/color distributions
+# Returns: histogram_peaks, histogram_spread, channel_balance, dynamic_range, is_bimodal
+
+[histogram]
+# Number of bins for histogram computation (default: 256 for full 8-bit range)
+num_bins = 256
+
+# Peak detection threshold (fraction of max bin height)
+# Peaks below this threshold are ignored
+peak_threshold = 0.1
+
+# Bimodality detection threshold
+# Valley must be this much lower than smaller peak to be considered bimodal
+bimodal_threshold = 0.3

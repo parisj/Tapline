@@ -50,7 +50,9 @@ class MinioArtifactReader:
         self._cached_fetch_json = _cached_fetch_json
 
     def _do_fetch_npz(
-        self, bucket: str, content_hash: str,
+        self,
+        bucket: str,
+        content_hash: str,
     ) -> tuple[tuple[str, ...], dict[str, bytes], dict[str, str], dict[str, Any]]:
         """Internal: fetch and serialize NPZ data for caching.
 

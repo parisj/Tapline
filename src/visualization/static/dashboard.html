@@ -2526,6 +2526,22 @@
           }
           if (artifacts.contour_2d || artifacts.contour) {
             data.contour = artifacts.contour_2d || artifacts.contour;
+            // Transform contour data into Plotly format
+            if (data.contour && data.contour.density) {
+              data.z = data.contour.density;
+              // Compute bin centers from edges for X axis
+              if (data.contour.x_edges && data.contour.x_edges.length > 1) {
+                data.values = data.contour.x_edges.slice(0, -1).map((x, i) =>
+                  (x + data.contour.x_edges[i + 1]) / 2
+                );
+              }
+              // Compute bin centers from edges for Y axis
+              if (data.contour.y_edges && data.contour.y_edges.length > 1) {
+                data.values_y = data.contour.y_edges.slice(0, -1).map((y, i) =>
+                  (y + data.contour.y_edges[i + 1]) / 2
+                );
+              }
+            }
           }
           if (artifacts.categories) {
             data.categories = artifacts.categories;
@@ -3404,19 +3420,19 @@
       }
 
       let statusClass = 'warning';
-      let statusIcon = '?';
+      let statusIcon = '⚠';
       if (data.status === 'valid') {
         statusClass = 'healthy';
-        statusIcon = '?';
+        statusIcon = '✓';
       } else if (data.status === 'invalid') {
         statusClass = 'error';
-        statusIcon = '?';
+        statusIcon = '✗';
       } else if (data.status === 'kafka_only' || (kafkaAuditCount > 0 && data.status === 'no_events')) {
         statusClass = 'healthy';  // Events exist in Kafka
-        statusIcon = '?';
+        statusIcon = '○';
       } else if (data.status === 'no_events' && kafkaAuditCount === 0) {
         statusClass = 'warning';
-        statusIcon = '?';
+        statusIcon = '○';
       }
 
       // Build event count display - prefer direct Kafka count

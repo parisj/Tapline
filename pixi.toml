@@ -5,6 +5,7 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [pypi-dependencies]
+opencv-python = ">=4.8"
 pytest = ">=8"
 pytest-cov = ">=5"
 pytest-timeout = ">=2.2"
@@ -27,6 +28,8 @@ flask-cors = ">=4.0"
 requests = ">=2.31"
 # Performance (optional, falls back to stdlib json)
 orjson = ">=3.9"
+# GPU Support (optional) - activated via [feature.gpu]
+# opencv-contrib-python provides CUDA-enabled OpenCV when available
 # Security & Quality
 pip-audit = ">=2.7"
 bandit = ">=1.7"
@@ -80,3 +83,44 @@ benchmark-kafka = "python -m benchmarks.kafka_benchmark"
 
 # Dashboard (Flask-based)
 dashboard = "python -m src.visualization.api_server"
+
+# =============================================================================
+# GPU Feature (Optional)
+# =============================================================================
+# To activate: pixi install --environment gpu
+# Or set VISIOEVAL_USE_GPU=true in .env
+
+[feature.gpu]
+platforms = ["linux-64"]
+
+[feature.gpu.dependencies]
+cuda-toolkit = ">=12.0"
+
+[feature.gpu.pypi-dependencies]
+opencv-contrib-python = ">=4.8"
+onnxruntime-gpu = ">=1.16"
+
+[feature.gpu.tasks]
+check-gpu = "python -c \"from src.utils.gpu import check_gpu_status; check_gpu_status()\""
+
+# =============================================================================
+# ML Feature (Optional) - YOLO and other ML models
+# =============================================================================
+# To activate: pixi install --environment ml
+# Or for GPU+ML: pixi install --environment gpu-ml
+
+[feature.ml]
+platforms = ["linux-64"]
+
+[feature.ml.pypi-dependencies]
+ultralytics = ">=8.0"
+torch = ">=2.0"
+
+[feature.ml.tasks]
+test-yolo = "python -c \"from ultralytics import YOLO; print('YOLO available')\""
+
+[environments]
+default = { features = [], solve-group = "default" }
+gpu = { features = ["gpu"], solve-group = "default" }
+ml = { features = ["ml"], solve-group = "default" }
+gpu-ml = { features = ["gpu", "ml"], solve-group = "default" }

@@ -1,0 +1,27 @@
+# Image Quality Assessment Configuration
+# Algorithm: image_quality v1.0.0
+#
+# Computes: sharpness, brightness, contrast, noise_estimate, saturation
+# Pass/fail based on threshold criteria
+
+[thresholds]
+# Minimum sharpness (Laplacian variance)
+# Higher values = sharper images; typically 100-500 for good quality
+min_sharpness = 100.0
+
+# Brightness range (0-255 scale)
+# Images outside this range are considered over/under exposed
+min_brightness = 30.0
+max_brightness = 225.0
+
+# Minimum contrast (standard deviation of intensities)
+# Low contrast images have values close to 0
+min_contrast = 20.0
+
+# Maximum noise level (0-1 scale)
+# Higher values = more noise; 0.3 is a reasonable threshold
+max_noise = 0.3
+
+# Minimum saturation (0-1 scale)
+# Set to 0 to allow grayscale images
+min_saturation = 0.0
