@@ -1,0 +1,7 @@
+[allowlist]
+description = "VisioEval allowlist"
+paths = [
+  '''\.env\.example$''',
+  '''tests/.*''',
+  '''benchmarks/.*''',
+]

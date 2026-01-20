@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import select
 import signal
 import subprocess
 import sys
@@ -72,15 +73,13 @@ def forward_output(proc: subprocess.Popen, prefix: str) -> None:
     if proc.stdout is None:
         return
 
-    # Non-blocking read
-    import select
-
+    # Non-blocking read using module-level import
     while select.select([proc.stdout], [], [], 0)[0]:
         line = proc.stdout.readline()
         if not line:
             break
-        # Log without the prefix cluttering JSON logs
-        print(f"[{prefix}] {line.rstrip()}", file=sys.stderr)
+        # Use sys.stderr.write for subprocess output forwarding
+        sys.stderr.write(f"[{prefix}] {line.rstrip()}\n")
 
 
 def main() -> None:
@@ -117,6 +116,7 @@ def main() -> None:
     if use_flink_sql:
         logger.info("Step 1: Starting Flink SQL aggregation...")
         from src.flink.submit import ensure_aggregation_job_running
+
         flink_ok = ensure_aggregation_job_running()
         if flink_ok:
             logger.info("Flink aggregation job is running")

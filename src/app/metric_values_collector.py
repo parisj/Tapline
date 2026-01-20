@@ -106,11 +106,13 @@ class MetricValuesWindow:
     ) -> None:
         """Add a metric value to the window."""
         key = (algo_name, algo_version, metric_name)
-        self.metrics[key].append({
-            "value": value,
-            "analysis_mask": analysis_mask,
-            "meta": meta,
-        })
+        self.metrics[key].append(
+            {
+                "value": value,
+                "analysis_mask": analysis_mask,
+                "meta": meta,
+            }
+        )
 
 
 def _get_window_boundaries(timestamp: datetime, window_size_sec: int) -> tuple[datetime, datetime]:
@@ -199,7 +201,7 @@ def _store_window_values(
     return stored
 
 
-def run_metric_values_collector(  # noqa: PLR0912
+def run_metric_values_collector(
     flink_config: FlinkConfig,
     kafka_config: KafkaConfig,
     storage: MinioStorageService,

@@ -121,7 +121,7 @@ def submit_aggregation_job(flink_url: str | None = None) -> bool:
             logger.error("Failed to copy SQL file to Flink container: %s", result.stderr)
             return False
     except subprocess.TimeoutExpired:
-        logger.error("Timeout copying SQL file to Flink container")
+        logger.exception("Timeout copying SQL file to Flink container")
         return False
     except FileNotFoundError:
         logger.warning("Docker not found, cannot submit Flink job")
@@ -163,7 +163,7 @@ def submit_aggregation_job(flink_url: str | None = None) -> bool:
         return False
 
     except subprocess.TimeoutExpired:
-        logger.error("Timeout submitting Flink job")
+        logger.exception("Timeout submitting Flink job")
         return False
     except FileNotFoundError:
         logger.warning("Docker not found, cannot submit Flink job")

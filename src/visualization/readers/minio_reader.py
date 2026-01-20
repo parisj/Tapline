@@ -48,11 +48,16 @@ class MinioArtifactReader:
         self._cached_fetch_json = _cached_fetch_json
 
     def _do_fetch_npz(self, bucket: str, content_hash: str) -> tuple[tuple[str, ...], dict[str, bytes]]:
-        """Internal: fetch and serialize NPZ data for caching."""
+        """Internal: fetch and serialize NPZ data for caching.
+
+        Security note: allow_pickle=False to prevent arbitrary code execution.
+        NPZ files should only contain numpy arrays, not pickled Python objects.
+        """
         try:
             data = self._storage.retrieve_by_hash(bucket, content_hash)
             with io.BytesIO(data) as buf:
-                npz = np.load(buf, allow_pickle=True)
+                # SECURITY: allow_pickle=False prevents deserialization attacks
+                npz = np.load(buf, allow_pickle=False)
                 keys = tuple(npz.files)
                 arrays = {k: npz[k].tobytes() for k in keys}
                 dtypes = {k: str(npz[k].dtype) for k in keys}
@@ -106,11 +111,14 @@ class MinioArtifactReader:
         Returns:
             Dict mapping array names to numpy arrays, or None if not found
 
+        Security note: allow_pickle=False to prevent arbitrary code execution.
+
         """
         try:
             data = self._storage.retrieve_by_key(bucket, key)
             with io.BytesIO(data) as buf:
-                npz = np.load(buf, allow_pickle=True)
+                # SECURITY: allow_pickle=False prevents deserialization attacks
+                npz = np.load(buf, allow_pickle=False)
                 return {k: npz[k] for k in npz.files}
         except FileNotFoundError:
             return None

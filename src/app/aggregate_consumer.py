@@ -158,8 +158,7 @@ def _poll_batch(
         except KafkaException as e:
             if "UNKNOWN_TOPIC_OR_PART" in str(e):
                 logger.info(
-                    "Topic %s not available yet (Flink job may not be running), "
-                    "retrying in %ds...",
+                    "Topic %s not available yet (Flink job may not be running), retrying in %ds...",
                     topic,
                     int(_TOPIC_RETRY_INTERVAL_SEC),
                 )

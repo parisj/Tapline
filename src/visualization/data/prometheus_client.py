@@ -40,13 +40,27 @@ class RangeVector:
 class PrometheusClient:
     """Client for querying Prometheus metrics via HTTP API."""
 
+    # Allowed URL schemes for security (prevent file:// or other schemes)
+    _ALLOWED_SCHEMES = frozenset({"http", "https"})
+
     def __init__(self, base_url: str = "http://localhost:9091") -> None:
         """Initialize Prometheus client.
 
         Args:
             base_url: Prometheus server URL (default: http://localhost:9091)
 
+        Raises:
+            ValueError: If URL scheme is not http or https.
+
         """
+        # Security: validate URL scheme
+        from urllib.parse import urlparse
+
+        parsed = urlparse(base_url)
+        if parsed.scheme not in self._ALLOWED_SCHEMES:
+            msg = f"Invalid URL scheme '{parsed.scheme}'. Only http/https allowed."
+            raise ValueError(msg)
+
         self.base_url = base_url.rstrip("/")
         self._available: bool | None = None
 
@@ -57,7 +71,8 @@ class PrometheusClient:
 
         try:
             url = f"{self.base_url}/-/healthy"
-            with urlopen(url, timeout=2) as resp:
+            # URL scheme validated in __init__
+            with urlopen(url, timeout=2) as resp:  # noqa: S310
                 self._available = resp.status == 200
         except (URLError, TimeoutError):
             self._available = False
@@ -80,7 +95,8 @@ class PrometheusClient:
 
         try:
             url = f"{self.base_url}/api/v1/query?{urlencode({'query': promql})}"
-            with urlopen(url, timeout=5) as resp:
+            # URL scheme validated in __init__
+            with urlopen(url, timeout=5) as resp:  # noqa: S310
                 data = json.loads(resp.read())
                 return self._parse_instant_response(data)
         except (URLError, TimeoutError, json.JSONDecodeError) as e:
@@ -117,7 +133,8 @@ class PrometheusClient:
                 "step": step,
             }
             url = f"{self.base_url}/api/v1/query_range?{urlencode(params)}"
-            with urlopen(url, timeout=10) as resp:
+            # URL scheme validated in __init__
+            with urlopen(url, timeout=10) as resp:  # noqa: S310
                 data = json.loads(resp.read())
                 return self._parse_range_response(data)
         except (URLError, TimeoutError, json.JSONDecodeError) as e:
@@ -152,7 +169,7 @@ class PrometheusClient:
                         value=value,
                         timestamp=timestamp,
                         labels=metric,
-                    )
+                    ),
                 )
 
         return samples
@@ -189,7 +206,7 @@ class PrometheusClient:
                         metric_name=name,
                         labels=metric,
                         values=parsed_values,
-                    )
+                    ),
                 )
 
         return vectors

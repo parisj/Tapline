@@ -22,6 +22,11 @@ flask-cors = ">=4.0"
 requests = ">=2.31"
 # Performance (optional, falls back to stdlib json)
 orjson = ">=3.9"
+# Security & Quality
+pip-audit = ">=2.7"
+bandit = ">=1.7"
+mypy = ">=1.14"
+pre-commit = ">=4.0"
 
 [dependencies]
 python = ">=3.12,<3.13"
@@ -50,6 +55,18 @@ test-all = "pytest tests/ -v"
 # Code quality
 lint = "ruff check ."
 format = "ruff format ."
+typecheck = "mypy src --ignore-missing-imports"
+
+# Security
+security-audit = "pip-audit"
+bandit-check = "bandit -r src -ll -q"
+
+# Pre-commit
+precommit-install = "pre-commit install"
+precommit-run = "pre-commit run --all-files"
+
+# Testing with coverage threshold
+test-cov = "pytest -q --cov=src --cov-report=xml --cov-fail-under=80"
 
 # Benchmarks
 benchmark = "python -m benchmarks.load_generator"

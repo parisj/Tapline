@@ -33,6 +33,7 @@ def _mask_to_kind_names(mask: int) -> list[str]:
     """Convert AnalysisKind bitmask to list of kind names."""
     return [kind.name for kind in AnalysisKind if mask & kind.value]
 
+
 logger = get_logger(__name__)
 
 # Flask app configuration
@@ -42,15 +43,42 @@ app = Flask(__name__, static_folder=str(STATIC_DIR))
 CONFIG_ROOT = Path("src/config")
 PROMETHEUS_URL = "http://localhost:9091"
 
+# Allowed buckets for artifact access (security: prevent bucket enumeration)
+ALLOWED_BUCKETS = frozenset({"artifacts", "inputs", "aggregates", "metric-values"})
 
-# Add no-cache headers to all API responses to prevent stale data
+# Maximum time range for metric queries (30 days in minutes)
+MAX_TIME_RANGE_MINUTES = 43200
+
+
+# Security and cache headers for all responses
 @app.after_request
-def add_no_cache_headers(response: Response) -> Response:
-    """Add no-cache headers to API responses to ensure fresh data."""
+def add_security_headers(response: Response) -> Response:
+    """Add security and cache headers to all responses."""
+    # Security headers (OWASP recommendations)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # Content Security Policy - restrict script sources
+    csp_parts = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://cdn.plot.ly "
+        "https://ajax.googleapis.com https://maxcdn.bootstrapcdn.com",
+        "style-src 'self' 'unsafe-inline' https://maxcdn.bootstrapcdn.com",
+        "img-src 'self' data:",
+        "font-src 'self' https://maxcdn.bootstrapcdn.com",
+        "connect-src 'self' http://localhost:* ws://localhost:*",
+    ]
+    response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
+
+    # No-cache headers for API responses to prevent stale data
     if request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+
     return response
 
 
@@ -74,8 +102,8 @@ def init_services() -> None:
         reader = MinioArtifactReader(storage)
 
         logger.info("API server services initialized successfully")
-    except Exception as e:
-        logger.error("Failed to initialize services: %s", e)
+    except Exception:
+        logger.exception("Failed to initialize services")
 
 
 # =============================================================================
@@ -116,11 +144,13 @@ def prometheus_query() -> Response:
         return jsonify(resp.json())
     except requests.RequestException as e:
         logger.warning("Prometheus query failed: %s", e)
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "data": {"result": []},
-        })
+        return jsonify(
+            {
+                "status": "error",
+                "error": str(e),
+                "data": {"result": []},
+            }
+        )
 
 
 @app.route("/api/prometheus/query_range", methods=["GET"])
@@ -143,11 +173,13 @@ def prometheus_query_range() -> Response:
         return jsonify(resp.json())
     except requests.RequestException as e:
         logger.warning("Prometheus range query failed: %s", e)
-        return jsonify({
-            "status": "error",
-            "error": str(e),
-            "data": {"result": []},
-        })
+        return jsonify(
+            {
+                "status": "error",
+                "error": str(e),
+                "data": {"result": []},
+            }
+        )
 
 
 @app.route("/api/prometheus/healthy", methods=["GET"])
@@ -231,13 +263,15 @@ def pipeline_status() -> tuple:
             status = "stopped"
             detail = "Pipeline not running"
 
-        return jsonify({
-            "pipeline_running": pipeline_up,
-            "workers_active": workers_active,
-            "worker_pool_size": worker_pool_size,
-            "status": status,
-            "detail": detail,
-        })
+        return jsonify(
+            {
+                "pipeline_running": pipeline_up,
+                "workers_active": workers_active,
+                "worker_pool_size": worker_pool_size,
+                "status": status,
+                "detail": detail,
+            }
+        )
     except Exception as e:
         logger.exception("Failed to get pipeline status")
         return jsonify({"error": str(e), "pipeline_running": False, "status": "unknown"}), 500
@@ -251,11 +285,13 @@ def pipeline_status() -> tuple:
 @app.route("/api/health", methods=["GET"])
 def health() -> tuple:
     """Health check endpoint."""
-    return jsonify({
-        "status": "ok",
-        "minio": storage is not None,
-        "discovery": discovery is not None,
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "minio": storage is not None,
+            "discovery": discovery is not None,
+        }
+    )
 
 
 @app.route("/api/directories", methods=["GET"])
@@ -283,10 +319,7 @@ def get_algorithms() -> tuple:
     try:
         algorithms = discovery.list_algorithms()
         # Convert AlgorithmInfo objects to dicts
-        result = [
-            {"name": a.name, "version": a.version, "settings_path": a.settings_path}
-            for a in algorithms
-        ]
+        result = [{"name": a.name, "version": a.version, "settings_path": a.settings_path} for a in algorithms]
         return jsonify({"algorithms": result})
     except Exception as e:
         logger.exception("Failed to list algorithms")
@@ -304,12 +337,14 @@ def get_routes() -> tuple:
         for dir_info in discovery.list_directories():
             algo_info = discovery.get_algorithm_for_directory(dir_info.key)
             if algo_info:
-                routes.append({
-                    "directory": dir_info.key,
-                    "path": str(dir_info.path),
-                    "algorithm": algo_info.name,
-                    "version": algo_info.version,
-                })
+                routes.append(
+                    {
+                        "directory": dir_info.key,
+                        "path": str(dir_info.path),
+                        "algorithm": algo_info.name,
+                        "version": algo_info.version,
+                    }
+                )
         return jsonify({"routes": routes})
     except Exception as e:
         logger.exception("Failed to get routes")
@@ -335,12 +370,15 @@ def get_metrics() -> tuple:
         version = request.args.get("version")
         refresh = request.args.get("refresh", "").lower() == "true"
 
-        # Time range filter (in minutes)
+        # Time range filter (in minutes) with validation
         time_range_str = request.args.get("time_range")
         time_range_minutes: int | None = None
         if time_range_str:
             try:
                 time_range_minutes = int(time_range_str)
+                # Validate bounds: must be positive and reasonable (max 30 days)
+                if time_range_minutes <= 0 or time_range_minutes > MAX_TIME_RANGE_MINUTES:
+                    time_range_minutes = None
             except ValueError:
                 pass
 
@@ -357,26 +395,30 @@ def get_metrics() -> tuple:
         for m in metrics:
             # Extract summary stats if available
             summary = m.summary or {}
-            result.append({
-                "metric_name": m.metric_name,
-                "algo_name": m.algo_name,
-                "algo_version": m.algo_version,
-                "analysis_mask": m.analysis_mask,
-                "analysis_kinds": m.analysis_kinds,
-                "count": summary.get("count"),
-                "sum": summary.get("sum"),
-                "avg": summary.get("avg") or summary.get("mean"),
-                "min": summary.get("min"),
-                "max": summary.get("max"),
-                "std": summary.get("std"),
-                "artifact_key": m.artifact_key,
-            })
+            result.append(
+                {
+                    "metric_name": m.metric_name,
+                    "algo_name": m.algo_name,
+                    "algo_version": m.algo_version,
+                    "analysis_mask": m.analysis_mask,
+                    "analysis_kinds": m.analysis_kinds,
+                    "count": summary.get("count"),
+                    "sum": summary.get("sum"),
+                    "avg": summary.get("avg") or summary.get("mean"),
+                    "min": summary.get("min"),
+                    "max": summary.get("max"),
+                    "std": summary.get("std"),
+                    "artifact_key": m.artifact_key,
+                }
+            )
 
-        return jsonify({
-            "metrics": result,
-            "count": len(result),
-            "time_range_minutes": time_range_minutes,
-        })
+        return jsonify(
+            {
+                "metrics": result,
+                "count": len(result),
+                "time_range_minutes": time_range_minutes,
+            }
+        )
     except Exception as e:
         logger.exception("Failed to discover metrics")
         return jsonify({"error": str(e)}), 500
@@ -398,12 +440,15 @@ def get_metric_data(metric_name: str) -> tuple:
         algorithm = request.args.get("algorithm")
         version = request.args.get("version")
 
-        # Time range filter (in minutes)
+        # Time range filter (in minutes) with validation
         time_range_str = request.args.get("time_range")
         time_range_minutes: int | None = None
         if time_range_str:
             try:
                 time_range_minutes = int(time_range_str)
+                # Validate bounds: must be positive and reasonable (max 30 days)
+                if time_range_minutes <= 0 or time_range_minutes > MAX_TIME_RANGE_MINUTES:
+                    time_range_minutes = None
             except ValueError:
                 pass
 
@@ -421,25 +466,27 @@ def get_metric_data(metric_name: str) -> tuple:
 
         if not matching:
             # Return empty data structure instead of 404 when time range has no data
-            return jsonify({
-                "metric_name": metric_name,
-                "algo_name": algorithm or "",
-                "algo_version": version or "",
-                "analysis_mask": 0,
-                "analysis_kinds": [],
-                "count": 0,
-                "sum": 0,
-                "avg": None,
-                "min": None,
-                "max": None,
-                "std": None,
-                "median": None,
-                "p95": None,
-                "p99": None,
-                "artifacts": {},
-                "no_data": True,
-                "time_range_minutes": time_range_minutes,
-            })
+            return jsonify(
+                {
+                    "metric_name": metric_name,
+                    "algo_name": algorithm or "",
+                    "algo_version": version or "",
+                    "analysis_mask": 0,
+                    "analysis_kinds": [],
+                    "count": 0,
+                    "sum": 0,
+                    "avg": None,
+                    "min": None,
+                    "max": None,
+                    "std": None,
+                    "median": None,
+                    "p95": None,
+                    "p99": None,
+                    "artifacts": {},
+                    "no_data": True,
+                    "time_range_minutes": time_range_minutes,
+                }
+            )
 
         metric = matching[0]
 
@@ -716,21 +763,25 @@ def get_buckets() -> tuple:
             try:
                 objects = list(storage.list_objects(bucket_name, limit=1000))
                 total_size = sum(obj.get("size", 0) for obj in objects if isinstance(obj, dict))
-                result.append({
-                    "name": bucket_name,
-                    "object_count": len(objects),
-                    "total_size_bytes": total_size,
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                })
+                result.append(
+                    {
+                        "name": bucket_name,
+                        "object_count": len(objects),
+                        "total_size_bytes": total_size,
+                        "total_size_mb": round(total_size / (1024 * 1024), 2),
+                    }
+                )
             except Exception as e:
                 logger.warning("Failed to get stats for bucket %s: %s", bucket_name, e)
-                result.append({
-                    "name": bucket_name,
-                    "object_count": 0,
-                    "total_size_bytes": 0,
-                    "total_size_mb": 0,
-                    "error": str(e),
-                })
+                result.append(
+                    {
+                        "name": bucket_name,
+                        "object_count": 0,
+                        "total_size_bytes": 0,
+                        "total_size_mb": 0,
+                        "error": str(e),
+                    }
+                )
 
         return jsonify({"buckets": result})
     except Exception as e:
@@ -761,15 +812,32 @@ def list_artifacts() -> tuple:
     try:
         bucket = request.args.get("bucket", "artifacts")
         prefix = request.args.get("prefix", "")
-        limit = min(int(request.args.get("limit", 100)), 1000)
+
+        # Security: validate bucket against allowlist
+        if bucket not in ALLOWED_BUCKETS:
+            return jsonify({"error": "Invalid bucket"}), 400
+
+        # Security: validate prefix doesn't contain path traversal
+        if ".." in prefix:
+            return jsonify({"error": "Invalid prefix"}), 400
+
+        # Validate and bound limit parameter
+        try:
+            limit = min(int(request.args.get("limit", 100)), 1000)
+            if limit <= 0:
+                limit = 100
+        except ValueError:
+            limit = 100
 
         objects = list(storage.list_objects(bucket, prefix=prefix, limit=limit))
 
-        return jsonify({
-            "bucket": bucket,
-            "objects": objects,
-            "count": len(objects),
-        })
+        return jsonify(
+            {
+                "bucket": bucket,
+                "objects": objects,
+                "count": len(objects),
+            }
+        )
     except Exception as e:
         logger.exception("Failed to list artifacts")
         return jsonify({"error": str(e)}), 500
@@ -780,6 +848,14 @@ def get_artifact(bucket: str, key: str) -> tuple:
     """Get a specific artifact's metadata and content."""
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
+
+    # Security: validate bucket name against allowlist
+    if bucket not in ALLOWED_BUCKETS:
+        return jsonify({"error": "Invalid bucket"}), 400
+
+    # Security: validate key doesn't contain path traversal
+    if ".." in key or key.startswith("/"):
+        return jsonify({"error": "Invalid key"}), 400
 
     try:
         # Get object info
@@ -795,11 +871,13 @@ def get_artifact(bucket: str, key: str) -> tuple:
             # Binary data - return base64 or just metadata
             content = {"binary": True, "size": len(data)}
 
-        return jsonify({
-            "bucket": bucket,
-            "key": key,
-            "content": content,
-        })
+        return jsonify(
+            {
+                "bucket": bucket,
+                "key": key,
+                "content": content,
+            }
+        )
     except Exception as e:
         logger.exception("Failed to get artifact")
         return jsonify({"error": str(e)}), 500
@@ -891,21 +969,23 @@ def verify_audit_chain() -> tuple:
         else:
             chain_status = "no_events"
 
-        return jsonify({
-            "status": chain_status,
-            "event_count": event_count,
-            "kafka_events": kafka_audit_count,
-            "stored_events": len(events),
-            "errors": errors,
-            "verified": chain_status == "valid",
-            "message": {
-                "valid": "Audit chain integrity verified - no tampering detected",
-                "invalid": f"Audit chain integrity check FAILED - {len(errors)} error(s) found",
-                "kafka_only": f"Audit events in Kafka ({kafka_audit_count}) - requires audit consumer",
-                "no_events": "No audit events found - run the pipeline to generate audit trail",
-                "unknown": "Unable to verify audit chain",
-            }.get(chain_status, "Unknown status"),
-        })
+        return jsonify(
+            {
+                "status": chain_status,
+                "event_count": event_count,
+                "kafka_events": kafka_audit_count,
+                "stored_events": len(events),
+                "errors": errors,
+                "verified": chain_status == "valid",
+                "message": {
+                    "valid": "Audit chain integrity verified - no tampering detected",
+                    "invalid": f"Audit chain integrity check FAILED - {len(errors)} error(s) found",
+                    "kafka_only": f"Audit events in Kafka ({kafka_audit_count}) - requires audit consumer",
+                    "no_events": "No audit events found - run the pipeline to generate audit trail",
+                    "unknown": "Unable to verify audit chain",
+                }.get(chain_status, "Unknown status"),
+            }
+        )
     except Exception as e:
         logger.exception("Failed to verify audit chain")
         return jsonify({"error": str(e), "status": "error"}), 500
@@ -954,7 +1034,9 @@ def main() -> None:
     logger.info("Dashboard:  http://localhost:5007")
     logger.info("API:        http://localhost:5007/api/health")
     logger.info("=" * 60)
-    app.run(host="0.0.0.0", port=5007, debug=False)
+    # Bind to all interfaces for Docker/container access (development server)
+    # In production, use a proper WSGI server (gunicorn, uwsgi) behind a reverse proxy
+    app.run(host="0.0.0.0", port=5007, debug=False)  # noqa: S104
 
 
 if __name__ == "__main__":

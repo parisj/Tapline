@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -49,11 +50,22 @@ def load_minio_config(path: Path) -> MinioConfig:
     storage = get_section(doc, "storage")
     lifecycle = get_section(doc, "lifecycle")
 
+    # Load credentials from environment variables (preferred) or config file
+    # Environment variables take precedence for security
+    endpoint = os.environ.get("MINIO_ENDPOINT") or connection.get("endpoint", "localhost:9000")
+    access_key = os.environ.get("MINIO_ACCESS_KEY") or connection.get("access_key", "")
+    secret_key = os.environ.get("MINIO_SECRET_KEY") or connection.get("secret_key", "")
+
+    # Validate that credentials are provided
+    if not access_key or not secret_key:
+        msg = "MinIO credentials not configured. Set MINIO_ACCESS_KEY and MINIO_SECRET_KEY environment variables."
+        raise ValueError(msg)
+
     return MinioConfig(
-        # Connection
-        endpoint=connection.get("endpoint", "localhost:9000"),
-        access_key=connection.get("access_key", "minioadmin"),
-        secret_key=connection.get("secret_key", "minioadmin123"),
+        # Connection - environment variables take precedence
+        endpoint=endpoint,
+        access_key=access_key,
+        secret_key=secret_key,
         secure=connection.get("secure", False),
         region=connection.get("region", "us-east-1"),
         # Buckets
