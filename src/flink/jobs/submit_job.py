@@ -48,8 +48,8 @@ def get_jobs(flink_url: str) -> list[dict[str, Any]]:
 
 def submit_sql_job(sql_file: Path, _flink_url: str) -> bool:
     """Submit SQL job via Flink SQL Client in Docker container."""
-    # Copy SQL file to container
-    container_sql_path = f"/tmp/{sql_file.name}"
+    # Copy SQL file to container (using Flink's standard temp location inside container)
+    container_sql_path = f"/opt/flink/temp/{sql_file.name}"  # nosec B108
     copy_cmd = ["docker", "cp", str(sql_file), f"flink-jobmanager:{container_sql_path}"]
     result = subprocess.run(copy_cmd, check=False, capture_output=True, text=True)
     if result.returncode != 0:

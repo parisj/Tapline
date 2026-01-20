@@ -4,6 +4,10 @@ Provides utilities for:
 - PyFlink environment configuration
 - Checkpoint configuration (RocksDB state backend)
 - Job execution
+
+Note: This module requires apache-flink to be installed separately.
+PyFlink is an optional dependency due to its pyarrow version constraints.
+Install with: pip install "apache-flink>=2.0"
 """
 
 from __future__ import annotations
@@ -11,15 +15,38 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pyflink.common import Configuration
-from pyflink.datastream import CheckpointingMode, StreamExecutionEnvironment
+try:
+    from pyflink.common import Configuration
+    from pyflink.datastream import CheckpointingMode, StreamExecutionEnvironment
+
+    PYFLINK_AVAILABLE = True
+except ImportError:
+    PYFLINK_AVAILABLE = False
+    Configuration = None
+    CheckpointingMode = None
+    StreamExecutionEnvironment = None
 
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from pyflink.datastream import StreamExecutionEnvironment as FlinkEnv
+
     from src.flink.config import FlinkConfig
+else:
+    # Runtime type alias when PyFlink may not be available
+    FlinkEnv = object
 
 logger = get_logger(__name__)
+
+
+def check_pyflink_available() -> bool:
+    """Check if PyFlink is available.
+
+    Returns:
+        True if apache-flink is installed and importable.
+
+    """
+    return PYFLINK_AVAILABLE
 
 
 class FlinkRunner:
@@ -30,18 +57,27 @@ class FlinkRunner:
     - State backend setup (RocksDB or HashMap)
     - Checkpoint configuration
     - JAR dependency management
+
+    Requires apache-flink to be installed separately:
+        pip install "apache-flink>=2.0"
     """
 
     def __init__(self, config: FlinkConfig) -> None:
+        if not PYFLINK_AVAILABLE:
+            msg = (
+                "PyFlink is not installed. Install with: pip install 'apache-flink>=2.0'\n"
+                "Note: PyFlink is optional. Python aggregation (default) works without it."
+            )
+            raise ImportError(msg)
         self._config = config
-        self._env: StreamExecutionEnvironment | None = None
+        self._env: FlinkEnv | None = None
 
     def create_environment(
         self,
         *,
         local: bool = True,
         jars: list[str] | None = None,
-    ) -> StreamExecutionEnvironment:
+    ) -> FlinkEnv:
         """Create and configure Flink execution environment.
 
         Args:
@@ -92,7 +128,7 @@ class FlinkRunner:
 
         return env
 
-    def _configure_checkpointing(self, env: StreamExecutionEnvironment) -> None:
+    def _configure_checkpointing(self, env: FlinkEnv) -> None:
         """Configure checkpointing for fault tolerance."""
         if not self._config.checkpoint_enabled:
             return
@@ -123,7 +159,7 @@ class FlinkRunner:
             self._config.checkpoint_mode,
         )
 
-    def get_environment(self) -> StreamExecutionEnvironment:
+    def get_environment(self) -> FlinkEnv:
         """Get or create the execution environment."""
         if self._env is None:
             return self.create_environment()

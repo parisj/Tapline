@@ -3387,31 +3387,55 @@
     if (!auditSection) return;  // Section may not exist in HTML yet
 
     try {
-      const response = await fetch(`${CONFIG.apiUrl}/api/audit/verify`, {cache: 'no-store'});
-      const data = await response.json();
+      // Fetch both audit verification and Kafka audit log count in parallel
+      const [verifyResponse, kafkaCountResponse] = await Promise.all([
+        fetch(`${CONFIG.apiUrl}/api/audit/verify`, {cache: 'no-store'}),
+        fetch(`${CONFIG.apiUrl}/api/kafka/audit-log/count`, {cache: 'no-store'})
+      ]);
 
-      let statusClass = 'warning';
-      let statusIcon = '⚠';
-      if (data.status === 'valid') {
-        statusClass = 'healthy';
-        statusIcon = '✓';
-      } else if (data.status === 'invalid') {
-        statusClass = 'error';
-        statusIcon = '✗';
-      } else if (data.status === 'kafka_only') {
-        statusClass = 'healthy';  // Events exist, just not persisted for verification
-        statusIcon = '○';
-      } else if (data.status === 'no_events') {
-        statusClass = 'warning';
-        statusIcon = '○';
+      const data = await verifyResponse.json();
+      let kafkaAuditCount = 0;
+      let kafkaTopicExists = false;
+
+      if (kafkaCountResponse.ok) {
+        const kafkaData = await kafkaCountResponse.json();
+        kafkaAuditCount = kafkaData.event_count || 0;
+        kafkaTopicExists = kafkaData.exists || false;
       }
 
-      // Build event count display
+      let statusClass = 'warning';
+      let statusIcon = '?';
+      if (data.status === 'valid') {
+        statusClass = 'healthy';
+        statusIcon = '?';
+      } else if (data.status === 'invalid') {
+        statusClass = 'error';
+        statusIcon = '?';
+      } else if (data.status === 'kafka_only' || (kafkaAuditCount > 0 && data.status === 'no_events')) {
+        statusClass = 'healthy';  // Events exist in Kafka
+        statusIcon = '?';
+      } else if (data.status === 'no_events' && kafkaAuditCount === 0) {
+        statusClass = 'warning';
+        statusIcon = '?';
+      }
+
+      // Build event count display - prefer direct Kafka count
       let eventCountDisplay = `Events: ${data.event_count || 0}`;
-      if (data.kafka_events && data.kafka_events > 0 && data.stored_events === 0) {
-        eventCountDisplay = `Kafka events: ${data.kafka_events} (not persisted to storage)`;
+      if (kafkaAuditCount > 0) {
+        eventCountDisplay = `Kafka audit events: ${formatNumber(kafkaAuditCount)}`;
+        if (data.stored_events > 0) {
+          eventCountDisplay += ` (${data.stored_events} verified in storage)`;
+        }
       } else if (data.stored_events > 0) {
         eventCountDisplay = `Events verified: ${data.stored_events}`;
+      } else if (!kafkaTopicExists) {
+        eventCountDisplay = 'Audit topic not found - run pipeline to create';
+      }
+
+      // Determine message based on actual state
+      let message = data.message;
+      if (kafkaAuditCount > 0 && data.status !== 'valid' && data.status !== 'invalid') {
+        message = `${formatNumber(kafkaAuditCount)} audit events recorded in Kafka`;
       }
 
       auditSection.innerHTML = `
@@ -3419,7 +3443,7 @@
           <span class="health-dot ${statusClass}"></span>
           <div class="health-info">
             <div class="health-name">Audit Chain Integrity</div>
-            <div class="health-status">${data.message}</div>
+            <div class="health-status">${message}</div>
           </div>
         </div>
         <div style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">
@@ -3554,42 +3578,35 @@
       }
     }
 
-    // Check Kafka - via metrics or direct topic count
-    let kafkaMessages = 0;
-    let kafkaHealthy = false;
-    const kafkaProduced = await prometheusQuery('sum(visioeval_kafka_messages_produced_total)');
-    if (kafkaProduced !== null && kafkaProduced > 0) {
-      kafkaMessages = kafkaProduced;
-      kafkaHealthy = true;
-    } else {
-      // Try to check Kafka via topic stats from the API
-      try {
-        const topicsResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent('kafka_server_brokertopicmetrics_messagesin_total')}`);
-        if (topicsResp.ok) {
-          const data = await topicsResp.json();
-          if (data.data && data.data.result && data.data.result.length > 0) {
-            kafkaHealthy = true;
-            kafkaMessages = data.data.result.reduce((sum, r) => sum + parseFloat(r.value[1] || 0), 0);
-          }
-        }
-      } catch (e) { /* ignore */ }
-    }
-
-    if (kafkaHealthy) {
+    // Check Kafka - via dedicated health endpoint
+    try {
+      const kafkaResp = await fetch(`${CONFIG.apiUrl}/api/kafka/health`);
+      const kafkaData = await kafkaResp.json();
+      if (kafkaData.healthy) {
+        const detail = kafkaData.total_messages > 0
+          ? `${kafkaData.bootstrap_servers} - ${formatNumber(kafkaData.total_messages)} messages, ${kafkaData.topic_count} topics`
+          : `${kafkaData.bootstrap_servers} - ${kafkaData.topic_count} topics, ${kafkaData.broker_count} broker(s)`;
+        services.push({
+          name: 'Kafka Broker',
+          status: 'healthy',
+          detail: detail
+        });
+        CONNECTION_STATUS.kafka = true;
+      } else {
+        services.push({
+          name: 'Kafka Broker',
+          status: 'error',
+          detail: `${kafkaData.bootstrap_servers} - ${kafkaData.error || 'Connection failed'}`
+        });
+        CONNECTION_STATUS.kafka = false;
+      }
+    } catch (e) {
       services.push({
         name: 'Kafka Broker',
-        status: 'healthy',
-        detail: `localhost:9092 - ${formatNumber(Math.round(kafkaMessages))} messages`
+        status: 'error',
+        detail: 'localhost:9092 - Unable to check health'
       });
-      CONNECTION_STATUS.kafka = true;
-    } else {
-      // Kafka is likely running but no app metrics yet - show as healthy if infrastructure is up
-      services.push({
-        name: 'Kafka Broker',
-        status: 'healthy',
-        detail: 'localhost:9092 - Ready'
-      });
-      CONNECTION_STATUS.kafka = true;
+      CONNECTION_STATUS.kafka = false;
     }
 
     // Check Jaeger via API proxy (avoids CORS)

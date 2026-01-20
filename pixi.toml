@@ -10,7 +10,12 @@ pytest-cov = ">=5"
 pytest-timeout = ">=2.2"
 confluent-kafka = ">=2.3"
 minio = ">=7.2"
-apache-flink = ">=1.18"
+# NOTE: apache-flink is an optional dependency for distributed processing.
+# It's excluded from core deps because apache-beam constrains pyarrow<17,
+# which has vulnerability PYSEC-2024-161. Python aggregation (default) has
+# no vulnerabilities. To enable PyFlink for distributed processing:
+#   pip install "apache-flink>=2.0"
+#   export VISIOEVAL_USE_FLINK_SQL=true
 # Observability
 opentelemetry-api = ">=1.20"
 opentelemetry-sdk = ">=1.20"
@@ -45,7 +50,7 @@ run-flink-job = "python src/flink/jobs/submit_job.py"
 # Full pipeline (spawns all 3: main + flink job + aggregate sink)
 pipeline = "python -m src.app.pipeline_runner"
 
-# Legacy Python-based aggregation (not using Flink)
+# Python-based aggregation (default, no Flink required)
 run-flink-agg = "python -m src.app.flink_aggregation"
 
 # Testing

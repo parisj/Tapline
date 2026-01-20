@@ -112,8 +112,8 @@ def submit_aggregation_job(flink_url: str | None = None) -> bool:
 
     logger.info("Submitting Flink aggregation job...")
 
-    # Copy SQL file to container
-    container_sql_path = f"/tmp/{sql_file.name}"
+    # Copy SQL file to container (using Flink's standard temp location inside container)
+    container_sql_path = f"/opt/flink/temp/{sql_file.name}"  # nosec B108
     copy_cmd = ["docker", "cp", str(sql_file), f"flink-jobmanager:{container_sql_path}"]
 
     try:

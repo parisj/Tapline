@@ -10,10 +10,13 @@ Or: pixi run dashboard
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 import requests
+from confluent_kafka import Consumer, KafkaException
+from confluent_kafka.admin import AdminClient
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 
@@ -217,6 +220,157 @@ def pipeline_status() -> FlaskResponse:
     except Exception as e:
         logger.exception("Failed to get pipeline status")
         return jsonify({"error": str(e), "pipeline_running": False, "status": "unknown"}), 500
+
+
+# =============================================================================
+# Kafka Health Check Endpoints
+# =============================================================================
+
+
+@app.route("/api/kafka/health", methods=["GET"])
+def kafka_health() -> FlaskResponse:
+    """Check Kafka broker connectivity and get cluster metadata.
+
+    Returns broker status, topic count, and message statistics.
+    """
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
+    try:
+        # Create admin client with short timeout for health check
+        admin_conf: dict[str, str | int | float | bool] = {
+            "bootstrap.servers": bootstrap_servers,
+            "socket.timeout.ms": 5000,
+            "request.timeout.ms": 5000,
+        }
+        admin = AdminClient(admin_conf)
+
+        # Get cluster metadata (this verifies connectivity)
+        metadata = admin.list_topics(timeout=5)
+
+        # Count topics and partitions
+        topics = [t for t in metadata.topics if not t.startswith("_")]
+        total_partitions = sum(len(t.partitions) for t in metadata.topics.values())
+
+        # Get broker info
+        brokers = list(metadata.brokers.values())
+        broker_count = len(brokers)
+
+        # Try to get message count from Prometheus
+        total_messages = 0
+        if prometheus_service:
+            result = prometheus_service.query("sum(visioeval_kafka_messages_produced_total)")
+            if result.data.get("status") == "success":
+                data_result = result.data.get("data", {}).get("result", [])
+                if data_result:
+                    total_messages = int(float(data_result[0].get("value", [0, 0])[1]))
+
+        return jsonify(
+            {
+                "healthy": True,
+                "bootstrap_servers": bootstrap_servers,
+                "broker_count": broker_count,
+                "topic_count": len(topics),
+                "partition_count": total_partitions,
+                "total_messages": total_messages,
+                "topics": topics[:20],  # Limit to first 20 topics
+            },
+        )
+    except KafkaException as e:
+        logger.warning("Kafka health check failed: %s", e)
+        return jsonify(
+            {
+                "healthy": False,
+                "bootstrap_servers": bootstrap_servers,
+                "error": str(e),
+            },
+        )
+    except Exception as e:
+        logger.warning("Kafka health check error: %s", e)
+        return jsonify(
+            {
+                "healthy": False,
+                "bootstrap_servers": bootstrap_servers,
+                "error": str(e),
+            },
+        )
+
+
+@app.route("/api/kafka/audit-log/count", methods=["GET"])
+def kafka_audit_log_count() -> FlaskResponse:
+    """Get the number of events in the audit-log Kafka topic.
+
+    Returns the total message count across all partitions.
+    """
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    audit_topic = "visio.audit-log"
+
+    try:
+        # Create consumer to query offsets
+        consumer_conf: dict[str, str | int | float | bool | None] = {
+            "bootstrap.servers": bootstrap_servers,
+            "group.id": "dashboard-audit-check",
+            "socket.timeout.ms": 5000,
+            "session.timeout.ms": 6000,
+        }
+        consumer = Consumer(consumer_conf)
+
+        try:
+            # Get topic metadata
+            metadata = consumer.list_topics(audit_topic, timeout=5)
+
+            if audit_topic not in metadata.topics:
+                return jsonify(
+                    {
+                        "topic": audit_topic,
+                        "exists": False,
+                        "event_count": 0,
+                        "partitions": 0,
+                    },
+                )
+
+            topic_meta = metadata.topics[audit_topic]
+            partition_count = len(topic_meta.partitions)
+
+            # Get high watermarks for each partition
+            total_events = 0
+            for partition_id in topic_meta.partitions:
+                from confluent_kafka import TopicPartition
+
+                tp = TopicPartition(audit_topic, partition_id)
+                low, high = consumer.get_watermark_offsets(tp, timeout=5)
+                total_events += high - low
+
+            return jsonify(
+                {
+                    "topic": audit_topic,
+                    "exists": True,
+                    "event_count": total_events,
+                    "partitions": partition_count,
+                },
+            )
+        finally:
+            consumer.close()
+
+    except KafkaException as e:
+        logger.warning("Failed to get audit log count: %s", e)
+        return jsonify(
+            {
+                "topic": audit_topic,
+                "exists": False,
+                "event_count": 0,
+                "error": str(e),
+            },
+        )
+    except Exception as e:
+        logger.warning("Audit log count error: %s", e)
+        return jsonify(
+            {
+                "topic": audit_topic,
+                "exists": False,
+                "event_count": 0,
+                "error": str(e),
+            },
+        )
 
 
 # =============================================================================
@@ -817,7 +971,7 @@ def main() -> None:
     logger.info("=" * 60)
     # Bind to all interfaces for Docker/container access (development server)
     # In production, use a proper WSGI server (gunicorn, uwsgi) behind a reverse proxy
-    app.run(host="0.0.0.0", port=5007, debug=False)  # noqa: S104
+    app.run(host="0.0.0.0", port=5007, debug=False)  # noqa: S104  # nosec B104
 
 
 if __name__ == "__main__":

@@ -72,7 +72,7 @@ class PrometheusClient:
         try:
             url = f"{self.base_url}/-/healthy"
             # URL scheme validated in __init__
-            with urlopen(url, timeout=2) as resp:  # noqa: S310
+            with urlopen(url, timeout=2) as resp:  # noqa: S310  # nosec B310
                 self._available = resp.status == 200
         except (URLError, TimeoutError):
             self._available = False
@@ -96,7 +96,7 @@ class PrometheusClient:
         try:
             url = f"{self.base_url}/api/v1/query?{urlencode({'query': promql})}"
             # URL scheme validated in __init__
-            with urlopen(url, timeout=5) as resp:  # noqa: S310
+            with urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
                 data = json.loads(resp.read())
                 return self._parse_instant_response(data)
         except (URLError, TimeoutError, json.JSONDecodeError) as e:
@@ -134,7 +134,7 @@ class PrometheusClient:
             }
             url = f"{self.base_url}/api/v1/query_range?{urlencode(params)}"
             # URL scheme validated in __init__
-            with urlopen(url, timeout=10) as resp:  # noqa: S310
+            with urlopen(url, timeout=10) as resp:  # noqa: S310  # nosec B310
                 data = json.loads(resp.read())
                 return self._parse_range_response(data)
         except (URLError, TimeoutError, json.JSONDecodeError) as e:

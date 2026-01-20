@@ -24,7 +24,7 @@ class ModelInferenceAlgo(Algorithm):
         self._model_path = str(settings.get("model_path", "model.onnx"))
 
     def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
-        score = (hashlib.sha1(image_bytes[:64]).digest()[0] / 255.0) if image_bytes else 0.0
+        score = (hashlib.sha1(image_bytes[:64], usedforsecurity=False).digest()[0] / 255.0) if image_bytes else 0.0  # nosec B324
         return AlgoResult(
             metrics={
                 "score": MetricValue(
