@@ -84,6 +84,9 @@ class EventConsumer:
             "session.timeout.ms": config.consumer_session_timeout_ms,
             "heartbeat.interval.ms": config.consumer_heartbeat_interval_ms,
             "max.poll.interval.ms": config.consumer_max_poll_interval_ms,
+            # Cooperative-sticky: workers keep their partitions during rebalance,
+            # only orphaned partitions get reassigned (prevents stop-the-world)
+            "partition.assignment.strategy": config.consumer_partition_assignment_strategy,
         }
 
         self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]
@@ -436,6 +439,7 @@ class BatchEventConsumer:
             "session.timeout.ms": config.consumer_session_timeout_ms,
             "heartbeat.interval.ms": config.consumer_heartbeat_interval_ms,
             "max.poll.interval.ms": config.consumer_max_poll_interval_ms,
+            "partition.assignment.strategy": config.consumer_partition_assignment_strategy,
         }
 
         self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]

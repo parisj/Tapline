@@ -23,7 +23,6 @@ from src.observability.config import ObservabilityConfig, load_observability_con
 from src.observability.metrics import (
     PIPELINE_UP,
     WORKER_POOL_SIZE,
-    WORKERS_ACTIVE,
     configure_metrics,
     set_build_info,
 )
@@ -103,7 +102,7 @@ def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
     # Set pipeline metrics
     PIPELINE_UP.set(1)
     WORKER_POOL_SIZE.set(cfg.workers_max)
-    WORKERS_ACTIVE.set(0)
+    # Note: WORKERS_ACTIVE is now labeled per worker_id and managed by KafkaWorkerPool
 
     worker_pool.start()
 

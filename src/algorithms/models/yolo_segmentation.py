@@ -41,7 +41,7 @@ class YoloSegmentationAlgo(Algorithm):
     Returns detection counts, class distributions, confidence scores,
     and mask coverage metrics.
 
-    Requires 'ultralytics' package. If not installed, returns error metrics.
+    Requires 'ultralytics' package. Fails fast at initialization if not installed.
     """
 
     _model: Any  # YOLO model instance
@@ -53,19 +53,27 @@ class YoloSegmentationAlgo(Algorithm):
 
     @property
     def name(self) -> str:
-        return "yolo_segmentation"
+        return "model_yolo_segmentation"
 
     @property
     def version(self) -> str:
         return "1.0.0"
 
     def initialize(self, settings: Mapping[str, Any]) -> None:
-        """Initialize YOLO model from settings."""
+        """Initialize YOLO model from settings.
+
+        Raises:
+            RuntimeError: If ultralytics is not installed or model fails to load.
+                         Fail-fast behavior ensures issues are caught at startup.
+
+        """
         if not ULTRALYTICS_AVAILABLE:
-            logger.warning("ultralytics package not installed. Install with: pixi install --environment ml")
-            self._model = None
-            self._model_name = "unavailable"
-            return
+            msg = (
+                "ultralytics package not installed. "
+                "Install with: pixi install --environment ml or pixi install --environment gpu-ml"
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         model_cfg = settings.get("model", {})
         self._model_name = str(model_cfg.get("name", "yolov8n-seg.pt"))
@@ -76,6 +84,7 @@ class YoloSegmentationAlgo(Algorithm):
         algorithm_cfg = settings.get("algorithm", {})
         self._min_detection_count = int(algorithm_cfg.get("min_detection_count", 1))
 
+        # Fail-fast: load model at initialization, not on first job
         try:
             # Load model (downloads automatically if not cached)
             self._model = YOLO(self._model_name)
@@ -88,6 +97,11 @@ class YoloSegmentationAlgo(Algorithm):
             else:
                 device = self._device
 
+            # Validate model is usable by checking it has the expected interface
+            if not hasattr(self._model, "predict") and not callable(self._model):
+                msg = f"YOLO model {self._model_name} is not callable"
+                raise RuntimeError(msg)
+
             logger.info(
                 "YoloSegmentationAlgo initialized: model=%s, device=%s, conf=%.2f, iou=%.2f",
                 self._model_name,
@@ -95,34 +109,17 @@ class YoloSegmentationAlgo(Algorithm):
                 self._confidence_threshold,
                 self._iou_threshold,
             )
-        except Exception:
-            logger.exception("Failed to load YOLO model")
-            self._model = None
+        except Exception as e:
+            msg = f"Failed to load YOLO model '{self._model_name}': {e}"
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
 
     def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
-        """Run YOLO segmentation and return metrics."""
-        # Check if ultralytics is available
-        if not ULTRALYTICS_AVAILABLE or self._model is None:
-            return AlgoResult(
-                metrics={
-                    "detection_count": MetricValue(
-                        value=0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
-                        meta={"error": "ultralytics not installed or model failed to load"},
-                    ),
-                    "detection_passed": MetricValue(
-                        value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
-                        meta={"true_label": "pass", "false_label": "fail"},
-                    ),
-                    "model_name": MetricValue(
-                        value="unavailable",
-                        analysis=AnalysisKind.INFO,
-                        meta={"error": "ultralytics not installed"},
-                    ),
-                },
-            )
+        """Run YOLO segmentation and return metrics.
 
+        Note: Model availability is guaranteed by fail-fast initialization.
+        If we reach run(), the model is ready.
+        """
         # Decode image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)

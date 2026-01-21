@@ -192,7 +192,7 @@ class KafkaWorkerPool:
         )
 
         # Track active workers for metrics
-        WORKERS_ACTIVE.inc()
+        WORKERS_ACTIVE.labels(worker_id=str(worker_id)).inc()
         try:
             # Get dispatch plan
             plan = self._dispatcher.dispatch(job)
@@ -322,7 +322,7 @@ class KafkaWorkerPool:
             )
         finally:
             # Always decrement active workers when done
-            WORKERS_ACTIVE.dec()
+            WORKERS_ACTIVE.labels(worker_id=str(worker_id)).dec()
 
     def _is_slow_job(self, plan: Any) -> bool:
         """Determine if a job is expected to be slow.

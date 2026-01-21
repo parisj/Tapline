@@ -57,5 +57,5 @@ def build_default_registry() -> AlgorithmRegistry:
     reg.register("contour_analysis", "1.0.0", ContourAnalysisAlgo)
     # ML model algorithms
     reg.register("model_inference", "0.1.0", ModelInferenceAlgo)
-    reg.register("yolo_segmentation", "1.0.0", YoloSegmentationAlgo)
+    reg.register("model_yolo_segmentation", "1.0.0", YoloSegmentationAlgo)
     return reg

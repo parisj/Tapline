@@ -35,6 +35,7 @@ class KafkaConfig:
     consumer_session_timeout_ms: int
     consumer_heartbeat_interval_ms: int
     consumer_max_poll_interval_ms: int
+    consumer_partition_assignment_strategy: str  # cooperative-sticky recommended
     # Note: max_poll_records is not supported by librdkafka (confluent-kafka)
 
     # Topic names
@@ -84,6 +85,9 @@ def load_kafka_config(path: Path) -> KafkaConfig:
         consumer_session_timeout_ms=consumer.get("session_timeout_ms", 30000),
         consumer_heartbeat_interval_ms=consumer.get("heartbeat_interval_ms", 10000),
         consumer_max_poll_interval_ms=consumer.get("max_poll_interval_ms", 300000),
+        consumer_partition_assignment_strategy=consumer.get(
+            "partition_assignment_strategy", "cooperative-sticky",
+        ),
         # Topics
         topic_jobs=topics.get("jobs", "visio.jobs"),
         topic_results=topics.get("results", "visio.results"),

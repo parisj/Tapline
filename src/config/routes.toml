@@ -50,7 +50,7 @@ version = "1.0.0"
 settings = "algorithms/contour_analysis.toml"
 
 [route.path7]
-algorithm = "yolo_segmentation"
+algorithm = "model_yolo_segmentation"
 version = "1.0.0"
 settings = "algorithms/yolo_segmentation.toml"
 

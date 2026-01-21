@@ -25,6 +25,7 @@ class MockKafkaConfig:
     consumer_session_timeout_ms: int = 10000
     consumer_heartbeat_interval_ms: int = 3000
     consumer_max_poll_interval_ms: int = 300000
+    consumer_partition_assignment_strategy: str = "cooperative-sticky"
 
 
 class MockMessage:

@@ -20,6 +20,9 @@ enable_auto_commit = false      # Manual commit after processing
 session_timeout_ms = 30000
 heartbeat_interval_ms = 10000
 max_poll_interval_ms = 300000   # 5 min for slow jobs
+# Cooperative-sticky: during rebalance, workers keep their partitions and
+# only orphaned partitions get reassigned. Prevents stop-the-world rebalances.
+partition_assignment_strategy = "cooperative-sticky"
 # Note: max_poll_records is not supported by librdkafka (confluent-kafka)
 # Batch size is controlled via fetch.max.bytes instead
 

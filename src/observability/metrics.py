@@ -175,6 +175,7 @@ PIPELINE_UP = Gauge(
 WORKERS_ACTIVE = Gauge(
     "visioeval_workers_active",
     "Number of active worker threads",
+    ["worker_id"],
 )
 
 WORKER_POOL_SIZE = Gauge(

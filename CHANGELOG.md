@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-worker metrics with `worker_id` label for `WORKERS_ACTIVE` gauge
+- Cooperative-sticky Kafka partition assignment strategy (prevents stop-the-world rebalances)
+- Dashboard now shows per-worker busy/idle status accurately
+
+### Changed
+
+- Renamed `yolo_segmentation` algorithm to `model_yolo_segmentation` (triggers slow-job partition pausing)
+- YOLO algorithm now fails fast at initialization if ultralytics is not installed
+- Algorithm naming convention: `model_` prefix for slow/ML algorithms
+
+### Fixed
+
+- Fixed 94% failure rate in YOLO segmentation under stress testing
+- Fixed Kafka partition rebalance issues causing worker starvation
+- Fixed dashboard worker status display showing incorrect active workers
+
+---
+
 - Claude Code framework with modular documentation
   - Specialized docs in `.claude/docs/`
   - Code standards, testing, security, refactoring guides

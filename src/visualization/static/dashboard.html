@@ -1685,6 +1685,24 @@
     }
   }
 
+  // Returns raw Prometheus response (for multi-label queries like per-worker status)
+  async function prometheusQueryRaw(query) {
+    try {
+      const url = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      CONNECTION_STATUS.prometheus = data.status === 'success';
+      updateConnectionIndicator('prometheus', CONNECTION_STATUS.prometheus);
+      return data;
+    } catch (error) {
+      CONNECTION_STATUS.prometheus = false;
+      updateConnectionIndicator('prometheus', false);
+      console.warn('Prometheus raw query failed:', error.message);
+      return null;
+    }
+  }
+
   async function prometheusRangeQuery(query, start, end, step) {
     try {
       const url = `${CONFIG.apiUrl}/api/prometheus/query_range?query=${encodeURIComponent(query)}&start=${start}&end=${end}&step=${step}`;
@@ -1792,7 +1810,7 @@
       prometheusQuery('sum(visioeval_jobs_failed_total)'),
       prometheusQuery('sum(rate(visioeval_kafka_messages_consumed_total[1m]))'),
       prometheusQuery('histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))'),
-      prometheusQuery('visioeval_workers_active'),
+      prometheusQuery('sum(visioeval_workers_active)'),
       prometheusQuery('visioeval_ingest_queue_size'),
       prometheusQuery('sum(visioeval_kafka_messages_produced_total)'),
       prometheusQuery('sum(visioeval_kafka_messages_consumed_total)'),
@@ -3908,18 +3926,33 @@
       renderNoDataChart('memory-chart', 'Memory metrics not available', 'Memory (GB)');
     }
 
-    // Workers table - use real metrics where available
-    const workersActive = await prometheusQuery('visioeval_workers_active');
+    // Workers table - use per-worker metrics (now labeled by worker_id)
     const workerPoolSize = await prometheusQuery('visioeval_worker_pool_size');
     const jobsCompleted = await prometheusQuery('sum(visioeval_jobs_completed_total)');
 
+    // Query per-worker active status (now has worker_id label)
+    const perWorkerActiveResult = await prometheusQueryRaw('visioeval_workers_active');
+
+    // Parse per-worker status from Prometheus result
+    const workerStatus = {};
+    if (perWorkerActiveResult && perWorkerActiveResult.status === 'success') {
+      const results = perWorkerActiveResult.data?.result || [];
+      for (const r of results) {
+        const workerId = r.metric?.worker_id;
+        const value = parseFloat(r.value?.[1] || 0);
+        if (workerId !== undefined) {
+          workerStatus[workerId] = value > 0;
+        }
+      }
+    }
+
     // Get worker pool size from metrics or use reasonable default
     let numWorkers = workerPoolSize !== null ? Math.round(workerPoolSize) : 0;
-    const activeWorkers = workersActive !== null ? Math.round(workersActive) : 0;
+    const activeWorkerCount = Object.values(workerStatus).filter(v => v).length;
 
-    // If we have activeWorkers but no pool size, infer from active
-    if (numWorkers === 0 && activeWorkers > 0) {
-      numWorkers = Math.max(activeWorkers, 4);  // Assume at least 4 workers if any are active
+    // If we have active workers but no pool size, infer from active
+    if (numWorkers === 0 && activeWorkerCount > 0) {
+      numWorkers = Math.max(activeWorkerCount, Object.keys(workerStatus).length, 4);
     }
 
     if (numWorkers === 0 && !CONNECTION_STATUS.prometheus) {
@@ -3943,8 +3976,9 @@
       const workers = [];
       const jobsPerWorker = jobsCompleted !== null && numWorkers > 0 ? Math.round(jobsCompleted / numWorkers) : 0;
 
-      for (let i = 1; i <= numWorkers; i++) {
-        const isActive = i <= activeWorkers;
+      for (let i = 0; i < numWorkers; i++) {
+        // Check per-worker status from Prometheus labels
+        const isActive = workerStatus[String(i)] === true;
         workers.push({
           id: `worker-${i}`,
           status: isActive ? 'busy' : 'idle',

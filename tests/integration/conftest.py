@@ -113,6 +113,7 @@ def kafka_producer(test_config: TestConfig, kafka_available: bool):
         consumer_session_timeout_ms=30000,
         consumer_heartbeat_interval_ms=10000,
         consumer_max_poll_interval_ms=300000,
+        consumer_partition_assignment_strategy="cooperative-sticky",
         topic_jobs="test.jobs",
         topic_results="test.results",
         topic_metrics="test.metrics",
