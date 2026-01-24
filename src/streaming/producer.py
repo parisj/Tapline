@@ -23,6 +23,8 @@ from src.utils.logging import get_logger
 if TYPE_CHECKING:
     from src.streaming.config import KafkaConfig
 
+from src.streaming.config import build_security_config
+
 logger = get_logger(__name__)
 
 # Import observability components
@@ -134,6 +136,10 @@ class EventProducer:
             "compression.type": config.producer_compression_type,
             "enable.idempotence": config.producer_enable_idempotence,
         }
+
+        # Add security config (TLS/SASL) and connection timeouts
+        security_config = build_security_config(config)
+        producer_config.update(security_config)
 
         self._producer = Producer(producer_config)  # type: ignore[arg-type]
         self._closed = False

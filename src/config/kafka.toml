@@ -25,6 +25,9 @@ max_poll_interval_ms = 300000   # 5 min for slow jobs
 partition_assignment_strategy = "cooperative-sticky"
 # Note: max_poll_records is not supported by librdkafka (confluent-kafka)
 # Batch size is controlled via fetch.max.bytes instead
+# Connection timeouts
+socket_timeout_ms = 30000
+socket_connection_setup_timeout_ms = 10000
 
 [topics]
 # Job lifecycle events (partitioned by source_id for ordering)
@@ -49,3 +52,19 @@ aggregates_partitions = 16
 
 [schema_registry]
 url = "http://localhost:8085"
+
+# Security settings (TLS/SASL)
+# Uncomment and configure for production deployments
+[security]
+# protocol options: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+protocol = "PLAINTEXT"
+# SSL settings (for SSL and SASL_SSL protocols)
+# ssl_ca_location = "/path/to/ca.pem"
+# ssl_certificate_location = "/path/to/client.pem"
+# ssl_key_location = "/path/to/client.key"
+# ssl_key_password = ""
+# SASL settings (for SASL_PLAINTEXT and SASL_SSL protocols)
+# sasl_mechanism options: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, OAUTHBEARER
+# sasl_mechanism = "PLAIN"
+# sasl_username = ""
+# sasl_password = ""

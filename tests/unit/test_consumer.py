@@ -26,6 +26,18 @@ class MockKafkaConfig:
     consumer_heartbeat_interval_ms: int = 3000
     consumer_max_poll_interval_ms: int = 300000
     consumer_partition_assignment_strategy: str = "cooperative-sticky"
+    # Security fields
+    security_protocol: str = "PLAINTEXT"
+    ssl_ca_location: str | None = None
+    ssl_certificate_location: str | None = None
+    ssl_key_location: str | None = None
+    ssl_key_password: str | None = None
+    sasl_mechanism: str | None = None
+    sasl_username: str | None = None
+    sasl_password: str | None = None
+    # Connection timeouts
+    socket_timeout_ms: int = 30000
+    socket_connection_setup_timeout_ms: int = 10000
 
 
 class MockMessage:

@@ -36,6 +36,10 @@ class RuntimeConfig:
     workers_max: int
     evaluation_interval_sec: float
     directories: dict[str, Path]
+    # Performance tuning
+    commit_batch_size: int  # Commit offsets after N messages (1 = per-message)
+    io_workers: int  # Number of I/O threads for file reads (0 = sync)
+    artifact_upload_workers: int  # Threads for parallel artifact uploads (0 = sequential)
 
 
 def load_runtime_config(path: Path) -> RuntimeConfig:
@@ -58,6 +62,17 @@ def load_runtime_config(path: Path) -> RuntimeConfig:
 
     # workers (auto policy)
     workers_max = _parse_workers_max(workers)
+    commit_batch_size = int(workers.get("commit_batch_size", 10))
+    io_workers = int(workers.get("io_workers", 4))
+    artifact_upload_workers = int(workers.get("artifact_upload_workers", 4))
+
+    # Validate performance tuning values
+    if commit_batch_size < 1:
+        commit_batch_size = 1
+    if io_workers < 0:
+        io_workers = 0
+    if artifact_upload_workers < 0:
+        artifact_upload_workers = 0
 
     # evaluation
     eval_interval = _require_float(evaluation, "interval_sec")
@@ -76,6 +91,9 @@ def load_runtime_config(path: Path) -> RuntimeConfig:
         workers_max=workers_max,
         evaluation_interval_sec=eval_interval,
         directories=dirs,
+        commit_batch_size=commit_batch_size,
+        io_workers=io_workers,
+        artifact_upload_workers=artifact_upload_workers,
     )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.config.base import get_section, load_toml
 
@@ -55,6 +55,20 @@ class KafkaConfig:
     # Schema registry
     schema_registry_url: str
 
+    # Security settings (TLS/SASL)
+    security_protocol: str  # PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+    ssl_ca_location: str | None  # Path to CA certificate
+    ssl_certificate_location: str | None  # Path to client certificate
+    ssl_key_location: str | None  # Path to client private key
+    ssl_key_password: str | None  # Password for private key (if encrypted)
+    sasl_mechanism: str | None  # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, OAUTHBEARER
+    sasl_username: str | None  # SASL username
+    sasl_password: str | None  # SASL password
+
+    # Connection settings
+    socket_timeout_ms: int  # Socket timeout in milliseconds
+    socket_connection_setup_timeout_ms: int  # Connection setup timeout
+
 
 def load_kafka_config(path: Path) -> KafkaConfig:
     """Load Kafka configuration from TOML file."""
@@ -65,6 +79,11 @@ def load_kafka_config(path: Path) -> KafkaConfig:
     consumer = get_section(doc, "consumer")
     topics = get_section(doc, "topics")
     schema_registry = get_section(doc, "schema_registry")
+
+    # Security section is optional
+    security = doc.get("security", {})
+    if not isinstance(security, dict):
+        security = {}
 
     return KafkaConfig(
         # Broker
@@ -86,7 +105,8 @@ def load_kafka_config(path: Path) -> KafkaConfig:
         consumer_heartbeat_interval_ms=consumer.get("heartbeat_interval_ms", 10000),
         consumer_max_poll_interval_ms=consumer.get("max_poll_interval_ms", 300000),
         consumer_partition_assignment_strategy=consumer.get(
-            "partition_assignment_strategy", "cooperative-sticky",
+            "partition_assignment_strategy",
+            "cooperative-sticky",
         ),
         # Topics
         topic_jobs=topics.get("jobs", "visio.jobs"),
@@ -102,4 +122,61 @@ def load_kafka_config(path: Path) -> KafkaConfig:
         aggregates_partitions=topics.get("aggregates_partitions", 16),
         # Schema Registry
         schema_registry_url=schema_registry.get("url", "http://localhost:8085"),
+        # Security (TLS/SASL)
+        security_protocol=security.get("protocol", "PLAINTEXT"),
+        ssl_ca_location=security.get("ssl_ca_location"),
+        ssl_certificate_location=security.get("ssl_certificate_location"),
+        ssl_key_location=security.get("ssl_key_location"),
+        ssl_key_password=security.get("ssl_key_password"),
+        sasl_mechanism=security.get("sasl_mechanism"),
+        sasl_username=security.get("sasl_username"),
+        sasl_password=security.get("sasl_password"),
+        # Connection settings
+        socket_timeout_ms=consumer.get("socket_timeout_ms", 30000),
+        socket_connection_setup_timeout_ms=consumer.get(
+            "socket_connection_setup_timeout_ms",
+            10000,
+        ),
     )
+
+
+def build_security_config(config: KafkaConfig) -> dict[str, Any]:
+    """Build security configuration dict for Kafka clients.
+
+    This creates the security-related config entries needed by
+    confluent-kafka Producer and Consumer instances.
+
+    Args:
+        config: KafkaConfig instance
+
+    Returns:
+        Dict with security config entries (empty if PLAINTEXT)
+
+    """
+    security_config: dict[str, Any] = {
+        "security.protocol": config.security_protocol,
+        "socket.timeout.ms": config.socket_timeout_ms,
+        "socket.connection.setup.timeout.ms": config.socket_connection_setup_timeout_ms,
+    }
+
+    # SSL settings (for SSL and SASL_SSL protocols)
+    if config.security_protocol in ("SSL", "SASL_SSL"):
+        if config.ssl_ca_location:
+            security_config["ssl.ca.location"] = config.ssl_ca_location
+        if config.ssl_certificate_location:
+            security_config["ssl.certificate.location"] = config.ssl_certificate_location
+        if config.ssl_key_location:
+            security_config["ssl.key.location"] = config.ssl_key_location
+        if config.ssl_key_password:
+            security_config["ssl.key.password"] = config.ssl_key_password
+
+    # SASL settings (for SASL_PLAINTEXT and SASL_SSL protocols)
+    if config.security_protocol in ("SASL_PLAINTEXT", "SASL_SSL"):
+        if config.sasl_mechanism:
+            security_config["sasl.mechanism"] = config.sasl_mechanism
+        if config.sasl_username:
+            security_config["sasl.username"] = config.sasl_username
+        if config.sasl_password:
+            security_config["sasl.password"] = config.sasl_password
+
+    return security_config

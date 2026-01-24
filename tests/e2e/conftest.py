@@ -156,6 +156,18 @@ def kafka_config(e2e_config: E2ETestConfig):
         audit_log_partitions=1,
         aggregates_partitions=16,
         schema_registry_url="http://localhost:8085",
+        # Security settings (PLAINTEXT for local testing)
+        security_protocol="PLAINTEXT",
+        ssl_ca_location=None,
+        ssl_certificate_location=None,
+        ssl_key_location=None,
+        ssl_key_password=None,
+        sasl_mechanism=None,
+        sasl_username=None,
+        sasl_password=None,
+        # Connection timeouts
+        socket_timeout_ms=30000,
+        socket_connection_setup_timeout_ms=10000,
     )
 
 
@@ -181,4 +193,45 @@ def minio_config(e2e_config: E2ETestConfig):
         artifacts_retention_days=0,
         inputs_retention_days=30,
         aggregates_retention_days=90,
+        # Connection timeouts
+        connect_timeout=10.0,
+        read_timeout=30.0,
     )
+
+
+@pytest.fixture
+def minio_storage(minio_config, skip_without_infrastructure):
+    """Create MinioStorageService for E2E tests."""
+    from src.storage.minio_service import MinioStorageService
+
+    storage = MinioStorageService(minio_config)
+    yield storage
+
+
+@pytest.fixture
+def event_producer(kafka_config, skip_without_infrastructure):
+    """Create EventProducer for E2E tests."""
+    from src.streaming.producer import EventProducer
+
+    producer = EventProducer(kafka_config)
+    yield producer
+    producer.close()
+
+
+@pytest.fixture
+def dashboard_available(e2e_config: E2ETestConfig) -> bool:
+    """Check if the dashboard API is available."""
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen("http://localhost:5007/api/health", timeout=2):
+            return True
+    except Exception:
+        return False
+
+
+@pytest.fixture
+def skip_without_dashboard(dashboard_available: bool) -> None:
+    """Skip test if dashboard is not available."""
+    if not dashboard_available:
+        pytest.skip("Dashboard API not available at localhost:5007")

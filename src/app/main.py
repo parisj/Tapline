@@ -82,6 +82,9 @@ def build_app(
         storage=storage,
         producer=producer,
         max_workers=cfg.workers_max,
+        commit_batch_size=cfg.commit_batch_size,
+        io_workers=cfg.io_workers,
+        artifact_upload_workers=cfg.artifact_upload_workers,
     )
 
     return observer, worker_pool, producer, storage

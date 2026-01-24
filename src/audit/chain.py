@@ -4,6 +4,7 @@ This module provides:
 - Per-partition hash chain tracking for event ordering
 - Chain verification for tamper detection
 - Signature provider interface for future PKI integration
+- Persistent chain state for restart recovery
 
 The hash chain creates a cryptographic link between events:
     event_n.prev_hash = event_{n-1}.content_hash
@@ -17,8 +18,10 @@ This allows verification that:
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
-from dataclasses import dataclass
+import time
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from src.domain.events import compute_content_hash
@@ -26,6 +29,7 @@ from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from src.domain.events import EventEnvelope
+    from src.storage.minio_service import MinioStorageService
 
 logger = get_logger(__name__)
 
@@ -306,3 +310,112 @@ def compute_event_hash(payload: dict, prev_hash: str | None) -> str:
     content_hash = compute_content_hash(payload)
     chain_data = content_hash + (prev_hash or "")
     return hashlib.sha256(chain_data.encode()).hexdigest()
+
+
+class PersistentHashChainTracker(HashChainTracker):
+    """Hash chain tracker with MinIO-backed persistence.
+
+    Extends HashChainTracker to persist chain state to MinIO,
+    allowing recovery after restarts.
+
+    State is saved with debouncing to avoid excessive writes.
+    """
+
+    def __init__(
+        self,
+        storage: MinioStorageService,
+        bucket: str = "aggregates",
+        state_key: str = "audit/chain_state.json",
+        save_debounce_sec: float = 5.0,
+    ) -> None:
+        """Initialize persistent hash chain tracker.
+
+        Args:
+            storage: MinIO storage service instance
+            bucket: Bucket for storing chain state
+            state_key: Key for state JSON file
+            save_debounce_sec: Minimum seconds between saves
+
+        """
+        super().__init__()
+        self._storage = storage
+        self._bucket = bucket
+        self._state_key = state_key
+        self._save_debounce_sec = save_debounce_sec
+        self._last_save_time = 0.0
+        self._pending_save = False
+        self._save_lock = threading.Lock()
+
+        # Load existing state on initialization
+        self._load_state()
+
+    def _load_state(self) -> None:
+        """Load chain state from MinIO."""
+        try:
+            data = self._storage.retrieve_by_key(self._bucket, self._state_key)
+            if data:
+                state_dict = json.loads(data.decode("utf-8"))
+                with self._lock:
+                    for partition_id, state_data in state_dict.items():
+                        self._chains[partition_id] = ChainState(
+                            partition_id=partition_id,
+                            last_hash=state_data.get("last_hash"),
+                            event_count=state_data.get("event_count", 0),
+                        )
+                logger.info(
+                    "Loaded chain state from MinIO: %d partitions",
+                    len(self._chains),
+                )
+        except FileNotFoundError:
+            logger.info("No existing chain state found, starting fresh")
+        except Exception as e:
+            logger.warning("Failed to load chain state: %s", e)
+
+    def _save_state(self) -> None:
+        """Save chain state to MinIO (debounced)."""
+        with self._save_lock:
+            now = time.time()
+            if now - self._last_save_time < self._save_debounce_sec:
+                self._pending_save = True
+                return
+
+            self._do_save()
+            self._last_save_time = now
+            self._pending_save = False
+
+    def _do_save(self) -> None:
+        """Actually save state to MinIO."""
+        try:
+            with self._lock:
+                state_dict = {
+                    pid: asdict(state) for pid, state in self._chains.items()
+                }
+            data = json.dumps(state_dict, indent=2).encode("utf-8")
+            self._storage.store_with_key(
+                data=data,
+                bucket=self._bucket,
+                key=self._state_key,
+                mime="application/json",
+            )
+            logger.debug("Saved chain state to MinIO: %d partitions", len(state_dict))
+        except Exception as e:
+            logger.warning("Failed to save chain state: %s", e)
+
+    def update(self, partition_id: str, content_hash: str) -> None:
+        """Update chain state and persist.
+
+        Args:
+            partition_id: Partition identifier
+            content_hash: Hash of the newly persisted event
+
+        """
+        super().update(partition_id, content_hash)
+        self._save_state()
+
+    def flush(self) -> None:
+        """Force save any pending state."""
+        with self._save_lock:
+            if self._pending_save:
+                self._do_save()
+                self._pending_save = False
+                self._last_save_time = time.time()

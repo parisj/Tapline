@@ -59,6 +59,16 @@ class TestKafkaConfig:
             audit_log_partitions=1,
             aggregates_partitions=16,
             schema_registry_url="http://localhost:8085",
+            security_protocol="PLAINTEXT",
+            ssl_ca_location=None,
+            ssl_certificate_location=None,
+            ssl_key_location=None,
+            ssl_key_password=None,
+            sasl_mechanism=None,
+            sasl_username=None,
+            sasl_password=None,
+            socket_timeout_ms=30000,
+            socket_connection_setup_timeout_ms=10000,
         )
 
         assert config.bootstrap_servers == "localhost:9092"
@@ -67,6 +77,8 @@ class TestKafkaConfig:
         assert config.producer_enable_idempotence is True
         assert config.consumer_group_id == "test-group"
         assert config.topic_jobs == "visio.jobs"
+        assert config.security_protocol == "PLAINTEXT"
+        assert config.socket_timeout_ms == 30000
 
     def test_kafka_config_is_frozen(self) -> None:
         config = KafkaConfig(
@@ -97,6 +109,16 @@ class TestKafkaConfig:
             audit_log_partitions=1,
             aggregates_partitions=16,
             schema_registry_url="http://localhost:8085",
+            security_protocol="PLAINTEXT",
+            ssl_ca_location=None,
+            ssl_certificate_location=None,
+            ssl_key_location=None,
+            ssl_key_password=None,
+            sasl_mechanism=None,
+            sasl_username=None,
+            sasl_password=None,
+            socket_timeout_ms=30000,
+            socket_connection_setup_timeout_ms=10000,
         )
 
         with pytest.raises(AttributeError):

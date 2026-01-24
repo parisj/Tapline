@@ -40,6 +40,10 @@ class MinioConfig:
     inputs_retention_days: int
     aggregates_retention_days: int
 
+    # Connection timeouts (in seconds)
+    connect_timeout: float
+    read_timeout: float
+
 
 def load_minio_config(path: Path) -> MinioConfig:
     """Load MinIO configuration from TOML file."""
@@ -82,4 +86,7 @@ def load_minio_config(path: Path) -> MinioConfig:
         artifacts_retention_days=lifecycle.get("artifacts_retention_days", 0),
         inputs_retention_days=lifecycle.get("inputs_retention_days", 30),
         aggregates_retention_days=lifecycle.get("aggregates_retention_days", 90),
+        # Connection timeouts
+        connect_timeout=float(connection.get("connect_timeout", 10.0)),
+        read_timeout=float(connection.get("read_timeout", 30.0)),
     )

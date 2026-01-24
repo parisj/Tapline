@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import urllib3
 from minio import Minio
 from minio.error import S3Error
 
@@ -25,6 +26,28 @@ if TYPE_CHECKING:
     from src.storage.config import MinioConfig
 
 logger = get_logger(__name__)
+
+
+def _build_http_client(connect_timeout: float, read_timeout: float) -> urllib3.PoolManager:
+    """Build an HTTP client with custom timeouts.
+
+    Args:
+        connect_timeout: Connection timeout in seconds
+        read_timeout: Read timeout in seconds
+
+    Returns:
+        Configured urllib3 PoolManager
+
+    """
+    return urllib3.PoolManager(
+        timeout=urllib3.Timeout(connect=connect_timeout, read=read_timeout),
+        maxsize=10,
+        retries=urllib3.Retry(
+            total=3,
+            backoff_factor=0.2,
+            status_forcelist=[500, 502, 503, 504],
+        ),
+    )
 
 
 class MinioStorageService:
@@ -45,18 +68,28 @@ class MinioStorageService:
 
     def __init__(self, config: MinioConfig) -> None:
         self._config = config
+
+        # Build HTTP client with custom timeouts
+        http_client = _build_http_client(
+            connect_timeout=config.connect_timeout,
+            read_timeout=config.read_timeout,
+        )
+
         self._client = Minio(
             endpoint=config.endpoint,
             access_key=config.access_key,
             secret_key=config.secret_key,
             secure=config.secure,
             region=config.region,
+            http_client=http_client,
         )
         self._ensure_buckets()
 
         logger.info(
-            "MinioStorageService initialized: endpoint=%s",
+            "MinioStorageService initialized: endpoint=%s, connect_timeout=%.1fs, read_timeout=%.1fs",
             config.endpoint,
+            config.connect_timeout,
+            config.read_timeout,
         )
 
     def _ensure_buckets(self) -> None:

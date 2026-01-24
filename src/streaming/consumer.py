@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 
     from src.streaming.config import KafkaConfig
 
+from src.streaming.config import build_security_config
+
 logger = get_logger(__name__)
 
 _OBSERVABILITY_AVAILABLE = _obs_available()
@@ -88,6 +90,10 @@ class EventConsumer:
             # only orphaned partitions get reassigned (prevents stop-the-world)
             "partition.assignment.strategy": config.consumer_partition_assignment_strategy,
         }
+
+        # Add security config (TLS/SASL) and connection timeouts
+        security_config = build_security_config(config)
+        consumer_config.update(security_config)
 
         self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]
         self._consumer.subscribe(topics, on_assign=self._on_assign, on_revoke=self._on_revoke)
@@ -167,6 +173,13 @@ class EventConsumer:
                     "Reached end of partition: topic=%s, partition=%s",
                     polled_msg.topic(),
                     polled_msg.partition(),
+                )
+                return None
+            # Handle unknown topic/partition gracefully - topic may not exist yet
+            if error.code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                logger.warning(
+                    "Topic not available yet: %s (will retry)",
+                    polled_msg.topic() or "unknown",
                 )
                 return None
             self._errors += 1
@@ -441,6 +454,10 @@ class BatchEventConsumer:
             "max.poll.interval.ms": config.consumer_max_poll_interval_ms,
             "partition.assignment.strategy": config.consumer_partition_assignment_strategy,
         }
+
+        # Add security config (TLS/SASL) and connection timeouts
+        security_config = build_security_config(config)
+        consumer_config.update(security_config)
 
         self._consumer = Consumer(consumer_config)  # type: ignore[arg-type]
         self._consumer.subscribe(topics)

@@ -1095,9 +1095,11 @@
                 <th>Algorithm</th>
                 <th>Version</th>
                 <th>Status</th>
-                <th>Jobs Processed</th>
+                <th>Jobs</th>
                 <th>Success Rate</th>
                 <th>Avg Duration</th>
+                <th>Min</th>
+                <th>Max</th>
               </tr>
             </thead>
             <tbody id="algorithm-table-body">
@@ -1257,6 +1259,38 @@
             <h3 class="card-title">Bucket Usage</h3>
           </div>
           <div id="storage-chart" class="chart-container"></div>
+        </div>
+
+        <!-- Artifact Browser -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Artifact Browser</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="artifact-bucket-select" class="form-control" style="width: 150px; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 6px;">
+                <option value="artifacts">artifacts</option>
+                <option value="inputs">inputs</option>
+                <option value="aggregates">aggregates</option>
+              </select>
+              <button onclick="loadArtifacts()" class="btn" style="background: var(--accent-primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div id="artifacts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; padding: 16px;">
+            <div style="color: var(--text-muted); text-align: center; grid-column: 1 / -1;">
+              Select a bucket and click Refresh to browse artifacts
+            </div>
+          </div>
+        </div>
+
+        <!-- Artifact Preview Modal -->
+        <div id="artifact-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+          <div style="background: var(--bg-card); border-radius: 12px; max-width: 90vw; max-height: 90vh; overflow: auto; position: relative;">
+            <button onclick="closeArtifactModal()" style="position: absolute; top: 10px; right: 10px; background: var(--bg-surface); color: var(--text-primary); border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px;">×</button>
+            <div id="artifact-modal-content" style="padding: 20px;">
+              <!-- Content loaded dynamically -->
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2187,20 +2221,23 @@
 
       const minioMetrics = await fetchMinioMetrics(filters);
       if (minioMetrics && minioMetrics.metrics) {
-        metrics = minioMetrics.metrics.map(m => ({
-          name: m.metric_name,
-          algo: m.algo_name,
-          version: m.algo_version,
-          type: m.analysis_kinds && m.analysis_kinds.length > 0 ? m.analysis_kinds[0] : getAnalysisType(m.analysis_mask),
-          allTypes: m.analysis_kinds || [],
-          count: m.count || 0,
-          avg: m.avg,
-          min: m.min,
-          max: m.max,
-          std: m.std,
-          hasArtifacts: !!m.artifact_key,
-          source: 'minio'
-        }));
+        metrics = minioMetrics.metrics
+          // Filter out job_duration_ms as it's now shown in Algorithms tab
+          .filter(m => m.metric_name !== 'job_duration_ms')
+          .map(m => ({
+            name: m.metric_name,
+            algo: m.algo_name,
+            version: m.algo_version,
+            type: m.analysis_kinds && m.analysis_kinds.length > 0 ? m.analysis_kinds[0] : getAnalysisType(m.analysis_mask),
+            allTypes: m.analysis_kinds || [],
+            count: m.count || 0,
+            avg: m.avg,
+            min: m.min,
+            max: m.max,
+            std: m.std,
+            hasArtifacts: !!m.artifact_key,
+            source: 'minio'
+          }));
       }
 
       // Get directories and algorithms from MinIO (only once, not on filter)
@@ -3765,10 +3802,25 @@
       const failedResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(failedQuery)}`);
       const failedData = await failedResp.json();
 
-      // Get average duration per algorithm
-      const durationQuery = 'histogram_quantile(0.5, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le, algo_name))';
-      const durationResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationQuery)}`);
-      const durationData = await durationResp.json();
+      // Get duration sum per algorithm (for calculating average)
+      const durationSumQuery = 'sum(visioeval_job_duration_seconds_sum) by (algo_name)';
+      const durationSumResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationSumQuery)}`);
+      const durationSumData = await durationSumResp.json();
+
+      // Get duration count per algorithm
+      const durationCountQuery = 'sum(visioeval_job_duration_seconds_count) by (algo_name)';
+      const durationCountResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationCountQuery)}`);
+      const durationCountData = await durationCountResp.json();
+
+      // Get min duration (approximate from histogram)
+      const durationMinQuery = 'histogram_quantile(0.01, sum(visioeval_job_duration_seconds_bucket) by (le, algo_name))';
+      const durationMinResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationMinQuery)}`);
+      const durationMinData = await durationMinResp.json();
+
+      // Get max duration (approximate from histogram)
+      const durationMaxQuery = 'histogram_quantile(0.99, sum(visioeval_job_duration_seconds_bucket) by (le, algo_name))';
+      const durationMaxResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationMaxQuery)}`);
+      const durationMaxData = await durationMaxResp.json();
 
       // Build algorithm map
       const algoMap = new Map();
@@ -3783,7 +3835,9 @@
             version,
             jobs: Math.round(parseFloat(result.value[1])) || 0,
             failed: 0,
-            duration: '-',
+            durationAvg: '-',
+            durationMin: '-',
+            durationMax: '-',
             status: 'active'
           });
         }
@@ -3800,15 +3854,57 @@
         }
       }
 
-      if (durationData.status === 'success' && durationData.data && durationData.data.result) {
-        for (const result of durationData.data.result) {
+      // Build duration stats map by algo_name
+      const durationStats = new Map();
+
+      if (durationSumData.status === 'success' && durationSumData.data && durationSumData.data.result) {
+        for (const result of durationSumData.data.result) {
           const name = result.metric.algo_name || 'unknown';
-          // Find matching algo (version might not be in duration metric)
-          for (const [key, algo] of algoMap) {
-            if (key.startsWith(name + ':')) {
-              const durationMs = parseFloat(result.value[1]) * 1000;
-              algo.duration = isNaN(durationMs) ? '-' : Math.round(durationMs) + 'ms';
-            }
+          if (!durationStats.has(name)) durationStats.set(name, {});
+          durationStats.get(name).sum = parseFloat(result.value[1]);
+        }
+      }
+
+      if (durationCountData.status === 'success' && durationCountData.data && durationCountData.data.result) {
+        for (const result of durationCountData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          if (!durationStats.has(name)) durationStats.set(name, {});
+          durationStats.get(name).count = parseFloat(result.value[1]);
+        }
+      }
+
+      if (durationMinData.status === 'success' && durationMinData.data && durationMinData.data.result) {
+        for (const result of durationMinData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          if (!durationStats.has(name)) durationStats.set(name, {});
+          durationStats.get(name).min = parseFloat(result.value[1]);
+        }
+      }
+
+      if (durationMaxData.status === 'success' && durationMaxData.data && durationMaxData.data.result) {
+        for (const result of durationMaxData.data.result) {
+          const name = result.metric.algo_name || 'unknown';
+          if (!durationStats.has(name)) durationStats.set(name, {});
+          durationStats.get(name).max = parseFloat(result.value[1]);
+        }
+      }
+
+      // Apply duration stats to algorithms
+      for (const [key, algo] of algoMap) {
+        const stats = durationStats.get(algo.name);
+        if (stats) {
+          // Calculate average: sum / count (convert to ms)
+          if (stats.sum !== undefined && stats.count !== undefined && stats.count > 0) {
+            const avgMs = (stats.sum / stats.count) * 1000;
+            algo.durationAvg = Math.round(avgMs) + 'ms';
+          }
+          // Min duration (convert to ms)
+          if (stats.min !== undefined && !isNaN(stats.min) && isFinite(stats.min)) {
+            algo.durationMin = Math.round(stats.min * 1000) + 'ms';
+          }
+          // Max duration (convert to ms)
+          if (stats.max !== undefined && !isNaN(stats.max) && isFinite(stats.max)) {
+            algo.durationMax = Math.round(stats.max * 1000) + 'ms';
           }
         }
       }
@@ -3831,6 +3927,7 @@
           // Get MinIO metrics to estimate jobs per algorithm (refresh to get latest)
           const minioMetrics = await fetchMinioMetrics({refresh: true});
           const algoJobCounts = {};
+          const algoDurations = {};
 
           if (minioMetrics && minioMetrics.metrics) {
             for (const m of minioMetrics.metrics) {
@@ -3844,12 +3941,22 @@
               if (m.count && m.count > 0) {
                 algoJobCounts[key].jobs = Math.max(algoJobCounts[key].jobs, m.count);
               }
+              // Extract job_duration_ms metrics
+              if (m.metric_name === 'job_duration_ms' && m.avg !== null) {
+                algoDurations[key] = {
+                  avg: m.avg,
+                  min: m.min,
+                  max: m.max,
+                  count: m.count
+                };
+              }
             }
           }
 
           algos = algosData.algorithms.map(a => {
             const key = `${a.name}|${a.version}`;
             const stats = algoJobCounts[key] || { jobs: 0, metricCount: 0 };
+            const duration = algoDurations[key];
             // Estimate jobs from metric count (each job produces multiple metrics)
             const estimatedJobs = stats.jobs > 0 ? stats.jobs : Math.ceil(stats.metricCount / 5);
             return {
@@ -3858,7 +3965,9 @@
               status: estimatedJobs > 0 ? 'active' : 'inactive',
               jobs: estimatedJobs,
               success: estimatedJobs > 0 ? 100 : 0,  // Assume 100% if we have data (no failure info)
-              duration: '-'
+              durationAvg: duration ? Math.round(duration.avg) + 'ms' : '-',
+              durationMin: duration && duration.min !== null ? Math.round(duration.min) + 'ms' : '-',
+              durationMax: duration && duration.max !== null ? Math.round(duration.max) + 'ms' : '-'
             };
           });
         }
@@ -3890,7 +3999,9 @@
         <td><span class="metric-badge ${a.status === 'active' ? 'badge-counter' : 'badge-rate'}">${a.status}</span></td>
         <td class="metric-value">${formatNumber(a.jobs)}</td>
         <td style="color: ${a.success >= 95 ? 'var(--accent-success)' : a.success >= 90 ? 'var(--accent-warning)' : 'var(--accent-error)'};">${a.success.toFixed(1)}%</td>
-        <td class="metric-value">${a.duration}</td>
+        <td class="metric-value">${a.durationAvg}</td>
+        <td class="metric-value">${a.durationMin}</td>
+        <td class="metric-value">${a.durationMax}</td>
       </tr>
     `).join('');
   }
@@ -4162,6 +4273,150 @@
       Plotly.newPlot('storage-chart', [trace], layout, {responsive: true, displayModeBar: false});
     }
   }
+
+  // Artifact Browser Functions
+  async function loadArtifacts() {
+    const bucket = document.getElementById('artifact-bucket-select').value;
+    const grid = document.getElementById('artifacts-grid');
+
+    grid.innerHTML = '<div style="color: var(--text-muted); text-align: center; grid-column: 1 / -1;">Loading artifacts...</div>';
+
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/artifacts?bucket=${bucket}&limit=50`);
+      const data = await resp.json();
+
+      if (!data.objects || data.objects.length === 0) {
+        grid.innerHTML = '<div style="color: var(--text-muted); text-align: center; grid-column: 1 / -1;">No artifacts found in this bucket</div>';
+        return;
+      }
+
+      grid.innerHTML = data.objects.map(obj => {
+        const key = obj.key;
+        const size = obj.size ? formatBytes(obj.size) : 'N/A';
+        const isPossibleImage = key.endsWith('.png') || key.endsWith('.jpg') || key.endsWith('.jpeg');
+
+        return `
+          <div class="artifact-card" onclick="viewArtifact('${bucket}', '${key}')" style="
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+          " onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              ${isPossibleImage ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" stroke-width="2" style="width: 20px; height: 20px;">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+              ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-info)" stroke-width="2" style="width: 20px; height: 20px;">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                  <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+              `}
+              <span style="font-size: 11px; color: var(--text-muted);">${size}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-primary); word-break: break-all; line-height: 1.4;">
+              ${key.split('/').pop() || key}
+            </div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+              ${key.substring(0, 40)}${key.length > 40 ? '...' : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      grid.innerHTML = `<div style="color: var(--accent-error); text-align: center; grid-column: 1 / -1;">Error loading artifacts: ${e.message}</div>`;
+    }
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  async function viewArtifact(bucket, key) {
+    const modal = document.getElementById('artifact-modal');
+    const content = document.getElementById('artifact-modal-content');
+
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="color: var(--text-muted); padding: 40px; text-align: center;">Loading artifact...</div>';
+
+    try {
+      const resp = await fetch(`${CONFIG.apiUrl}/api/artifact/${bucket}/${key}`);
+      const data = await resp.json();
+
+      if (data.error) {
+        content.innerHTML = `<div style="color: var(--accent-error); padding: 40px;">${data.error}</div>`;
+        return;
+      }
+
+      const artifactContent = data.content;
+      const metadata = data.metadata || {};
+
+      let html = `
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+            ${key.split('/').pop() || key}
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            Bucket: ${bucket} | Size: ${formatBytes(artifactContent.size || 0)} | Type: ${artifactContent.mime || 'unknown'}
+          </div>
+          ${Object.keys(metadata).length > 0 ? `
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+              Metadata: ${JSON.stringify(metadata)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      if (artifactContent.type === 'image') {
+        html += `
+          <div style="text-align: center;">
+            <img src="data:${artifactContent.mime};base64,${artifactContent.data_base64}"
+                 style="max-width: 100%; max-height: 70vh; border-radius: 8px; border: 1px solid var(--border-color);"
+                 alt="${key}">
+          </div>
+        `;
+      } else if (artifactContent.type === 'json') {
+        html += `
+          <div style="background: var(--bg-surface); border-radius: 8px; padding: 16px; overflow: auto; max-height: 60vh;">
+            <pre style="margin: 0; font-size: 12px; color: var(--text-primary); white-space: pre-wrap;">${JSON.stringify(artifactContent.data, null, 2)}</pre>
+          </div>
+        `;
+      } else {
+        html += `
+          <div style="background: var(--bg-surface); border-radius: 8px; padding: 16px; text-align: center; color: var(--text-muted);">
+            Binary file (${formatBytes(artifactContent.size || 0)})<br>
+            <a href="${CONFIG.apiUrl}/api/artifact/${bucket}/${key}?raw=true"
+               target="_blank"
+               style="color: var(--accent-primary); text-decoration: none; margin-top: 8px; display: inline-block;">
+              Download Raw File
+            </a>
+          </div>
+        `;
+      }
+
+      content.innerHTML = html;
+    } catch (e) {
+      content.innerHTML = `<div style="color: var(--accent-error); padding: 40px;">Error: ${e.message}</div>`;
+    }
+  }
+
+  function closeArtifactModal() {
+    document.getElementById('artifact-modal').style.display = 'none';
+  }
+
+  // Close modal on background click
+  document.getElementById('artifact-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeArtifactModal();
+  });
 
   // Pipelines Page
   async function loadPipelinesData() {

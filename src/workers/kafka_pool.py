@@ -2,18 +2,29 @@
 
 Replaces the queue-based WorkerPool with Kafka consumer-based workers.
 Each worker consumes from the jobs topic and processes jobs.
+
+Performance optimizations:
+- Batch offset commits (configurable batch size)
+- Dedicated I/O executor for file reads
+- Parallel artifact uploads to MinIO
 """
 
 from __future__ import annotations
 
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from src.domain.evaluation import AnalysisKind
 from src.domain.events import EventType
 from src.domain.results import MetricValue
-from src.observability.metrics import WORKERS_ACTIVE
+from src.observability.metrics import (
+    JOB_DURATION,
+    JOBS_COMPLETED,
+    JOBS_FAILED,
+    WORKERS_ACTIVE,
+)
 from src.utils.logging import get_logger
 from src.workers.lifecycle import AlgoLifecycle
 from src.workers.offload import ExecutionContext, LocalWorkerStrategy
@@ -39,7 +50,9 @@ class KafkaWorkerPool:
     Features:
     - Partition-aware consumption for ordering
     - Pause/resume for slow job handling
-    - Manual offset commit after processing
+    - Batch offset commits for performance
+    - Dedicated I/O executor for file reads
+    - Parallel artifact uploads
     """
 
     def __init__(
@@ -49,12 +62,20 @@ class KafkaWorkerPool:
         storage: MinioStorageService,
         producer: EventProducer,
         max_workers: int,
+        commit_batch_size: int = 10,
+        io_workers: int = 4,
+        artifact_upload_workers: int = 4,
     ) -> None:
         self._kafka_config = kafka_config
         self._dispatcher = dispatcher
         self._storage = storage
         self._producer = producer
         self._max_workers = max_workers
+
+        # Performance tuning
+        self._commit_batch_size = max(1, commit_batch_size)
+        self._io_workers = max(0, io_workers)
+        self._artifact_upload_workers = max(0, artifact_upload_workers)
 
         self._stop = threading.Event()
         self._executor = ThreadPoolExecutor(
@@ -64,8 +85,20 @@ class KafkaWorkerPool:
         self._lifecycle = AlgoLifecycle()
         self._strategy = LocalWorkerStrategy()
 
+        # Dedicated I/O executor for file reads (reduces worker thread blocking)
+        self._io_executor: ThreadPoolExecutor | None = None
+        if self._io_workers > 0:
+            self._io_executor = ThreadPoolExecutor(
+                max_workers=self._io_workers,
+                thread_name_prefix="IOWorker",
+            )
+
         # Per-worker consumers (created on start)
         self._consumers: list[EventConsumer] = []
+
+        # Per-worker uncommitted message counters for batch commits
+        self._uncommitted_counts: dict[int, int] = {}
+        self._uncommitted_lock = threading.Lock()
 
         # Event to signal when workers are ready (have partitions assigned)
         self._ready = threading.Event()
@@ -73,8 +106,12 @@ class KafkaWorkerPool:
         self._ready_lock = threading.Lock()
 
         logger.info(
-            "KafkaWorkerPool initialized: max_workers=%d",
+            "KafkaWorkerPool initialized: max_workers=%d, commit_batch_size=%d, "
+            "io_workers=%d, artifact_upload_workers=%d",
             max_workers,
+            self._commit_batch_size,
+            self._io_workers,
+            self._artifact_upload_workers,
         )
 
     def start(self, wait_for_ready: bool = True, ready_timeout: float = 30.0) -> None:
@@ -124,6 +161,10 @@ class KafkaWorkerPool:
         # Wait for executor shutdown
         self._executor.shutdown(wait=True, cancel_futures=True)
 
+        # Shutdown I/O executor if present
+        if self._io_executor is not None:
+            self._io_executor.shutdown(wait=True)
+
         # Close consumers
         for consumer in self._consumers:
             consumer.close()
@@ -144,6 +185,10 @@ class KafkaWorkerPool:
         """Main worker loop consuming from Kafka."""
         logger.info("Worker %d started", worker_id)
 
+        # Initialize uncommitted counter for this worker
+        with self._uncommitted_lock:
+            self._uncommitted_counts[worker_id] = 0
+
         for event in consumer:
             if self._stop.is_set():
                 break
@@ -159,8 +204,21 @@ class KafkaWorkerPool:
                     e,
                 )
 
-            # Commit after processing
-            consumer.commit()
+            # Batch commit: only commit after N messages
+            with self._uncommitted_lock:
+                self._uncommitted_counts[worker_id] += 1
+                should_commit = self._uncommitted_counts[worker_id] >= self._commit_batch_size
+
+            if should_commit:
+                consumer.commit()
+                with self._uncommitted_lock:
+                    self._uncommitted_counts[worker_id] = 0
+
+        # Final commit on shutdown for any remaining uncommitted messages
+        with self._uncommitted_lock:
+            if self._uncommitted_counts.get(worker_id, 0) > 0:
+                consumer.commit()
+                self._uncommitted_counts[worker_id] = 0
 
         logger.info("Worker %d stopped", worker_id)
 
@@ -208,8 +266,8 @@ class KafkaWorkerPool:
                 algo_version=plan.algo.version,
             )
 
-            # Read image data
-            image_bytes = Path(job.path).read_bytes()
+            # Read image data (using I/O executor if available for non-blocking reads)
+            image_bytes = self._read_file(job.path)
 
             # Execute algorithm
             context = ExecutionContext(
@@ -235,29 +293,14 @@ class KafkaWorkerPool:
 
             result = exec_result.result
 
-            # Store artifacts to MinIO
-            artifact_refs = []
+            # Store artifacts to MinIO (parallel upload for performance)
+            artifact_refs: list[str] = []
             if result and result.artifacts:
-                for artifact in result.artifacts:
-                    if artifact.data:
-                        obj_ref = self._storage.store(
-                            data=artifact.data,
-                            bucket=self._storage.buckets["artifacts"],
-                            mime=artifact.mime,
-                            metadata={"job_id": job.job_id, "name": artifact.name},
-                        )
-                        artifact_refs.append(obj_ref.content_hash)
-
-                        # Publish ARTIFACT_STORED event
-                        self._producer.publish_artifact_stored(
-                            source_id=source_id,
-                            content_hash=obj_ref.content_hash,
-                            bucket=obj_ref.bucket,
-                            key=obj_ref.key,
-                            size=obj_ref.size,
-                            mime=artifact.mime,
-                            source_job_id=job.job_id,
-                        )
+                artifact_refs = self._store_artifacts_parallel(
+                    list(result.artifacts),
+                    job.job_id,
+                    source_id,
+                )
 
             # Publish RESULT_PRODUCED
             self._producer.publish_result_produced(
@@ -284,6 +327,18 @@ class KafkaWorkerPool:
                             meta=dict(metric_value.meta) if metric_value.meta else None,
                         )
 
+            # Emit job_duration as a metric for dashboard display
+            self._producer.publish_metric_emitted(
+                source_id=source_id,
+                job_id=job.job_id,
+                algo_name=plan.algo.name,
+                algo_version=plan.algo.version,
+                metric_name="job_duration_ms",
+                value=exec_result.duration_ms,
+                analysis_mask=int(AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D),
+                meta={"unit": "milliseconds", "description": "Total job processing time"},
+            )
+
             # Publish JOB_COMPLETED
             self._producer.publish_job_completed(
                 source_id=source_id,
@@ -292,6 +347,15 @@ class KafkaWorkerPool:
                 algo_version=plan.algo.version,
                 duration_ms=exec_result.duration_ms,
             )
+
+            # Record job duration and completion metrics
+            JOB_DURATION.labels(algo_name=plan.algo.name).observe(
+                exec_result.duration_ms / 1000.0,  # Convert ms to seconds
+            )
+            JOBS_COMPLETED.labels(
+                algo_name=plan.algo.name,
+                algo_version=plan.algo.version,
+            ).inc()
 
             logger.info(
                 "Worker %d completed job %s in %.2fms",
@@ -311,6 +375,7 @@ class KafkaWorkerPool:
             # Publish JOB_FAILED
             algo_name = plan.algo.name if "plan" in dir() else None
             algo_version = plan.algo.version if "plan" in dir() else None
+            error_type = type(e).__name__
 
             self._producer.publish_job_failed(
                 source_id=source_id,
@@ -318,8 +383,14 @@ class KafkaWorkerPool:
                 error=str(e),
                 algo_name=algo_name,
                 algo_version=algo_version,
-                error_type=type(e).__name__,
+                error_type=error_type,
             )
+
+            # Record job failure metrics
+            JOBS_FAILED.labels(
+                algo_name=algo_name or "unknown",
+                error_type=error_type,
+            ).inc()
         finally:
             # Always decrement active workers when done
             WORKERS_ACTIVE.labels(worker_id=str(worker_id)).dec()
@@ -331,3 +402,134 @@ class KafkaWorkerPool:
         """
         # Placeholder - consider jobs slow if algorithm is ML inference
         return bool(plan.algo.name.startswith("model_"))
+
+    def _read_file(self, path: str, timeout: float = 30.0) -> bytes:
+        """Read file contents, using I/O executor if available.
+
+        Args:
+            path: Path to file to read
+            timeout: Maximum time to wait for read (seconds)
+
+        Returns:
+            File contents as bytes
+
+        """
+        if self._io_executor is not None:
+            # Non-blocking read using dedicated I/O thread pool
+            future = self._io_executor.submit(Path(path).read_bytes)
+            return future.result(timeout=timeout)
+        # Synchronous read (fallback)
+        return Path(path).read_bytes()
+
+    def _store_artifacts_parallel(
+        self,
+        artifacts: list[Any],
+        job_id: str,
+        source_id: str,
+    ) -> list[str]:
+        """Store artifacts to MinIO in parallel.
+
+        Args:
+            artifacts: List of Artifact objects to store
+            job_id: Job ID for metadata
+            source_id: Source ID for event publishing
+
+        Returns:
+            List of content hashes for stored artifacts
+
+        """
+        if not artifacts:
+            return []
+
+        # Filter artifacts with data
+        to_store = [(a, a.data) for a in artifacts if a.data]
+        if not to_store:
+            return []
+
+        # If no parallel workers configured, use sequential storage
+        if self._artifact_upload_workers == 0:
+            return self._store_artifacts_sequential(to_store, job_id, source_id)
+
+        artifact_refs: list[str] = []
+        with ThreadPoolExecutor(max_workers=self._artifact_upload_workers) as executor:
+            futures = {}
+            for artifact, data in to_store:
+                future = executor.submit(
+                    self._store_single_artifact,
+                    artifact,
+                    data,
+                    job_id,
+                    source_id,
+                )
+                futures[future] = artifact
+
+            for future in as_completed(futures):
+                try:
+                    content_hash = future.result()
+                    if content_hash:
+                        artifact_refs.append(content_hash)
+                except Exception as e:
+                    artifact = futures[future]
+                    logger.warning(
+                        "Failed to store artifact %s for job %s: %s",
+                        artifact.name,
+                        job_id,
+                        e,
+                    )
+
+        return artifact_refs
+
+    def _store_artifacts_sequential(
+        self,
+        to_store: list[tuple[Any, bytes]],
+        job_id: str,
+        source_id: str,
+    ) -> list[str]:
+        """Store artifacts sequentially (fallback when parallel disabled)."""
+        artifact_refs: list[str] = []
+        for artifact, data in to_store:
+            try:
+                content_hash = self._store_single_artifact(artifact, data, job_id, source_id)
+                if content_hash:
+                    artifact_refs.append(content_hash)
+            except Exception as e:
+                logger.warning(
+                    "Failed to store artifact %s for job %s: %s",
+                    artifact.name,
+                    job_id,
+                    e,
+                )
+        return artifact_refs
+
+    def _store_single_artifact(
+        self,
+        artifact: Any,
+        data: bytes,
+        job_id: str,
+        source_id: str,
+    ) -> str | None:
+        """Store a single artifact to MinIO and publish event.
+
+        Returns:
+            Content hash if successful, None otherwise
+
+        """
+        obj_ref = self._storage.store(
+            data=data,
+            bucket=self._storage.buckets["artifacts"],
+            mime=artifact.mime,
+            metadata={"job_id": job_id, "name": artifact.name},
+        )
+
+        # Publish ARTIFACT_STORED event
+        self._producer.publish_artifact_stored(
+            source_id=source_id,
+            content_hash=obj_ref.content_hash,
+            bucket=obj_ref.bucket,
+            key=obj_ref.key,
+            size=obj_ref.size,
+            mime=artifact.mime,
+            source_job_id=job_id,
+        )
+
+        return obj_ref.content_hash

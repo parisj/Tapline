@@ -8,6 +8,9 @@ access_key = ""                 # Set via MINIO_ACCESS_KEY env var (required)
 secret_key = ""                 # Set via MINIO_SECRET_KEY env var (required)
 secure = false                  # Use HTTPS in production (set to true)
 region = "us-east-1"
+# Connection timeouts (in seconds)
+connect_timeout = 10.0
+read_timeout = 30.0
 
 [buckets]
 # Content-addressed artifact storage (algorithm outputs)

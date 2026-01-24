@@ -23,6 +23,12 @@ max_wait_sec = 0.3
 max_workers = "auto"
 auto_divisor = 2
 min_workers = 2
+# Commit offsets after this many messages (1 = per-message, default)
+commit_batch_size = 10
+# Number of I/O worker threads for file reads (0 = sync reads)
+io_workers = 4
+# Number of threads for parallel artifact uploads (0 = sequential)
+artifact_upload_workers = 4
 
 [evaluation]
 interval_sec = 10.0

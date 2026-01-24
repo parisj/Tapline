@@ -107,6 +107,21 @@ class MyAlgorithm(Algorithm):
         )
 ```
 
+## Performance & Security
+
+**Performance Tuning** (`src/config/pipeline.toml`):
+- Batch offset commits for reduced Kafka overhead
+- Dedicated I/O thread pool for non-blocking file reads
+- Parallel artifact uploads to MinIO
+
+**Security Features**:
+- Kafka TLS/SASL authentication support
+- API rate limiting (token bucket)
+- Input validation on all endpoints
+- Content Security Policy headers
+
+See `.claude/docs/security.md` for detailed configuration.
+
 ## Documentation
 
 | Document | Description |

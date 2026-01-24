@@ -385,6 +385,7 @@ class TestGetArtifactEndpoint:
 
     @patch("src.visualization.api_server.storage")
     def test_get_artifact_not_found(self, mock_storage, client) -> None:
+        mock_storage.get_object_info.return_value = None
         mock_storage.retrieve_by_key.return_value = None
 
         response = client.get("/api/artifact/artifacts/ab/cd/hash123")
@@ -393,23 +394,25 @@ class TestGetArtifactEndpoint:
 
     @patch("src.visualization.api_server.storage")
     def test_get_artifact_json_content(self, mock_storage, client) -> None:
+        mock_storage.get_object_info.return_value = {"content_type": "application/json", "metadata": {}}
         mock_storage.retrieve_by_key.return_value = b'{"key": "value"}'
 
         response = client.get("/api/artifact/artifacts/ab/cd/hash123")
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["content"] == {"key": "value"}
+        assert data["content"]["data"] == {"key": "value"}
 
     @patch("src.visualization.api_server.storage")
     def test_get_artifact_binary_content(self, mock_storage, client) -> None:
+        mock_storage.get_object_info.return_value = {"content_type": "application/octet-stream", "metadata": {}}
         mock_storage.retrieve_by_key.return_value = b"\x00\x01\x02\x03"
 
         response = client.get("/api/artifact/artifacts/ab/cd/hash123")
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["content"]["binary"] is True
+        assert data["content"]["type"] == "binary"
 
 
 class TestCacheClearEndpoint:

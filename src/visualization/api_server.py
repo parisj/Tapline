@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +59,144 @@ ALLOWED_BUCKETS = frozenset({"artifacts", "inputs", "aggregates", "metric-values
 
 # Maximum time range for metric queries (30 days in minutes)
 MAX_TIME_RANGE_MINUTES = 43200
+
+# Input validation patterns
+METRIC_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
+ALGORITHM_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$")
+VERSION_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,31}$")
+
+
+def validate_metric_name(name: str) -> bool:
+    """Validate metric name format.
+
+    Args:
+        name: Metric name to validate
+
+    Returns:
+        True if valid, False otherwise
+
+    """
+    return bool(METRIC_NAME_PATTERN.match(name))
+
+
+def validate_algorithm_name(name: str) -> bool:
+    """Validate algorithm name format.
+
+    Args:
+        name: Algorithm name to validate
+
+    Returns:
+        True if valid, False otherwise
+
+    """
+    return bool(ALGORITHM_NAME_PATTERN.match(name))
+
+
+def validate_version(version: str) -> bool:
+    """Validate version string format.
+
+    Args:
+        version: Version string to validate
+
+    Returns:
+        True if valid, False otherwise
+
+    """
+    return bool(VERSION_PATTERN.match(version))
+
+
+# =============================================================================
+# Rate Limiting
+# =============================================================================
+
+
+class RateLimiter:
+    """Simple token bucket rate limiter for API protection.
+
+    Each client (by IP) gets a bucket of tokens that refills at a constant rate.
+    Each request consumes one token. If no tokens are available, the request
+    is rate limited.
+    """
+
+    def __init__(
+        self,
+        rate: float = 10.0,
+        capacity: int = 50,
+        cleanup_interval: float = 60.0,
+    ) -> None:
+        """Initialize rate limiter.
+
+        Args:
+            rate: Tokens added per second (refill rate)
+            capacity: Maximum tokens in bucket
+            cleanup_interval: Seconds between old entry cleanup
+
+        """
+        self._rate = rate
+        self._capacity = capacity
+        self._cleanup_interval = cleanup_interval
+        self._tokens: dict[str, tuple[float, float]] = {}  # key -> (tokens, last_update)
+        self._lock = threading.Lock()
+        self._last_cleanup = time.time()
+
+    def allow(self, key: str) -> bool:
+        """Check if request should be allowed.
+
+        Args:
+            key: Client identifier (typically IP address)
+
+        Returns:
+            True if request allowed, False if rate limited
+
+        """
+        with self._lock:
+            now = time.time()
+
+            # Periodic cleanup of old entries
+            if now - self._last_cleanup > self._cleanup_interval:
+                self._cleanup_old_entries(now)
+                self._last_cleanup = now
+
+            # Get or create bucket for this key
+            tokens, last_update = self._tokens.get(key, (float(self._capacity), now))
+
+            # Refill tokens based on time elapsed
+            elapsed = now - last_update
+            tokens = min(self._capacity, tokens + elapsed * self._rate)
+
+            if tokens >= 1.0:
+                self._tokens[key] = (tokens - 1.0, now)
+                return True
+
+            # Not enough tokens - rate limited
+            self._tokens[key] = (tokens, now)
+            return False
+
+    def _cleanup_old_entries(self, now: float) -> None:
+        """Remove entries that have been idle for a long time."""
+        # Remove entries older than 5 minutes with full buckets
+        cutoff = now - 300
+        to_remove = [k for k, (_, last) in self._tokens.items() if last < cutoff]
+        for k in to_remove:
+            del self._tokens[k]
+
+
+# Global rate limiter instance
+rate_limiter = RateLimiter(rate=10.0, capacity=50)
+
+
+# Rate limiting middleware for API endpoints
+@app.before_request
+def check_rate_limit() -> FlaskResponse | None:
+    """Apply rate limiting to API endpoints."""
+    if request.path.startswith("/api/"):
+        client_ip = request.remote_addr or "unknown"
+        if not rate_limiter.allow(client_ip):
+            logger.warning("Rate limit exceeded for client: %s", client_ip)
+            response = jsonify({"error": "Rate limit exceeded. Please slow down."})
+            response.headers["Retry-After"] = "5"
+            return response, 429
+    return None
 
 
 # Security and cache headers for all responses
@@ -461,10 +602,16 @@ def get_metrics() -> FlaskResponse:
         return jsonify({"error": "Discovery service not initialized"}), 503
 
     try:
-        # Optional filters
+        # Optional filters with validation
         algorithm = request.args.get("algorithm")
         version = request.args.get("version")
         refresh = request.args.get("refresh", "").lower() == "true"
+
+        # Validate algorithm and version if provided
+        if algorithm and not validate_algorithm_name(algorithm):
+            return jsonify({"error": "Invalid algorithm name format"}), 400
+        if version and not validate_version(version):
+            return jsonify({"error": "Invalid version format"}), 400
 
         # Time range filter (in minutes) with validation
         time_range_str = request.args.get("time_range")
@@ -529,12 +676,22 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
         version: Filter by algorithm version
         time_range: Filter to last N minutes (e.g., 10, 60, 120)
     """
+    # Input validation for metric_name
+    if not validate_metric_name(metric_name):
+        return jsonify({"error": "Invalid metric name format"}), 400
+
     if discovery is None:
         return jsonify({"error": "Services not initialized"}), 503
 
     try:
         algorithm = request.args.get("algorithm")
         version = request.args.get("version")
+
+        # Validate algorithm and version if provided
+        if algorithm and not validate_algorithm_name(algorithm):
+            return jsonify({"error": "Invalid algorithm name format"}), 400
+        if version and not validate_version(version):
+            return jsonify({"error": "Invalid version format"}), 400
 
         # Time range filter (in minutes) with validation
         time_range_str = request.args.get("time_range")
@@ -779,7 +936,19 @@ def list_artifacts() -> FlaskResponse:
 
 @app.route("/api/artifact/<bucket>/<path:key>", methods=["GET"])
 def get_artifact(bucket: str, key: str) -> FlaskResponse:
-    """Get a specific artifact's metadata and content."""
+    """Get a specific artifact's metadata and content.
+
+    For images (image/png, image/jpeg), returns base64-encoded data.
+    For JSON, returns parsed content.
+    For other binary, returns metadata only.
+
+    Query params:
+        raw: If "true", return raw binary data with appropriate Content-Type
+    """
+    import base64
+
+    from src.storage.models import ObjectRef
+
     if storage is None:
         return jsonify({"error": "Storage service not initialized"}), 503
 
@@ -792,24 +961,61 @@ def get_artifact(bucket: str, key: str) -> FlaskResponse:
         return jsonify({"error": "Invalid key"}), 400
 
     try:
-        # Get object info
+        # Get object info for mime type
+        obj_ref = ObjectRef.from_hash(
+            content_hash=key.split("/")[-1],
+            bucket=bucket,
+            size=0,
+        )
+        obj_info = storage.get_object_info(obj_ref)
+        content_type = obj_info.get("content_type", "application/octet-stream") if obj_info else None
+        metadata = obj_info.get("metadata", {}) if obj_info else {}
+
+        # Get object data
         data = storage.retrieve_by_key(bucket, key)
         if data is None:
             return jsonify({"error": "Artifact not found"}), 404
 
-        # Try to parse as JSON if it looks like JSON
-        content = None
-        try:
-            content = json.loads(data.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            # Binary data - return base64 or just metadata
-            content = {"binary": True, "size": len(data)}
+        # Check if raw binary response requested
+        if request.args.get("raw") == "true":
+            return Response(
+                data,
+                mimetype=content_type or "application/octet-stream",
+                headers={"Content-Disposition": f"inline; filename={key.split('/')[-1]}"},
+            )
+
+        # Handle based on content type
+        content: dict[str, Any] = {}
+
+        # Image types - return base64 encoded
+        if content_type and content_type.startswith("image/"):
+            content = {
+                "type": "image",
+                "mime": content_type,
+                "size": len(data),
+                "data_base64": base64.b64encode(data).decode("ascii"),
+            }
+        # JSON content
+        elif content_type == "application/json" or (content_type is None and data[:1] in (b"{", b"[")):
+            try:
+                content = {
+                    "type": "json",
+                    "mime": "application/json",
+                    "size": len(data),
+                    "data": json.loads(data.decode("utf-8")),
+                }
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                content = {"type": "binary", "mime": content_type, "size": len(data)}
+        # Other binary
+        else:
+            content = {"type": "binary", "mime": content_type, "size": len(data)}
 
         return jsonify(
             {
                 "bucket": bucket,
                 "key": key,
                 "content": content,
+                "metadata": metadata,
             },
         )
     except Exception as e:

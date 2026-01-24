@@ -52,6 +52,8 @@ class TestMinioConfig:
             artifacts_retention_days=0,
             inputs_retention_days=30,
             aggregates_retention_days=90,
+            connect_timeout=10.0,
+            read_timeout=30.0,
         )
 
         assert config.endpoint == "localhost:9000"
@@ -60,6 +62,8 @@ class TestMinioConfig:
         assert config.secure is False
         assert config.bucket_artifacts == "artifacts"
         assert config.path_prefix_length == 4
+        assert config.connect_timeout == 10.0
+        assert config.read_timeout == 30.0
 
     def test_minio_config_is_frozen(self) -> None:
         # Test credentials - not real secrets
@@ -81,6 +85,8 @@ class TestMinioConfig:
             artifacts_retention_days=0,
             inputs_retention_days=30,
             aggregates_retention_days=90,
+            connect_timeout=10.0,
+            read_timeout=30.0,
         )
 
         with pytest.raises(AttributeError):
