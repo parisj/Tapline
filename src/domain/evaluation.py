@@ -1,14 +1,29 @@
 from enum import IntFlag, auto
+from functools import lru_cache
 
 
 class AnalysisKind(IntFlag):
-    """Post-processing recipes that can be applied to a metric."""
+    """Post-processing flags for metric analysis."""
 
-    SUMMARY = auto()  # mean/median/std/var/min/max/count
-    DISTRIBUTION_1D = auto()  # histogram bins / quantiles
-    OUTLIERS_1D = auto()  # robust outlier flags
-    COUNTER = auto()  # categorical frequency table
-    RATE = auto()  # yes/no rate + CI
-    ELLIPSE_2D = auto()  # covariance ellipse
-    CONTOUR_2D = auto()  # contour extraction (requires 2d density)
-    INFO = auto()  # informational only, no analysis
+    SUMMARY = auto()
+    DISTRIBUTION_1D = auto()
+    OUTLIERS_1D = auto()
+    COUNTER = auto()
+    RATE = auto()
+    ELLIPSE_2D = auto()
+    CONTOUR_2D = auto()
+    INFO = auto()
+
+
+@lru_cache(maxsize=256)
+def mask_to_kind_names(mask: int) -> tuple[str, ...]:
+    """Convert AnalysisKind bitmask to tuple of kind names.
+
+    Args:
+        mask: Integer bitmask of AnalysisKind values
+
+    Returns:
+        Tuple of kind name strings
+
+    """
+    return tuple(kind.name for kind in AnalysisKind if mask & kind.value and kind.name)

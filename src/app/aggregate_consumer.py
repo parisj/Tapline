@@ -1,19 +1,8 @@
-"""Kafka aggregate consumer that writes Flink output to MinIO.
+"""Kafka aggregate consumer for writing Flink output to MinIO.
 
-This consumer reads aggregate records from the Kafka aggregates topic
-(produced by the Flink SQL job) and persists them to MinIO for dashboard access.
-
-Note: The aggregates topic contains raw JSON records (not EventEnvelope),
-since they are produced directly by Flink SQL.
-
-Optimizations:
-- Uses orjson for fast JSON parsing/serialization (falls back to json)
-- Batches messages for efficient MinIO writes
-- Processes messages in parallel within batches
-- Compact JSON output (no whitespace)
-
-Usage:
-    Integrated into main pipeline via run_aggregate_consumer()
+Reads aggregate records from Kafka (produced by Flink SQL) and persists
+them to MinIO for dashboard access. Aggregates topic contains raw JSON
+records (not EventEnvelope) since Flink SQL produces them directly.
 """
 
 from __future__ import annotations
@@ -21,40 +10,12 @@ from __future__ import annotations
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
+from src.utils.json_compat import USING_ORJSON, json_dumps, json_loads
 from src.utils.logging import get_logger
-
-# Try to use orjson for better performance, fall back to standard json
-try:
-    import orjson
-
-    def json_loads(data: bytes | str) -> dict[str, Any]:
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-        result: dict[str, Any] = orjson.loads(data)
-        return result
-
-    def json_dumps(obj: dict[str, Any]) -> bytes:
-        result: bytes = orjson.dumps(obj)
-        return result
-
-    _USING_ORJSON = True
-except ImportError:
-    import json
-
-    def json_loads(data: bytes | str) -> dict[str, Any]:
-        if isinstance(data, bytes):
-            data = data.decode("utf-8")
-        result: dict[str, Any] = json.loads(data)
-        return result
-
-    def json_dumps(obj: dict[str, Any]) -> bytes:
-        return json.dumps(obj, separators=(",", ":")).encode("utf-8")
-
-    _USING_ORJSON = False
 
 if TYPE_CHECKING:
     import threading
@@ -222,7 +183,7 @@ def run_aggregate_consumer(
         group_id,
         _BATCH_SIZE,
         _STORAGE_WORKERS,
-        _USING_ORJSON,
+        USING_ORJSON,
     )
 
     events_processed = 0

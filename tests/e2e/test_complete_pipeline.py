@@ -134,18 +134,14 @@ class TestPipelineEventFlow:
             assert completed.payload["duration_ms"] == 150.5
 
             # Collect and verify metric events
-            metric_events = _collect_events_for_job(
-                metrics_consumer, job_id, expected_count=3, timeout=15.0
-            )
+            metric_events = _collect_events_for_job(metrics_consumer, job_id, expected_count=3, timeout=15.0)
             assert len(metric_events) == 3, f"Expected 3 metric events, got {len(metric_events)}"
 
             metric_names = {e.payload["metric_name"] for e in metric_events}
             assert metric_names == {"brightness_mean", "contrast_std", "sharpness_score"}
 
             # Collect and verify result event
-            result_events = _collect_events_for_job(
-                results_consumer, job_id, expected_count=1, timeout=15.0
-            )
+            result_events = _collect_events_for_job(results_consumer, job_id, expected_count=1, timeout=15.0)
             assert len(result_events) == 1
             assert result_events[0].event_type == EventType.RESULT_PRODUCED
             assert result_events[0].payload["metric_count"] == 3
@@ -249,8 +245,7 @@ class TestMinIOArtifactStorage:
             event = _poll_for_event(
                 consumer,
                 lambda e: (
-                    e.event_type == EventType.ARTIFACT_STORED
-                    and e.payload.get("content_hash") == obj_ref.content_hash
+                    e.event_type == EventType.ARTIFACT_STORED and e.payload.get("content_hash") == obj_ref.content_hash
                 ),
                 timeout=10.0,
             )

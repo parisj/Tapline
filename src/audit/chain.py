@@ -387,9 +387,7 @@ class PersistentHashChainTracker(HashChainTracker):
         """Actually save state to MinIO."""
         try:
             with self._lock:
-                state_dict = {
-                    pid: asdict(state) for pid, state in self._chains.items()
-                }
+                state_dict = {pid: asdict(state) for pid, state in self._chains.items()}
             data = json.dumps(state_dict, indent=2).encode("utf-8")
             self._storage.store_with_key(
                 data=data,

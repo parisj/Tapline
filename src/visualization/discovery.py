@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from src.domain.evaluation import AnalysisKind
+from src.domain.evaluation import mask_to_kind_names
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -50,12 +50,7 @@ class MetricInfo:
 
     def __post_init__(self) -> None:
         if not self.analysis_kinds:
-            self.analysis_kinds = _mask_to_kind_names(self.analysis_mask)
-
-
-def _mask_to_kind_names(mask: int) -> list[str]:
-    """Convert AnalysisKind bitmask to list of kind names."""
-    return [kind.name for kind in AnalysisKind if mask & kind.value and kind.name is not None]
+            self.analysis_kinds = list(mask_to_kind_names(self.analysis_mask))
 
 
 class DiscoveryService:

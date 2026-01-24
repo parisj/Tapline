@@ -1,17 +1,11 @@
-"""MinIO storage service for content-addressed artifact storage.
-
-Provides:
-- Content-addressed storage with hash-based paths
-- Automatic deduplication via content hash
-- Retry logic for resilience
-- Bucket management
-"""
+"""MinIO storage service with content-addressed artifact storage."""
 
 from __future__ import annotations
 
 import hashlib
 import io
 import time
+from collections.abc import Iterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -349,6 +343,33 @@ class MinioStorageService:
                 return None
             raise
 
+    def iter_objects(
+        self,
+        bucket: str,
+        prefix: str = "",
+        limit: int | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """Iterate over objects in bucket (memory-efficient).
+
+        Args:
+            bucket: Bucket name
+            prefix: Key prefix filter
+            limit: Maximum objects to yield (None = unlimited)
+
+        Yields:
+            Object info dicts
+
+        """
+        for count, obj in enumerate(self._client.list_objects(bucket, prefix=prefix, recursive=True)):
+            if limit is not None and count >= limit:
+                break
+            yield {
+                "key": obj.object_name,
+                "size": obj.size,
+                "last_modified": obj.last_modified,
+                "etag": obj.etag,
+            }
+
     def list_objects(
         self,
         bucket: str,
@@ -356,6 +377,8 @@ class MinioStorageService:
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """List objects in bucket.
+
+        For large buckets, prefer iter_objects() for memory efficiency.
 
         Args:
             bucket: Bucket name
@@ -366,19 +389,7 @@ class MinioStorageService:
             List of object info dicts
 
         """
-        objects: list[dict[str, object]] = []
-        for obj in self._client.list_objects(bucket, prefix=prefix, recursive=True):
-            if len(objects) >= limit:
-                break
-            objects.append(
-                {
-                    "key": obj.object_name,
-                    "size": obj.size,
-                    "last_modified": obj.last_modified,
-                    "etag": obj.etag,
-                },
-            )
-        return objects
+        return list(self.iter_objects(bucket, prefix, limit))
 
     def _object_exists(self, bucket: str, key: str) -> bool:
         """Check if object exists by key."""

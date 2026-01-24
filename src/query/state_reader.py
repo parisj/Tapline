@@ -154,13 +154,11 @@ class StateReader:
 
     def list_artifacts(
         self,
-        _job_id: str | None = None,
         limit: int = 100,
     ) -> list[ArtifactInfo]:
-        """List artifacts with optional job filter.
+        """List artifacts ordered by storage time.
 
         Args:
-            job_id: Filter by source job (if tracked)
             limit: Maximum artifacts to return
 
         Returns:
@@ -177,7 +175,6 @@ class StateReader:
     def consume_events(
         self,
         topics: list[str] | None = None,
-        _from_beginning: bool = True,
         max_events: int | None = None,
     ) -> Iterator[EventEnvelope]:
         """Consume events from Kafka topics.
@@ -186,7 +183,6 @@ class StateReader:
 
         Args:
             topics: Topics to consume (defaults to jobs + results)
-            from_beginning: Start from earliest offset
             max_events: Maximum events to consume (None = unlimited)
 
         Yields:

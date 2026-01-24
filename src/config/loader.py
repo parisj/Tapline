@@ -62,17 +62,9 @@ def load_runtime_config(path: Path) -> RuntimeConfig:
 
     # workers (auto policy)
     workers_max = _parse_workers_max(workers)
-    commit_batch_size = int(workers.get("commit_batch_size", 10))
-    io_workers = int(workers.get("io_workers", 4))
-    artifact_upload_workers = int(workers.get("artifact_upload_workers", 4))
-
-    # Validate performance tuning values
-    if commit_batch_size < 1:
-        commit_batch_size = 1
-    if io_workers < 0:
-        io_workers = 0
-    if artifact_upload_workers < 0:
-        artifact_upload_workers = 0
+    commit_batch_size = max(1, int(workers.get("commit_batch_size", 10)))
+    io_workers = max(0, int(workers.get("io_workers", 4)))
+    artifact_upload_workers = max(0, int(workers.get("artifact_upload_workers", 4)))
 
     # evaluation
     eval_interval = _require_float(evaluation, "interval_sec")

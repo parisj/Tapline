@@ -91,32 +91,23 @@ def build_app(
 
 
 def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
-    """Run the streaming pipeline.
+    """Run the streaming pipeline (ingest + workers).
 
-    Note: This runs only the core pipeline (ingest, workers).
-    For full functionality with aggregation, use `pixi run pipeline` which
-    also starts the Flink job and aggregate sink.
+    For full pipeline with aggregation, use pipeline_runner.py.
     """
     observer, worker_pool, producer, _storage = build_app(cfg=cfg)
 
     stop = threading.Event()
     install_signal_handlers(stop)
 
-    # Set pipeline metrics
     PIPELINE_UP.set(1)
     WORKER_POOL_SIZE.set(cfg.workers_max)
-    # Note: WORKERS_ACTIVE is now labeled per worker_id and managed by KafkaWorkerPool
 
     worker_pool.start()
-
-    # Give workers a moment to stabilize after group join
-    time.sleep(0.5)
-
+    time.sleep(0.5)  # Allow consumer group stabilization
     observer.start()
 
     logger.info("Pipeline started. Ctrl+C to stop.")
-    logger.info("For full pipeline with Flink aggregation: pixi run pipeline")
-    logger.info("Dashboard available separately via: pixi run dashboard")
     logger.info(
         "Workers: %d, Directories: %d",
         cfg.workers_max,
@@ -133,10 +124,7 @@ def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
         producer.poll(0)
 
     logger.info("Stopping pipeline...")
-
-    # Mark pipeline as down
     PIPELINE_UP.set(0)
-
     observer.stop()
     worker_pool.stop()
     producer.close()
@@ -145,27 +133,20 @@ def run(cfg: RuntimeConfig, obs_config: ObservabilityConfig) -> None:
 
 def main() -> None:
     """Main entry point."""
-    # Load environment variables
     load_dotenv()
 
-    # Load observability config
     obs_config = load_observability_config(Path("src/config/observability.toml"))
-
-    # Configure logging with observability support
     configure_logging(obs_config)
 
     logger.info("VisioEval starting...")
 
-    # Initialize tracing
     configure_tracing(obs_config)
     atexit.register(shutdown_tracing)
 
-    # Initialize metrics server
     metrics_started = configure_metrics(obs_config)
     if metrics_started:
         logger.info("Metrics server started on port %d", obs_config.metrics_port)
 
-    # Set build info metric
     set_build_info(version=__version__, mode="streaming")
 
     cfg = load_runtime_config(Path("src/config/pipeline.toml"))

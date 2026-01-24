@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.domain.evaluation import mask_to_kind_names
 from src.visualization.api_server import (
     ALLOWED_BUCKETS,
     MAX_TIME_RANGE_MINUTES,
-    _mask_to_kind_names,
     app,
 )
 
@@ -23,24 +23,20 @@ def client():
 
 class TestMaskToKindNames:
     def test_empty_mask(self) -> None:
-        result = _mask_to_kind_names(0)
-        assert result == []
+        result = mask_to_kind_names(0)
+        assert result == ()
 
     def test_single_kind(self) -> None:
-        # Test with SUMMARY mask value (1)
-        result = _mask_to_kind_names(1)
+        result = mask_to_kind_names(1)
         assert "SUMMARY" in result
 
     def test_multiple_kinds(self) -> None:
-        # SUMMARY (1) + DISTRIBUTION_1D (2) = 3
-        result = _mask_to_kind_names(3)
+        result = mask_to_kind_names(3)
         assert "SUMMARY" in result
         assert "DISTRIBUTION_1D" in result
 
     def test_all_common_kinds(self) -> None:
-        # Test with a mask that includes several kinds
-        # SUMMARY=1, DISTRIBUTION_1D=2, OUTLIERS_1D=4, COUNTER=8
-        result = _mask_to_kind_names(15)
+        result = mask_to_kind_names(15)
         assert len(result) >= 4
 
 

@@ -1,4 +1,4 @@
-"""OpenTelemetry tracing setup and utilities."""
+"""OpenTelemetry tracing with lazy SDK loading."""
 
 from __future__ import annotations
 
@@ -6,20 +6,15 @@ import functools
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from opentelemetry import trace
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from opentelemetry.sdk.trace import TracerProvider
+
     from src.observability.config import ObservabilityConfig
 
 logger = get_logger(__name__)
 
-# Global state
 _tracer_provider: TracerProvider | None = None
 _initialized = False
 
@@ -28,6 +23,9 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
     """Initialize OpenTelemetry tracing.
+
+    SDK modules are imported only when tracing is enabled to avoid
+    startup overhead when tracing is disabled.
 
     Args:
         config: Observability configuration
@@ -46,16 +44,16 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
         _initialized = True
         return None
 
-    # Create resource with service name
+    from opentelemetry import trace
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+
     resource = Resource.create({SERVICE_NAME: config.service_name})
-
-    # Create sampler based on sample rate
     sampler = TraceIdRatioBased(config.sample_rate)
-
-    # Create tracer provider
     _tracer_provider = TracerProvider(resource=resource, sampler=sampler)
 
-    # Configure exporter based on config
     if config.tracing_exporter == "otlp":
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
@@ -64,15 +62,10 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
 
             exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=True)
             _tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
-            logger.info(
-                "OTLP tracing exporter configured: endpoint=%s",
-                config.otlp_endpoint,
-            )
+            logger.info("OTLP tracing exporter configured: endpoint=%s", config.otlp_endpoint)
         except ImportError:
             logger.warning("OTLP exporter not available, falling back to console")
-            _tracer_provider.add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter()),
-            )
+            _tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     elif config.tracing_exporter == "console":
         _tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
         logger.info("Console tracing exporter configured")
@@ -81,29 +74,25 @@ def configure_tracing(config: ObservabilityConfig) -> TracerProvider | None:
     else:
         logger.warning("Unknown tracing exporter: %s", config.tracing_exporter)
 
-    # Set as global tracer provider
     trace.set_tracer_provider(_tracer_provider)
-
     _initialized = True
-    logger.info(
-        "Tracing initialized: service=%s, sample_rate=%s",
-        config.service_name,
-        config.sample_rate,
-    )
+    logger.info("Tracing initialized: service=%s, sample_rate=%s", config.service_name, config.sample_rate)
 
     return _tracer_provider
 
 
-def get_tracer(name: str) -> trace.Tracer:
+def get_tracer(name: str) -> Any:
     """Get a tracer for the given module.
 
     Args:
         name: Module or component name (usually __name__)
 
     Returns:
-        Tracer instance
+        Tracer instance (NoOpTracer if tracing not initialized)
 
     """
+    from opentelemetry import trace
+
     return trace.get_tracer(name)
 
 
@@ -119,15 +108,6 @@ def traced(
 
     Returns:
         Decorated function
-
-    Example:
-        @traced("process_job")
-        def process_job(job_id: str) -> None:
-            ...
-
-        @traced(attributes={"component": "worker"})
-        def do_work() -> None:
-            ...
 
     """
 
@@ -152,8 +132,10 @@ def traced(
     return decorator
 
 
-def get_current_span() -> trace.Span:
+def get_current_span() -> Any:
     """Get the current active span."""
+    from opentelemetry import trace
+
     return trace.get_current_span()
 
 
@@ -164,6 +146,8 @@ def get_current_trace_context() -> dict[str, str]:
         Dict with trace_id and span_id if available
 
     """
+    from opentelemetry import trace
+
     span = trace.get_current_span()
     ctx = span.get_span_context()
 

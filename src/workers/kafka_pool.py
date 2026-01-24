@@ -1,12 +1,7 @@
-"""Kafka-based worker pool for streaming architecture.
+"""Kafka-based worker pool for job processing.
 
-Replaces the queue-based WorkerPool with Kafka consumer-based workers.
-Each worker consumes from the jobs topic and processes jobs.
-
-Performance optimizations:
-- Batch offset commits (configurable batch size)
-- Dedicated I/O executor for file reads
-- Parallel artifact uploads to MinIO
+Workers consume from the jobs topic and execute algorithms.
+Performance tuning via batch commits, I/O executor, and parallel uploads.
 """
 
 from __future__ import annotations
@@ -249,21 +244,21 @@ class KafkaWorkerPool:
             job.job_id,
         )
 
-        # Track active workers for metrics
         WORKERS_ACTIVE.labels(worker_id=str(worker_id)).inc()
+        algo_name: str | None = None
+        algo_version: str | None = None
         try:
-            # Get dispatch plan
             plan = self._dispatcher.dispatch(job)
+            algo_name = plan.algo.name
+            algo_version = plan.algo.version
 
-            # Ensure algorithm is initialized
             self._lifecycle.ensure_initialized(plan)
 
-            # Publish JOB_STARTED
             self._producer.publish_job_started(
                 source_id=source_id,
                 job_id=job.job_id,
-                algo_name=plan.algo.name,
-                algo_version=plan.algo.version,
+                algo_name=algo_name,
+                algo_version=algo_version,
             )
 
             # Read image data (using I/O executor if available for non-blocking reads)
@@ -306,8 +301,8 @@ class KafkaWorkerPool:
             self._producer.publish_result_produced(
                 source_id=source_id,
                 job_id=job.job_id,
-                algo_name=plan.algo.name,
-                algo_version=plan.algo.version,
+                algo_name=algo_name,
+                algo_version=algo_version,
                 metric_count=len(result.metrics) if result and result.metrics else 0,
                 artifact_refs=artifact_refs,
             )
@@ -319,8 +314,8 @@ class KafkaWorkerPool:
                         self._producer.publish_metric_emitted(
                             source_id=source_id,
                             job_id=job.job_id,
-                            algo_name=plan.algo.name,
-                            algo_version=plan.algo.version,
+                            algo_name=algo_name,
+                            algo_version=algo_version,
                             metric_name=metric_name,
                             value=metric_value.value,
                             analysis_mask=int(metric_value.analysis.value),
@@ -331,8 +326,8 @@ class KafkaWorkerPool:
             self._producer.publish_metric_emitted(
                 source_id=source_id,
                 job_id=job.job_id,
-                algo_name=plan.algo.name,
-                algo_version=plan.algo.version,
+                algo_name=algo_name,
+                algo_version=algo_version,
                 metric_name="job_duration_ms",
                 value=exec_result.duration_ms,
                 analysis_mask=int(AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D),
@@ -343,18 +338,18 @@ class KafkaWorkerPool:
             self._producer.publish_job_completed(
                 source_id=source_id,
                 job_id=job.job_id,
-                algo_name=plan.algo.name,
-                algo_version=plan.algo.version,
+                algo_name=algo_name,
+                algo_version=algo_version,
                 duration_ms=exec_result.duration_ms,
             )
 
             # Record job duration and completion metrics
-            JOB_DURATION.labels(algo_name=plan.algo.name).observe(
+            JOB_DURATION.labels(algo_name=algo_name).observe(
                 exec_result.duration_ms / 1000.0,  # Convert ms to seconds
             )
             JOBS_COMPLETED.labels(
-                algo_name=plan.algo.name,
-                algo_version=plan.algo.version,
+                algo_name=algo_name,
+                algo_version=algo_version,
             ).inc()
 
             logger.info(
@@ -372,9 +367,6 @@ class KafkaWorkerPool:
                 e,
             )
 
-            # Publish JOB_FAILED
-            algo_name = plan.algo.name if "plan" in dir() else None
-            algo_version = plan.algo.version if "plan" in dir() else None
             error_type = type(e).__name__
 
             self._producer.publish_job_failed(
@@ -396,11 +388,7 @@ class KafkaWorkerPool:
             WORKERS_ACTIVE.labels(worker_id=str(worker_id)).dec()
 
     def _is_slow_job(self, plan: Any) -> bool:
-        """Determine if a job is expected to be slow.
-
-        Future: Use historical timing data or algorithm hints.
-        """
-        # Placeholder - consider jobs slow if algorithm is ML inference
+        """Check if job is expected to be slow based on algorithm type."""
         return bool(plan.algo.name.startswith("model_"))
 
     def _read_file(self, path: str, timeout: float = 30.0) -> bytes:

@@ -1,14 +1,8 @@
-"""Metric values collector that stores raw values for analysis.
+"""Metric values collector for raw value storage and analysis.
 
-This collector runs alongside the aggregate consumer and stores raw metric
-values to MinIO. These values are used for AnalysisKind-specific computations
-(histograms, ellipses, contours, rates, counters) that require raw data.
-
-The values are stored in time-windowed buckets matching the Flink aggregation
-windows, enabling the dashboard to retrieve raw values for any aggregate.
-
-Usage:
-    Integrated into main pipeline via run_metric_values_collector()
+Stores raw metric values to MinIO for AnalysisKind-specific computations
+(histograms, ellipses, contours, rates, counters). Values are stored in
+time-windowed buckets matching Flink aggregation windows.
 """
 
 from __future__ import annotations
@@ -21,34 +15,8 @@ from typing import TYPE_CHECKING, Any
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
+from src.utils.json_compat import json_dumps, json_loads
 from src.utils.logging import get_logger
-
-# Try to use orjson for better performance
-try:
-    import orjson
-
-    def json_loads(data: bytes | str) -> dict[str, Any]:
-        if isinstance(data, str):
-            data = data.encode("utf-8")
-        result: dict[str, Any] = orjson.loads(data)
-        return result
-
-    def json_dumps(obj: dict[str, Any]) -> bytes:
-        result: bytes = orjson.dumps(obj)
-        return result
-
-except ImportError:
-    import json
-
-    def json_loads(data: bytes | str) -> dict[str, Any]:
-        if isinstance(data, bytes):
-            data = data.decode("utf-8")
-        result: dict[str, Any] = json.loads(data)
-        return result
-
-    def json_dumps(obj: dict[str, Any]) -> bytes:
-        return json.dumps(obj, separators=(",", ":")).encode("utf-8")
-
 
 if TYPE_CHECKING:
     import threading

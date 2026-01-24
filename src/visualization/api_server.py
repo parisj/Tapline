@@ -26,7 +26,7 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 from src.audit.chain import HashChainVerifier
 from src.config.loader import load_runtime_config
 from src.dispatch.routes import load_routes_toml
-from src.domain.evaluation import AnalysisKind
+from src.domain.evaluation import mask_to_kind_names
 from src.domain.events import EventEnvelope, EventType
 from src.storage.config import load_minio_config
 from src.storage.minio_service import MinioStorageService
@@ -38,12 +38,6 @@ from src.visualization.services.prometheus_service import JaegerService
 
 # Type alias for Flask route responses (single Response or Response with status code)
 FlaskResponse = Response | tuple[Response, int]
-
-
-def _mask_to_kind_names(mask: int) -> list[str]:
-    """Convert AnalysisKind bitmask to list of kind names."""
-    return [kind.name for kind in AnalysisKind if mask & kind.value and kind.name is not None]
-
 
 logger = get_logger(__name__)
 
@@ -777,10 +771,9 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
         )
         if values_data.get("values"):
             raw_values = values_data["values"]
-            # Update analysis_mask if not set
             if metric.analysis_mask == 0 and values_data.get("analysis_mask"):
                 response["analysis_mask"] = values_data["analysis_mask"]
-                response["analysis_kinds"] = _mask_to_kind_names(values_data["analysis_mask"])
+                response["analysis_kinds"] = list(mask_to_kind_names(values_data["analysis_mask"]))
 
         # Fall back to artifact document values
         if artifact_doc:

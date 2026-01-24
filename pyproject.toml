@@ -16,7 +16,12 @@ line-length = 120
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    # Docstrings - class/method/function level (we require package docstrings)
+    # Docstring style conflicts (D203/D211, D212/D213 are mutually exclusive)
+    "D203",    # Blank line before class (conflicts with D211)
+    "D213",    # Multi-line summary second line (conflicts with D212)
+    # Formatter conflict
+    "COM812",  # Missing trailing comma (conflicts with formatter)
+    # Docstrings - class/method/function level
     "D100",    # Missing docstring in public module
     "D101",    # Missing docstring in public class
     "D102",    # Missing docstring in public method
@@ -51,6 +56,8 @@ ignore = [
     "SLF001",  # Private member accessed
     "PYI036",  # Star-args in __exit__ should be annotated with object
     "N806",    # Variable in function should be lowercase
+    "ERA001",  # Commented-out code (false positives on section headers)
+    "TC003",   # Move stdlib import to type-checking block (style preference)
     # Subprocess without shell=True
     "S603",    # subprocess call without shell=True
     "S108",    # Probable insecure usage of temp file
@@ -66,11 +73,13 @@ ignore = [
     "S101",    # Asserts allowed in tests
     "D",       # Docstrings not required in tests
     "PLR2004", # Magic values OK in tests
-    "ANN001",  # Type annotations not required in tests
-    "ANN201",  # Return type annotations not required in tests
-    "ANN401",  # Any type OK in tests
+    "ANN",     # Type annotations not required in tests
     "ARG",     # Unused arguments OK in tests (fixtures)
     "RUF043",  # Regex patterns OK in tests
+    "F401",    # Unused imports OK in tests
+    "F841",    # Unused variables OK in tests
+    "PT022",   # Yield in fixtures
+    "S310",    # URL open audit (test URLs)
 ]
 "benchmarks/**/*.py" = [
     "T201",    # Print statements allowed in benchmarks
@@ -81,6 +90,8 @@ ignore = [
 "src/algorithms/**/*.py" = [
     "S324",    # SHA1 usage for fingerprinting (not security)
 ]
+# Lazy imports for algorithm registry
+"src/algorithms/registry.py" = ["PLC0415", "UP037"]
 # Base classes and protocols have unused args by design
 "src/algorithms/base.py" = ["ARG002"]
 "src/audit/chain.py" = ["ARG002"]

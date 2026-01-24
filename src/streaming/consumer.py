@@ -176,7 +176,7 @@ class EventConsumer:
                 )
                 return None
             # Handle unknown topic/partition gracefully - topic may not exist yet
-            if error.code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+            if error.code() == KafkaError.UNKNOWN_TOPIC_OR_PART:  # type: ignore[attr-defined]
                 logger.warning(
                     "Topic not available yet: %s (will retry)",
                     polled_msg.topic() or "unknown",
