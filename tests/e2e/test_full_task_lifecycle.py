@@ -1,11 +1,11 @@
-"""End-to-end tests for the complete job lifecycle.
+"""End-to-end tests for the complete task lifecycle.
 
 Tests the full flow:
-1. Job creation and publishing to Kafka
+1. Task creation and publishing to Kafka
 2. Event consumption by workers
-3. Job processing and result generation
+3. Task processing and result generation
 4. Correlation ID propagation
-5. Event sequencing (JOB_CREATED -> JOB_STARTED -> JOB_COMPLETED)
+5. Event sequencing (TASK_CREATED -> TASK_STARTED -> TASK_COMPLETED)
 """
 
 from __future__ import annotations
@@ -17,16 +17,16 @@ import uuid
 from src.domain.events import EventType
 
 
-class TestJobLifecycle:
-    """Test complete job lifecycle through the streaming pipeline."""
+class TestTaskLifecycle:
+    """Test complete task lifecycle through the streaming pipeline."""
 
-    def test_job_created_event_published(
+    def test_task_created_event_published(
         self,
         skip_without_infrastructure,
         kafka_config,
         test_image_bytes: bytes,
     ) -> None:
-        """Test that JOB_CREATED events are properly published to Kafka."""
+        """Test that TASK_CREATED events are properly published to Kafka."""
         from src.streaming.consumer import EventConsumer
         from src.streaming.producer import EventProducer
 
@@ -34,18 +34,18 @@ class TestJobLifecycle:
         consumer = EventConsumer(
             config=kafka_config,
             topics=[kafka_config.topic_jobs],
-            group_id=f"test-job-created-{uuid.uuid4().hex[:8]}",
+            group_id=f"test-task-created-{uuid.uuid4().hex[:8]}",
         )
 
         try:
-            # Generate unique job ID
-            job_id = f"test-job-{uuid.uuid4().hex}"
+            # Generate unique task ID
+            task_id = f"test-task-{uuid.uuid4().hex}"
             source_id = "test-source"
 
-            # Publish JOB_CREATED event
-            producer.publish_job_created(
+            # Publish TASK_CREATED event
+            producer.publish_task_created(
                 source_id=source_id,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="test-dir",
                 path="/test/path/image.png",
                 fingerprint="abc123",
@@ -59,14 +59,14 @@ class TestJobLifecycle:
 
             while time.time() - start < timeout:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     received_event = event
                     break
 
-            assert received_event is not None, f"JOB_CREATED event not received within {timeout}s"
-            assert received_event.event_type == EventType.JOB_CREATED
+            assert received_event is not None, f"TASK_CREATED event not received within {timeout}s"
+            assert received_event.event_type == EventType.TASK_CREATED
             assert received_event.source_id == source_id
-            assert received_event.payload["job_id"] == job_id
+            assert received_event.payload["task_id"] == task_id
             assert received_event.payload["directory_key"] == "test-dir"
             assert received_event.payload["path"] == "/test/path/image.png"
             assert received_event.payload["fingerprint"] == "abc123"
@@ -75,12 +75,12 @@ class TestJobLifecycle:
             producer.close()
             consumer.close()
 
-    def test_job_lifecycle_events_sequence(
+    def test_task_lifecycle_events_sequence(
         self,
         skip_without_infrastructure,
         kafka_config,
     ) -> None:
-        """Test that job lifecycle events are published in correct sequence."""
+        """Test that task lifecycle events are published in correct sequence."""
         from src.streaming.consumer import EventConsumer
         from src.streaming.producer import EventProducer
 
@@ -92,45 +92,45 @@ class TestJobLifecycle:
         )
 
         try:
-            job_id = f"test-lifecycle-{uuid.uuid4().hex}"
+            task_id = f"test-lifecycle-{uuid.uuid4().hex}"
             source_id = "test-source"
-            algo_name = "test_algo"
-            algo_version = "1.0.0"
+            processor_name = "test_processor"
+            processor_version = "1.0.0"
 
             # Publish lifecycle events in sequence
-            producer.publish_job_created(
+            producer.publish_task_created(
                 source_id=source_id,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="test-dir",
                 path="/test/path.png",
                 fingerprint="xyz789",
             )
 
-            producer.publish_job_started(
+            producer.publish_task_started(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
             )
 
-            producer.publish_job_completed(
+            producer.publish_task_completed(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 duration_ms=42.5,
             )
 
             producer.flush(timeout=5.0)
 
-            # Collect events for this job
+            # Collect events for this task
             events = []
             start = time.time()
             timeout = 15.0
 
             while time.time() - start < timeout and len(events) < 3:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     events.append(event)
 
             # Verify we got all 3 events
@@ -138,12 +138,12 @@ class TestJobLifecycle:
 
             # Verify event types (order may vary due to partitioning)
             event_types = {e.event_type for e in events}
-            assert EventType.JOB_CREATED in event_types
-            assert EventType.JOB_STARTED in event_types
-            assert EventType.JOB_COMPLETED in event_types
+            assert EventType.TASK_CREATED in event_types
+            assert EventType.TASK_STARTED in event_types
+            assert EventType.TASK_COMPLETED in event_types
 
-            # Verify JOB_COMPLETED has duration
-            completed_event = next(e for e in events if e.event_type == EventType.JOB_COMPLETED)
+            # Verify TASK_COMPLETED has duration
+            completed_event = next(e for e in events if e.event_type == EventType.TASK_COMPLETED)
             assert completed_event.payload["duration_ms"] == 42.5
 
         finally:
@@ -167,15 +167,15 @@ class TestJobLifecycle:
         )
 
         try:
-            job_id = f"test-result-{uuid.uuid4().hex}"
+            task_id = f"test-result-{uuid.uuid4().hex}"
             source_id = "test-source"
             artifact_refs = ["hash1", "hash2"]
 
             producer.publish_result_produced(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name="test_algo",
-                algo_version="2.0.0",
+                task_id=task_id,
+                processor_name="test_processor",
+                processor_version="2.0.0",
                 metric_count=5,
                 artifact_refs=artifact_refs,
             )
@@ -188,7 +188,7 @@ class TestJobLifecycle:
 
             while time.time() - start < timeout:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     received_event = event
                     break
 
@@ -218,18 +218,18 @@ class TestJobLifecycle:
         )
 
         try:
-            job_id = f"test-metric-{uuid.uuid4().hex}"
+            task_id = f"test-metric-{uuid.uuid4().hex}"
             metric_name = "accuracy"
             metric_value = 0.95
 
             producer.publish_metric_emitted(
-                source_id="test_algo",
-                job_id=job_id,
-                algo_name="test_algo",
-                algo_version="1.0.0",
+                source_id="test_processor",
+                task_id=task_id,
+                processor_name="test_processor",
+                processor_version="1.0.0",
                 metric_name=metric_name,
                 value=metric_value,
-                analysis_mask=1,
+                aggregation_mask=1,
                 meta={"unit": "percent"},
             )
             producer.flush(timeout=5.0)
@@ -241,7 +241,7 @@ class TestJobLifecycle:
 
             while time.time() - start < timeout:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     received_event = event
                     break
 
@@ -255,12 +255,12 @@ class TestJobLifecycle:
             producer.close()
             consumer.close()
 
-    def test_job_failed_event(
+    def test_task_failed_event(
         self,
         skip_without_infrastructure,
         kafka_config,
     ) -> None:
-        """Test that JOB_FAILED events contain error information."""
+        """Test that TASK_FAILED events contain error information."""
         from src.streaming.consumer import EventConsumer
         from src.streaming.producer import EventProducer
 
@@ -272,16 +272,16 @@ class TestJobLifecycle:
         )
 
         try:
-            job_id = f"test-failed-{uuid.uuid4().hex}"
+            task_id = f"test-failed-{uuid.uuid4().hex}"
             error_msg = "Test error: file not found"
             error_type = "FileNotFoundError"
 
-            producer.publish_job_failed(
+            producer.publish_task_failed(
                 source_id="test-source",
-                job_id=job_id,
+                task_id=task_id,
                 error=error_msg,
-                algo_name="test_algo",
-                algo_version="1.0.0",
+                processor_name="test_processor",
+                processor_version="1.0.0",
                 error_type=error_type,
             )
             producer.flush(timeout=5.0)
@@ -293,12 +293,12 @@ class TestJobLifecycle:
 
             while time.time() - start < timeout:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     received_event = event
                     break
 
             assert received_event is not None
-            assert received_event.event_type == EventType.JOB_FAILED
+            assert received_event.event_type == EventType.TASK_FAILED
             assert received_event.payload["error"] == error_msg
             assert received_event.payload["error_type"] == error_type
 
@@ -387,11 +387,11 @@ class TestEventHashChain:
         )
 
         try:
-            job_id = f"test-hash-{uuid.uuid4().hex}"
+            task_id = f"test-hash-{uuid.uuid4().hex}"
 
-            producer.publish_job_created(
+            producer.publish_task_created(
                 source_id="test-source",
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="test-dir",
                 path="/test/path.png",
                 fingerprint="hash123",
@@ -405,7 +405,7 @@ class TestEventHashChain:
 
             while time.time() - start < timeout:
                 event = consumer.poll(timeout=1.0)
-                if event and event.payload.get("job_id") == job_id:
+                if event and event.payload.get("task_id") == task_id:
                     received_event = event
                     break
 

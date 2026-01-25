@@ -36,9 +36,9 @@ class ExecutionContext:
 class ExecutionResult:
     """Result of job execution."""
 
-    job_id: str
-    algo_name: str
-    algo_version: str
+    task_id: str
+    processor_name: str
+    processor_version: str
     result: AlgoResult | None
     error: str | None
     duration_ms: float
@@ -82,16 +82,16 @@ class LocalWorkerStrategy:
             error = str(e)
             logger.exception(
                 "Local execution failed: job=%s, algo=%s",
-                context.job.job_id,
+                context.job.task_id,
                 context.algo.name,
             )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
 
         return ExecutionResult(
-            job_id=context.job.job_id,
-            algo_name=context.algo.name,
-            algo_version=context.algo.version,
+            task_id=context.job.task_id,
+            processor_name=context.algo.name,
+            processor_version=context.algo.version,
             result=result,
             error=error,
             duration_ms=duration_ms,

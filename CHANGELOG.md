@@ -15,9 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed `yolo_segmentation` algorithm to `model_yolo_segmentation` (triggers slow-job partition pausing)
-- YOLO algorithm now fails fast at initialization if ultralytics is not installed
-- Algorithm naming convention: `model_` prefix for slow/ML algorithms
+- Renamed `yolo_segmentation` processor to `model_yolo_segmentation` (triggers slow-task partition pausing)
+- YOLO processor now fails fast at initialization if ultralytics is not installed
+- Processor naming convention: `model_` prefix for slow/ML processors
 
 ### Fixed
 
@@ -61,19 +61,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Kafka event streaming
   - Worker pool for parallel execution
   - MinIO content-addressed storage
-- Algorithm framework
-  - Base Algorithm class
+- Processor framework
+  - Base Processor class
   - Registry-based discovery
   - Configurable routing
 - Metric system
-  - MetricValue with AnalysisKind flags
+  - Measurement with AggregationType flags
   - Python-based time-windowed aggregation
   - Analyzer pipeline
 - Built-in analyzers
-  - Summary (mean, median, std, etc.)
-  - Distribution (histogram)
-  - Counter and Rate
-  - Ellipse and Contour (2D)
+  - Stats (mean, median, std, etc.)
+  - Histogram
+  - Tally and Rate
+  - Scatter Ellipse and Density Map (2D)
 - Observability stack
   - OpenTelemetry tracing
   - Prometheus metrics

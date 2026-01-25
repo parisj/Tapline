@@ -1,4 +1,4 @@
-# Contributing to VisioEval
+# Contributing to Tapline
 
 ## Getting Started
 
@@ -29,7 +29,7 @@ Write clear, descriptive commit messages:
 Add outlier detection analyzer
 
 - Implement z-score based outlier detection
-- Add AnalysisKind.OUTLIERS_1D flag
+- Add AggregationType.OUTLIERS flag
 - Register in ANALYSIS_PIPELINE
 ```
 
@@ -69,9 +69,9 @@ When reviewing, check for:
 
 ## Good Contribution Areas
 
-### Algorithms
+### Processors
 
-New algorithm implementations. See [extending guide](.claude/docs/extending.md).
+New processor implementations. See [extending guide](.claude/docs/extending.md).
 
 ### Analyzers
 

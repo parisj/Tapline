@@ -1,4 +1,4 @@
-# PyFlink configuration for VisioEval stream processing
+# PyFlink configuration for Tapline stream processing
 
 [connection]
 jobmanager_address = "localhost:8081"
@@ -42,6 +42,6 @@ idle_timeout_sec = 60
 
 [kafka]
 # Kafka connector settings (override kafka.toml for Flink-specific)
-consumer_group = "visioeval-flink"
+consumer_group = "tapline-flink"
 commit_on_checkpoints = true
 start_from_earliest = true

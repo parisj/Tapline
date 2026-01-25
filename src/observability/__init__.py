@@ -15,11 +15,6 @@ from src.observability.correlation import (
     set_correlation_id,
 )
 from src.observability.metrics import (
-    JOB_DURATION,
-    JOBS_COMPLETED,
-    JOBS_CREATED,
-    JOBS_FAILED,
-    JOBS_IN_PROGRESS,
     KAFKA_MESSAGES_CONSUMED,
     KAFKA_MESSAGES_PRODUCED,
     KAFKA_PRODUCE_ERRORS,
@@ -28,16 +23,16 @@ from src.observability.metrics import (
     MINIO_RETRIEVE_DURATION,
     MINIO_STORE_DURATION,
     PIPELINE_UP,
+    TASK_DURATION,
+    TASKS_COMPLETED,
+    TASKS_CREATED,
+    TASKS_FAILED,
+    TASKS_IN_PROGRESS,
     configure_metrics,
 )
 from src.observability.tracing import configure_tracing, get_tracer, traced
 
 __all__ = [
-    "JOBS_COMPLETED",
-    "JOBS_CREATED",
-    "JOBS_FAILED",
-    "JOBS_IN_PROGRESS",
-    "JOB_DURATION",
     "KAFKA_MESSAGES_CONSUMED",
     "KAFKA_MESSAGES_PRODUCED",
     "KAFKA_PRODUCE_ERRORS",
@@ -46,15 +41,16 @@ __all__ = [
     "MINIO_RETRIEVE_DURATION",
     "MINIO_STORE_DURATION",
     "PIPELINE_UP",
-    # Config
+    "TASKS_COMPLETED",
+    "TASKS_CREATED",
+    "TASKS_FAILED",
+    "TASKS_IN_PROGRESS",
+    "TASK_DURATION",
     "ObservabilityConfig",
-    # Metrics
     "configure_metrics",
-    # Tracing
     "configure_tracing",
     "correlation_context",
     "generate_correlation_id",
-    # Correlation
     "get_correlation_id",
     "get_tracer",
     "load_observability_config",

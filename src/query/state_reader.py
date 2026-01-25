@@ -31,13 +31,13 @@ logger = get_logger(__name__)
 class JobStatus:
     """Current status of a job."""
 
-    job_id: str
+    task_id: str
     status: str
     directory_key: str
     path: str
     fingerprint: str
-    algo_name: str | None = None
-    algo_version: str | None = None
+    processor_name: str | None = None
+    processor_version: str | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -82,17 +82,17 @@ class StateReader:
         self._job_states: dict[str, JobStatus] = {}
         self._artifact_index: dict[str, ArtifactInfo] = {}
 
-    def get_job_status(self, job_id: str) -> JobStatus | None:
+    def get_job_status(self, task_id: str) -> JobStatus | None:
         """Get current status of a job.
 
         Args:
-            job_id: Job identifier
+            task_id: Job identifier
 
         Returns:
             JobStatus or None if not found
 
         """
-        return self._job_states.get(job_id)
+        return self._job_states.get(task_id)
 
     def list_jobs(
         self,
@@ -233,9 +233,9 @@ class StateReader:
         """Process an event and update internal state."""
         payload = event.payload
 
-        if event.event_type == EventType.JOB_CREATED:
-            self._job_states[payload["job_id"]] = JobStatus(
-                job_id=payload["job_id"],
+        if event.event_type == EventType.TASK_CREATED:
+            self._job_states[payload["task_id"]] = JobStatus(
+                task_id=payload["task_id"],
                 status="created",
                 directory_key=payload["directory_key"],
                 path=payload["path"],
@@ -243,52 +243,52 @@ class StateReader:
                 created_at=event.timestamp,
             )
 
-        elif event.event_type == EventType.JOB_STARTED:
-            job_id = payload["job_id"]
-            if job_id in self._job_states:
-                job = self._job_states[job_id]
-                self._job_states[job_id] = JobStatus(
-                    job_id=job.job_id,
+        elif event.event_type == EventType.TASK_STARTED:
+            task_id = payload["task_id"]
+            if task_id in self._job_states:
+                job = self._job_states[task_id]
+                self._job_states[task_id] = JobStatus(
+                    task_id=job.task_id,
                     status="started",
                     directory_key=job.directory_key,
                     path=job.path,
                     fingerprint=job.fingerprint,
-                    algo_name=payload.get("algo_name"),
-                    algo_version=payload.get("algo_version"),
+                    processor_name=payload.get("processor_name"),
+                    processor_version=payload.get("processor_version"),
                     created_at=job.created_at,
                     started_at=event.timestamp,
                 )
 
-        elif event.event_type == EventType.JOB_COMPLETED:
-            job_id = payload["job_id"]
-            if job_id in self._job_states:
-                job = self._job_states[job_id]
-                self._job_states[job_id] = JobStatus(
-                    job_id=job.job_id,
+        elif event.event_type == EventType.TASK_COMPLETED:
+            task_id = payload["task_id"]
+            if task_id in self._job_states:
+                job = self._job_states[task_id]
+                self._job_states[task_id] = JobStatus(
+                    task_id=job.task_id,
                     status="completed",
                     directory_key=job.directory_key,
                     path=job.path,
                     fingerprint=job.fingerprint,
-                    algo_name=job.algo_name,
-                    algo_version=job.algo_version,
+                    processor_name=job.processor_name,
+                    processor_version=job.processor_version,
                     created_at=job.created_at,
                     started_at=job.started_at,
                     completed_at=event.timestamp,
                     duration_ms=payload.get("duration_ms"),
                 )
 
-        elif event.event_type == EventType.JOB_FAILED:
-            job_id = payload["job_id"]
-            if job_id in self._job_states:
-                job = self._job_states[job_id]
-                self._job_states[job_id] = JobStatus(
-                    job_id=job.job_id,
+        elif event.event_type == EventType.TASK_FAILED:
+            task_id = payload["task_id"]
+            if task_id in self._job_states:
+                job = self._job_states[task_id]
+                self._job_states[task_id] = JobStatus(
+                    task_id=job.task_id,
                     status="failed",
                     directory_key=job.directory_key,
                     path=job.path,
                     fingerprint=job.fingerprint,
-                    algo_name=job.algo_name,
-                    algo_version=job.algo_version,
+                    processor_name=job.processor_name,
+                    processor_version=job.processor_version,
                     created_at=job.created_at,
                     started_at=job.started_at,
                     completed_at=event.timestamp,
@@ -296,17 +296,17 @@ class StateReader:
                 )
 
         elif event.event_type == EventType.RESULT_PRODUCED:
-            job_id = payload["job_id"]
-            if job_id in self._job_states:
-                job = self._job_states[job_id]
-                self._job_states[job_id] = JobStatus(
-                    job_id=job.job_id,
+            task_id = payload["task_id"]
+            if task_id in self._job_states:
+                job = self._job_states[task_id]
+                self._job_states[task_id] = JobStatus(
+                    task_id=job.task_id,
                     status=job.status,
                     directory_key=job.directory_key,
                     path=job.path,
                     fingerprint=job.fingerprint,
-                    algo_name=job.algo_name,
-                    algo_version=job.algo_version,
+                    processor_name=job.processor_name,
+                    processor_version=job.processor_version,
                     created_at=job.created_at,
                     started_at=job.started_at,
                     completed_at=job.completed_at,

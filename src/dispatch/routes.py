@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
-    from src.algorithms.registry import AlgorithmRegistry
+    from src.algorithms.registry import ProcessorRegistry
 
 logger = get_logger(__name__)
 
@@ -27,7 +27,7 @@ class RoutesConfigError(ValueError):
 @dataclass(frozen=True)
 class LoadedRoute:
     directory_key: str
-    algorithm: str
+    algorithm: str  # processor name from config
     version: str
     settings_relpath: str
     settings: Mapping[str, Any]
@@ -77,13 +77,13 @@ def load_routes_toml(
 def build_dispatch_plans(
     loaded_routes: Mapping[str, LoadedRoute],
     *,
-    registry: AlgorithmRegistry,
+    registry: ProcessorRegistry,
 ) -> dict[str, DispatchPlan]:
-    """Convert LoadedRoute -> DispatchPlan by instantiating algorithms from registry."""
+    """Convert LoadedRoute -> DispatchPlan by instantiating processors from registry."""
     plans: dict[str, DispatchPlan] = {}
     for key, lr in loaded_routes.items():
-        algo = registry.create(lr.algorithm, lr.version)  # validates existence
-        plans[key] = DispatchPlan(algo=algo, settings=lr.settings)
+        processor = registry.create(lr.algorithm, lr.version)  # validates existence
+        plans[key] = DispatchPlan(processor=processor, settings=lr.settings)
     return plans
 
 

@@ -1,4 +1,4 @@
-"""Edge detection algorithm.
+"""Edge detection processor.
 
 Detects edges in images using various methods (Canny, Sobel, Laplacian)
 and returns metrics about edge density, count, and orientation.
@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class EdgeDetectionAlgo(Algorithm):
-    """Edge detection algorithm using OpenCV.
+class EdgeDetectionProcessor(Processor):
+    """Edge detection processor using OpenCV.
 
     Supports multiple edge detection methods and returns metrics
     about edge characteristics.
@@ -57,7 +57,7 @@ class EdgeDetectionAlgo(Algorithm):
         self._min_edge_density = float(algorithm_cfg.get("min_edge_density", 0.01))
 
         logger.info(
-            "EdgeDetectionAlgo initialized: method=%s, canny=[%.1f,%.1f], sobel_k=%d",
+            "EdgeDetectionProcessor initialized: method=%s, canny=[%.1f,%.1f], sobel_k=%d",
             self._method,
             self._canny_threshold1,
             self._canny_threshold2,
@@ -133,23 +133,23 @@ class EdgeDetectionAlgo(Algorithm):
 
         return float(dominant_angle)
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         """Detect edges and return metrics."""
         # Decode image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "edge_density": MetricValue(
+                    "edge_density": Measurement(
                         value=0.0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                        aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "edge_detection_passed": MetricValue(
+                    "edge_detection_passed": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "pass", "false_label": "fail"},
                     ),
                 },
@@ -178,10 +178,10 @@ class EdgeDetectionAlgo(Algorithm):
         edge_detection_passed = bool(edge_density >= self._min_edge_density)
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "edge_density": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "edge_density": Measurement(
                 value=edge_density,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
@@ -189,23 +189,23 @@ class EdgeDetectionAlgo(Algorithm):
                     "method": self._method,
                 },
             ),
-            "edge_count": MetricValue(
+            "edge_count": Measurement(
                 value=edge_count,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={"units": "count", "method": self._method},
             ),
-            "dominant_orientation": MetricValue(
+            "dominant_orientation": Measurement(
                 value=dominant_orientation,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "degrees",
                     "range": [0.0, 180.0],
                     "description": "Most common edge direction",
                 },
             ),
-            "edge_detection_passed": MetricValue(
+            "edge_detection_passed": Measurement(
                 value=edge_detection_passed,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "pass",
                     "false_label": "fail",
@@ -240,7 +240,7 @@ class EdgeDetectionAlgo(Algorithm):
             },
         }
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=(
                 Artifact(
@@ -255,3 +255,7 @@ class EdgeDetectionAlgo(Algorithm):
                 ),
             ),
         )
+
+
+# Backwards compatibility alias
+EdgeDetectionAlgo = EdgeDetectionProcessor

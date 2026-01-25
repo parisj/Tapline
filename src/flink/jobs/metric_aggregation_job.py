@@ -71,12 +71,12 @@ class MetricParser(MapFunction):
             # Create structured metric record
             return json.dumps(
                 {
-                    "job_id": payload.get("job_id", ""),
-                    "algo_name": payload.get("algo_name", "unknown"),
-                    "algo_version": payload.get("algo_version", "0.0.0"),
+                    "task_id": payload.get("task_id", ""),
+                    "processor_name": payload.get("processor_name", "unknown"),
+                    "processor_version": payload.get("processor_version", "0.0.0"),
                     "metric_name": payload.get("metric_name", "unknown"),
                     "value": float(metric_value),
-                    "analysis_mask": payload.get("analysis_mask", 0),
+                    "aggregation_mask": payload.get("aggregation_mask", 0),
                     "event_timestamp": data.get("timestamp", ""),
                 },
             )
@@ -90,19 +90,19 @@ class MetricWindowAggregator(ProcessWindowFunction):
     def process(self, _key: str, context: ProcessWindowFunction.Context, elements: list[str]) -> Iterator[str]:
         """Process all elements in the window and emit aggregate."""
         values = []
-        algo_name = "unknown"
-        algo_version = "0.0.0"
+        processor_name = "unknown"
+        processor_version = "0.0.0"
         metric_name = "unknown"
-        analysis_mask = 0
+        aggregation_mask = 0
 
         for elem in elements:
             try:
                 data = json.loads(elem)
                 values.append(data["value"])
-                algo_name = data["algo_name"]
-                algo_version = data["algo_version"]
+                processor_name = data["processor_name"]
+                processor_version = data["processor_version"]
                 metric_name = data["metric_name"]
-                analysis_mask = data.get("analysis_mask", 0)
+                aggregation_mask = data.get("aggregation_mask", 0)
             except (json.JSONDecodeError, KeyError):
                 continue
 
@@ -142,10 +142,10 @@ class MetricWindowAggregator(ProcessWindowFunction):
         aggregate = {
             "event_type": "AGGREGATE_COMPUTED",
             "source_id": "flink-metric-aggregation",
-            "algo_name": algo_name,
-            "algo_version": algo_version,
+            "processor_name": processor_name,
+            "processor_version": processor_version,
             "metric_name": metric_name,
-            "analysis_mask": analysis_mask,
+            "aggregation_mask": aggregation_mask,
             "window_start_ms": window_start_ms,
             "window_end_ms": window_end_ms,
             "summary": {
@@ -168,7 +168,7 @@ def get_key(value: str) -> str:
     """Extract grouping key from metric record."""
     try:
         data = json.loads(value)
-        return f"{data['algo_name']}|{data['algo_version']}|{data['metric_name']}"
+        return f"{data['processor_name']}|{data['processor_version']}|{data['metric_name']}"
     except (json.JSONDecodeError, KeyError):
         return "unknown"
 

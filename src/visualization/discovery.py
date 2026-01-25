@@ -41,16 +41,16 @@ class MetricInfo:
     """Information about a discovered metric."""
 
     metric_name: str
-    algo_name: str
-    algo_version: str
-    analysis_mask: int
-    analysis_kinds: list[str] = field(default_factory=list)
+    processor_name: str
+    processor_version: str
+    aggregation_mask: int
+    aggregation_types: list[str] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
     artifact_key: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.analysis_kinds:
-            self.analysis_kinds = list(mask_to_kind_names(self.analysis_mask))
+        if not self.aggregation_types:
+            self.aggregation_types = list(mask_to_kind_names(self.aggregation_mask))
 
 
 class DiscoveryService:
@@ -105,8 +105,8 @@ class DiscoveryService:
 
     def discover_metrics_from_minio(
         self,
-        algo_name: str | None = None,
-        algo_version: str | None = None,
+        processor_name: str | None = None,
+        processor_version: str | None = None,
         *,
         refresh: bool = False,
         time_range_minutes: int | None = None,
@@ -116,8 +116,8 @@ class DiscoveryService:
         Parses JSON aggregate documents to extract metric information.
 
         Args:
-            algo_name: Filter by algorithm name (optional)
-            algo_version: Filter by algorithm version (optional)
+            processor_name: Filter by algorithm name (optional)
+            processor_version: Filter by algorithm version (optional)
             refresh: Force refresh of cached metrics
             time_range_minutes: Filter to only include windows within last N minutes
 
@@ -127,7 +127,7 @@ class DiscoveryService:
         """
         import time as time_module
 
-        cache_key = f"{algo_name or '*'}|{algo_version or '*'}|{time_range_minutes or '*'}"
+        cache_key = f"{processor_name or '*'}|{processor_version or '*'}|{time_range_minutes or '*'}"
         if not refresh and cache_key in self._metrics_cache:
             return self._metrics_cache[cache_key]
 
@@ -155,12 +155,12 @@ class DiscoveryService:
                         if window_end is not None and window_end < time_cutoff:
                             continue
 
-                    doc_algo = doc.get("algo_name", "")
-                    doc_version = doc.get("algo_version", "")
+                    doc_algo = doc.get("processor_name", "")
+                    doc_version = doc.get("processor_version", "")
 
-                    if algo_name and doc_algo != algo_name:
+                    if processor_name and doc_algo != processor_name:
                         continue
-                    if algo_version and doc_version != algo_version:
+                    if processor_version and doc_version != processor_version:
                         continue
 
                     metric_name = doc.get("metric_name", "")
@@ -174,9 +174,9 @@ class DiscoveryService:
                         # Initialize with first occurrence
                         aggregated[metric_key] = {
                             "metric_name": metric_name,
-                            "algo_name": doc_algo,
-                            "algo_version": doc_version,
-                            "analysis_mask": doc.get("analysis_mask", 0),
+                            "processor_name": doc_algo,
+                            "processor_version": doc_version,
+                            "aggregation_mask": doc.get("aggregation_mask", 0),
                             "artifact_key": obj["key"],
                             "count": summary.get("count", 0),
                             "sum": summary.get("sum", 0),
@@ -213,9 +213,9 @@ class DiscoveryService:
                 metrics.append(
                     MetricInfo(
                         metric_name=agg["metric_name"],
-                        algo_name=agg["algo_name"],
-                        algo_version=agg["algo_version"],
-                        analysis_mask=agg["analysis_mask"],
+                        processor_name=agg["processor_name"],
+                        processor_version=agg["processor_version"],
+                        aggregation_mask=agg["aggregation_mask"],
                         summary={
                             "count": count,
                             "sum": total,
@@ -257,16 +257,16 @@ class DiscoveryService:
 
     def get_metric_values(
         self,
-        algo_name: str,
-        algo_version: str,
+        processor_name: str,
+        processor_version: str,
         metric_name: str,
         time_range_minutes: int | None = None,
     ) -> list[Any]:
         """Retrieve raw metric values from the metric-values bucket.
 
         Args:
-            algo_name: Algorithm name
-            algo_version: Algorithm version
+            processor_name: Algorithm name
+            processor_version: Algorithm version
             metric_name: Metric name
             time_range_minutes: Filter to only include windows within last N minutes
 
@@ -277,7 +277,7 @@ class DiscoveryService:
         import time as time_module
 
         values: list[Any] = []
-        analysis_mask = 0
+        aggregation_mask = 0
         meta: dict[str, Any] | None = None
 
         # Calculate time cutoff
@@ -295,9 +295,9 @@ class DiscoveryService:
                     doc = json.loads(data.decode("utf-8"))
 
                     # Filter by metric identity
-                    if doc.get("algo_name") != algo_name:
+                    if doc.get("processor_name") != processor_name:
                         continue
-                    if doc.get("algo_version") != algo_version:
+                    if doc.get("processor_version") != processor_version:
                         continue
                     if doc.get("metric_name") != metric_name:
                         continue
@@ -312,9 +312,9 @@ class DiscoveryService:
                     doc_values = doc.get("values", [])
                     values.extend(doc_values)
 
-                    # Capture analysis_mask and meta from first match
-                    if analysis_mask == 0:
-                        analysis_mask = doc.get("analysis_mask", 0)
+                    # Capture aggregation_mask and meta from first match
+                    if aggregation_mask == 0:
+                        aggregation_mask = doc.get("aggregation_mask", 0)
                     if meta is None:
                         meta = doc.get("meta")
 
@@ -329,8 +329,8 @@ class DiscoveryService:
 
     def get_metric_values_with_meta(
         self,
-        algo_name: str,
-        algo_version: str,
+        processor_name: str,
+        processor_version: str,
         metric_name: str,
         time_range_minutes: int | None = None,
     ) -> dict[str, Any]:
@@ -340,19 +340,19 @@ class DiscoveryService:
         and the aggregates bucket (from Python aggregation which includes values).
 
         Args:
-            algo_name: Algorithm name
-            algo_version: Algorithm version
+            processor_name: Algorithm name
+            processor_version: Algorithm version
             metric_name: Metric name
             time_range_minutes: Filter to only include windows within last N minutes
 
         Returns:
-            Dict with 'values', 'analysis_mask', and 'meta' keys
+            Dict with 'values', 'aggregation_mask', and 'meta' keys
 
         """
         import time as time_module
 
         values: list[Any] = []
-        analysis_mask = 0
+        aggregation_mask = 0
         meta: dict[str, Any] | None = None
 
         # Calculate time cutoff
@@ -371,9 +371,9 @@ class DiscoveryService:
                     doc = json.loads(data.decode("utf-8"))
 
                     # Filter by metric identity
-                    if doc.get("algo_name") != algo_name:
+                    if doc.get("processor_name") != processor_name:
                         continue
-                    if doc.get("algo_version") != algo_version:
+                    if doc.get("processor_version") != processor_version:
                         continue
                     if doc.get("metric_name") != metric_name:
                         continue
@@ -388,9 +388,9 @@ class DiscoveryService:
                     doc_values = doc.get("values", [])
                     values.extend(doc_values)
 
-                    # Capture analysis_mask and meta from first match
-                    if analysis_mask == 0:
-                        analysis_mask = doc.get("analysis_mask", 0)
+                    # Capture aggregation_mask and meta from first match
+                    if aggregation_mask == 0:
+                        aggregation_mask = doc.get("aggregation_mask", 0)
                     if meta is None:
                         meta = doc.get("meta")
 
@@ -412,9 +412,9 @@ class DiscoveryService:
                     doc = json.loads(data.decode("utf-8"))
 
                     # Filter by metric identity
-                    if doc.get("algo_name") != algo_name:
+                    if doc.get("processor_name") != processor_name:
                         continue
-                    if doc.get("algo_version") != algo_version:
+                    if doc.get("processor_version") != processor_version:
                         continue
                     if doc.get("metric_name") != metric_name:
                         continue
@@ -430,9 +430,9 @@ class DiscoveryService:
                     if doc_values:
                         values.extend(doc_values)
 
-                        # Capture analysis_mask and meta if not already set
-                        if analysis_mask == 0:
-                            analysis_mask = doc.get("analysis_mask", 0)
+                        # Capture aggregation_mask and meta if not already set
+                        if aggregation_mask == 0:
+                            aggregation_mask = doc.get("aggregation_mask", 0)
                         if meta is None:
                             meta = doc.get("meta")
 
@@ -445,7 +445,7 @@ class DiscoveryService:
 
         return {
             "values": values,
-            "analysis_mask": analysis_mask,
+            "aggregation_mask": aggregation_mask,
             "meta": meta,
         }
 

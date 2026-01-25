@@ -128,13 +128,13 @@ class TestStructuredLogFormatter:
             exc_info=None,
         )
         record.custom_field = "custom_value"
-        record.job_id = "job-123"
+        record.task_id = "task-123"
 
         result = formatter.format(record)
         parsed = json.loads(result)
 
         assert parsed["custom_field"] == "custom_value"
-        assert parsed["job_id"] == "job-123"
+        assert parsed["task_id"] == "task-123"
 
     @patch("src.observability.correlation.get_correlation_id")
     def test_format_with_correlation_id(self, mock_get_cid: MagicMock) -> None:
@@ -371,7 +371,7 @@ class TestLogWithContext:
                 logger,
                 logging.INFO,
                 "Test message",
-                job_id="job-123",
+                task_id="task-123",
                 metric_name="accuracy",
             )
 
@@ -379,7 +379,7 @@ class TestLogWithContext:
             assert len(captured_records) == 1
             record = captured_records[0]
             assert record.msg == "Test message"
-            assert record.job_id == "job-123"  # type: ignore[attr-defined]
+            assert record.task_id == "task-123"  # type: ignore[attr-defined]
             assert record.metric_name == "accuracy"  # type: ignore[attr-defined]
         finally:
             logger.removeHandler(handler)

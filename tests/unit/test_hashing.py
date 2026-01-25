@@ -94,10 +94,10 @@ class TestComputeFingerprint:
 class TestMakeAggregateArtifactHash:
     def test_returns_hex_string(self) -> None:
         hash_val = make_aggregate_artifact_hash(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_algo",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_kind="SUMMARY",
+            aggregation_type="STATS",
             window_start_unix=1000.0,
             window_end_unix=2000.0,
             artifact_name="histogram.json",
@@ -108,10 +108,10 @@ class TestMakeAggregateArtifactHash:
 
     def test_deterministic(self) -> None:
         params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
@@ -122,41 +122,41 @@ class TestMakeAggregateArtifactHash:
 
         assert hash1 == hash2
 
-    def test_different_algo_name_different_hash(self) -> None:
+    def test_different_processor_name_different_hash(self) -> None:
         base_params = {
-            "algo_version": "1.0.0",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
         }
 
-        hash1 = make_aggregate_artifact_hash(algo_name="algo1", **base_params)
-        hash2 = make_aggregate_artifact_hash(algo_name="algo2", **base_params)
+        hash1 = make_aggregate_artifact_hash(processor_name="algo1", **base_params)
+        hash2 = make_aggregate_artifact_hash(processor_name="algo2", **base_params)
 
         assert hash1 != hash2
 
     def test_different_version_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
+            "processor_name": "test_algo",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
         }
 
-        hash1 = make_aggregate_artifact_hash(algo_version="1.0.0", **base_params)
-        hash2 = make_aggregate_artifact_hash(algo_version="2.0.0", **base_params)
+        hash1 = make_aggregate_artifact_hash(processor_version="1.0.0", **base_params)
+        hash2 = make_aggregate_artifact_hash(processor_version="2.0.0", **base_params)
 
         assert hash1 != hash2
 
     def test_different_metric_name_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
-            "analysis_kind": "SUMMARY",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
@@ -167,27 +167,27 @@ class TestMakeAggregateArtifactHash:
 
         assert hash1 != hash2
 
-    def test_different_analysis_kind_different_hash(self) -> None:
+    def test_different_aggregation_type_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
         }
 
-        hash1 = make_aggregate_artifact_hash(analysis_kind="SUMMARY", **base_params)
-        hash2 = make_aggregate_artifact_hash(analysis_kind="DISTRIBUTION_1D", **base_params)
+        hash1 = make_aggregate_artifact_hash(aggregation_type="STATS", **base_params)
+        hash2 = make_aggregate_artifact_hash(aggregation_type="HISTOGRAM", **base_params)
 
         assert hash1 != hash2
 
     def test_different_window_start_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_end_unix": 2000.0,
             "artifact_name": "histogram.json",
         }
@@ -199,10 +199,10 @@ class TestMakeAggregateArtifactHash:
 
     def test_different_window_end_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "artifact_name": "histogram.json",
         }
@@ -214,10 +214,10 @@ class TestMakeAggregateArtifactHash:
 
     def test_different_artifact_name_different_hash(self) -> None:
         base_params = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_algo",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
-            "analysis_kind": "SUMMARY",
+            "aggregation_type": "STATS",
             "window_start_unix": 1000.0,
             "window_end_unix": 2000.0,
         }
@@ -230,10 +230,10 @@ class TestMakeAggregateArtifactHash:
     def test_expected_hash_format(self) -> None:
         # Verify the hash is a valid SHA-256 hex string
         hash_val = make_aggregate_artifact_hash(
-            algo_name="test",
-            algo_version="1.0.0",
+            processor_name="test",
+            processor_version="1.0.0",
             metric_name="test",
-            analysis_kind="SUMMARY",
+            aggregation_type="STATS",
             window_start_unix=0.0,
             window_end_unix=60.0,
             artifact_name="test.json",

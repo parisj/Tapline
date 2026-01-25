@@ -1,13 +1,13 @@
 """Unit tests for domain models.
 
 Tests for:
-- Job dataclass
+- Task dataclass
 - Artifact dataclass
-- AlgoResult dataclass
-- MetricValue dataclass
+- ProcessorResult dataclass
+- Measurement dataclass
 - PersistedResultRef dataclass
 - metrics_to_jsonable function
-- AnalysisKind enum
+- AggregationType enum
 """
 
 from __future__ import annotations
@@ -17,42 +17,42 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.domain.evaluation import AnalysisKind
-from src.domain.jobs import Job
+from src.domain.evaluation import AggregationType
 from src.domain.results import (
-    AlgoResult,
     Artifact,
-    MetricValue,
+    Measurement,
     PersistedResultRef,
+    ProcessorResult,
     metrics_to_jsonable,
 )
+from src.domain.tasks import Task
 
 # =============================================================================
-# Job Tests
+# Task Tests
 # =============================================================================
 
 
-class TestJob:
-    """Tests for Job dataclass."""
+class TestTask:
+    """Tests for Task dataclass."""
 
-    def test_job_creation(self) -> None:
-        job = Job(
-            job_id="job-123",
+    def test_task_creation(self) -> None:
+        task = Task(
+            task_id="task-123",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
             fingerprint="abc123",
         )
 
-        assert job.job_id == "job-123"
-        assert job.directory_key == "inbox"
-        assert job.path == "/tmp/test.png"
-        assert job.created_at_unix == 1704067200.0
-        assert job.fingerprint == "abc123"
+        assert task.task_id == "task-123"
+        assert task.directory_key == "inbox"
+        assert task.path == "/tmp/test.png"
+        assert task.created_at_unix == 1704067200.0
+        assert task.fingerprint == "abc123"
 
-    def test_job_is_frozen(self) -> None:
-        job = Job(
-            job_id="job-123",
+    def test_task_is_frozen(self) -> None:
+        task = Task(
+            task_id="task-123",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
@@ -60,37 +60,37 @@ class TestJob:
         )
 
         with pytest.raises(FrozenInstanceError):
-            job.job_id = "new-id"  # type: ignore[misc]
+            task.task_id = "new-id"  # type: ignore[misc]
 
-    def test_job_equality(self) -> None:
-        job1 = Job(
-            job_id="job-123",
+    def test_task_equality(self) -> None:
+        task1 = Task(
+            task_id="task-123",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
             fingerprint="abc123",
         )
-        job2 = Job(
-            job_id="job-123",
+        task2 = Task(
+            task_id="task-123",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
             fingerprint="abc123",
         )
-        job3 = Job(
-            job_id="job-456",
+        task3 = Task(
+            task_id="task-456",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
             fingerprint="abc123",
         )
 
-        assert job1 == job2
-        assert job1 != job3
+        assert task1 == task2
+        assert task1 != task3
 
-    def test_job_hashable(self) -> None:
-        job = Job(
-            job_id="job-123",
+    def test_task_hashable(self) -> None:
+        task = Task(
+            task_id="task-123",
             directory_key="inbox",
             path="/tmp/test.png",
             created_at_unix=1704067200.0,
@@ -98,8 +98,8 @@ class TestJob:
         )
 
         # Should be hashable for use in sets/dicts
-        job_set = {job}
-        assert job in job_set
+        task_set = {task}
+        assert task in task_set
 
 
 # =============================================================================
@@ -120,7 +120,7 @@ class TestArtifact:
         assert artifact.name == "test.png"
         assert artifact.mime == "image/png"
         assert artifact.data == b"binary data"
-        assert artifact.object_ref is None
+        assert artifact.artifact_ref is None
 
     def test_artifact_has_data_property(self) -> None:
         artifact_with_data = Artifact(name="test.png", mime="image/png", data=b"data")
@@ -130,11 +130,11 @@ class TestArtifact:
         assert artifact_without_data.has_data is False
 
     def test_artifact_is_stored_property(self) -> None:
-        # Mock object_ref
+        # Mock artifact_ref
         mock_ref = MagicMock()
         mock_ref.content_hash = "abc123"
 
-        artifact_stored = Artifact(name="test.png", mime="image/png", object_ref=mock_ref)
+        artifact_stored = Artifact(name="test.png", mime="image/png", artifact_ref=mock_ref)
         artifact_not_stored = Artifact(name="test.png", mime="image/png", data=b"data")
 
         assert artifact_stored.is_stored is True
@@ -144,7 +144,7 @@ class TestArtifact:
         mock_ref = MagicMock()
         mock_ref.content_hash = "abc123"
 
-        artifact_stored = Artifact(name="test.png", mime="image/png", object_ref=mock_ref)
+        artifact_stored = Artifact(name="test.png", mime="image/png", artifact_ref=mock_ref)
         artifact_not_stored = Artifact(name="test.png", mime="image/png", data=b"data")
 
         assert artifact_stored.content_hash == "abc123"
@@ -160,7 +160,7 @@ class TestArtifact:
         mock_storage = MagicMock()
         mock_storage.retrieve.return_value = b"stored data"
 
-        artifact = Artifact(name="test.png", mime="image/png", object_ref=mock_ref)
+        artifact = Artifact(name="test.png", mime="image/png", artifact_ref=mock_ref)
 
         assert artifact.get_data(storage_service=mock_storage) == b"stored data"
         mock_storage.retrieve.assert_called_once_with(mock_ref)
@@ -179,86 +179,86 @@ class TestArtifact:
 
 
 # =============================================================================
-# MetricValue Tests
+# Measurement Tests
 # =============================================================================
 
 
-class TestMetricValue:
-    """Tests for MetricValue dataclass."""
+class TestMeasurement:
+    """Tests for Measurement dataclass."""
 
-    def test_metric_value_creation(self) -> None:
-        mv = MetricValue(
+    def test_measurement_creation(self) -> None:
+        mv = Measurement(
             value=42.0,
-            analysis=AnalysisKind.SUMMARY,
+            aggregation=AggregationType.STATS,
         )
 
         assert mv.value == 42.0
-        assert mv.analysis == AnalysisKind.SUMMARY
+        assert mv.aggregation == AggregationType.STATS
         assert mv.meta is None
 
-    def test_metric_value_with_meta(self) -> None:
-        mv = MetricValue(
+    def test_measurement_with_meta(self) -> None:
+        mv = Measurement(
             value="category_a",
-            analysis=AnalysisKind.COUNTER,
+            aggregation=AggregationType.TALLY,
             meta={"top_k": 10},
         )
 
         assert mv.value == "category_a"
         assert mv.meta == {"top_k": 10}
 
-    def test_metric_value_with_combined_analysis(self) -> None:
-        mv = MetricValue(
+    def test_measurement_with_combined_aggregation(self) -> None:
+        mv = Measurement(
             value=0.85,
-            analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+            aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
         )
 
-        assert AnalysisKind.SUMMARY in mv.analysis
-        assert AnalysisKind.DISTRIBUTION_1D in mv.analysis
-        assert AnalysisKind.COUNTER not in mv.analysis
+        assert AggregationType.STATS in mv.aggregation
+        assert AggregationType.HISTOGRAM in mv.aggregation
+        assert AggregationType.TALLY not in mv.aggregation
 
-    def test_metric_value_is_frozen(self) -> None:
-        mv = MetricValue(value=42.0, analysis=AnalysisKind.SUMMARY)
+    def test_measurement_is_frozen(self) -> None:
+        mv = Measurement(value=42.0, aggregation=AggregationType.STATS)
 
         with pytest.raises(FrozenInstanceError):
             mv.value = 100.0  # type: ignore[misc]
 
 
 # =============================================================================
-# AlgoResult Tests
+# ProcessorResult Tests
 # =============================================================================
 
 
-class TestAlgoResult:
-    """Tests for AlgoResult dataclass."""
+class TestProcessorResult:
+    """Tests for ProcessorResult dataclass."""
 
-    def test_algo_result_creation_empty(self) -> None:
-        result = AlgoResult()
+    def test_processor_result_creation_empty(self) -> None:
+        result = ProcessorResult()
 
         assert result.metrics is None
         assert result.artifacts == ()
 
-    def test_algo_result_with_metrics(self) -> None:
+    def test_processor_result_with_metrics(self) -> None:
         metrics = {
-            "accuracy": MetricValue(value=0.95, analysis=AnalysisKind.SUMMARY),
-            "count": MetricValue(value=100, analysis=AnalysisKind.COUNTER),
+            "accuracy": Measurement(value=0.95, aggregation=AggregationType.STATS),
+            "count": Measurement(value=100, aggregation=AggregationType.TALLY),
         }
-        result = AlgoResult(metrics=metrics)
+        result = ProcessorResult(metrics=metrics)
 
         assert result.metrics == metrics
         assert len(result.metrics) == 2
 
-    def test_algo_result_with_artifacts(self) -> None:
+    def test_processor_result_with_artifacts(self) -> None:
         artifacts = (
             Artifact(name="mask.png", mime="image/png", data=b"mask"),
             Artifact(name="overlay.png", mime="image/png", data=b"overlay"),
         )
-        result = AlgoResult(artifacts=artifacts)
+        result = ProcessorResult(artifacts=artifacts)
 
         assert len(result.artifacts) == 2
         assert result.artifacts[0].name == "mask.png"
 
-    def test_algo_result_is_frozen(self) -> None:
-        result = AlgoResult()
+    def test_processor_result_is_frozen(self) -> None:
+        result = ProcessorResult()
 
         with pytest.raises(FrozenInstanceError):
             result.metrics = {}  # type: ignore[misc]
@@ -274,22 +274,22 @@ class TestPersistedResultRef:
 
     def test_persisted_result_ref_creation(self) -> None:
         ref = PersistedResultRef(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             result_id=42,
         )
 
-        assert ref.job_id == "job-123"
-        assert ref.algo_name == "analysis_probe"
-        assert ref.algo_version == "1.0.0"
+        assert ref.task_id == "task-123"
+        assert ref.processor_name == "analysis_probe"
+        assert ref.processor_version == "1.0.0"
         assert ref.result_id == 42
 
     def test_persisted_result_ref_is_frozen(self) -> None:
         ref = PersistedResultRef(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             result_id=42,
         )
 
@@ -305,11 +305,11 @@ class TestPersistedResultRef:
 class TestMetricsToJsonable:
     """Tests for metrics_to_jsonable function."""
 
-    def test_converts_metric_value_to_dict(self) -> None:
+    def test_converts_measurement_to_dict(self) -> None:
         metrics = {
-            "accuracy": MetricValue(
+            "accuracy": Measurement(
                 value=0.95,
-                analysis=AnalysisKind.SUMMARY,
+                aggregation=AggregationType.STATS,
                 meta={"threshold": 0.5},
             ),
         }
@@ -318,27 +318,27 @@ class TestMetricsToJsonable:
 
         assert "accuracy" in result
         assert result["accuracy"]["value"] == 0.95
-        assert result["accuracy"]["analysis_mask"] == AnalysisKind.SUMMARY.value
+        assert result["accuracy"]["aggregation_mask"] == AggregationType.STATS.value
         assert result["accuracy"]["meta"] == {"threshold": 0.5}
 
     def test_handles_none_meta(self) -> None:
         metrics = {
-            "count": MetricValue(value=100, analysis=AnalysisKind.COUNTER),
+            "count": Measurement(value=100, aggregation=AggregationType.TALLY),
         }
 
         result = metrics_to_jsonable(metrics)
 
         assert result["count"]["meta"] == {}
 
-    def test_handles_combined_analysis_flags(self) -> None:
-        combined = AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D
+    def test_handles_combined_aggregation_flags(self) -> None:
+        combined = AggregationType.STATS | AggregationType.HISTOGRAM
         metrics = {
-            "score": MetricValue(value=0.5, analysis=combined),
+            "score": Measurement(value=0.5, aggregation=combined),
         }
 
         result = metrics_to_jsonable(metrics)
 
-        assert result["score"]["analysis_mask"] == combined.value
+        assert result["score"]["aggregation_mask"] == combined.value
 
     def test_handles_plain_scalar_backward_compat(self) -> None:
         # Backward compatibility with plain values
@@ -347,14 +347,14 @@ class TestMetricsToJsonable:
         result = metrics_to_jsonable(metrics)
 
         assert result["simple"]["value"] == 42
-        assert result["simple"]["analysis_mask"] == 0
+        assert result["simple"]["aggregation_mask"] == 0
         assert result["simple"]["meta"] == {}
 
     def test_handles_multiple_metrics(self) -> None:
         metrics = {
-            "accuracy": MetricValue(value=0.95, analysis=AnalysisKind.SUMMARY),
-            "precision": MetricValue(value=0.92, analysis=AnalysisKind.SUMMARY),
-            "recall": MetricValue(value=0.88, analysis=AnalysisKind.SUMMARY),
+            "accuracy": Measurement(value=0.95, aggregation=AggregationType.STATS),
+            "precision": Measurement(value=0.92, aggregation=AggregationType.STATS),
+            "recall": Measurement(value=0.88, aggregation=AggregationType.STATS),
         }
 
         result = metrics_to_jsonable(metrics)
@@ -364,49 +364,49 @@ class TestMetricsToJsonable:
 
 
 # =============================================================================
-# AnalysisKind Tests
+# AggregationType Tests
 # =============================================================================
 
 
-class TestAnalysisKind:
-    """Tests for AnalysisKind enum."""
+class TestAggregationType:
+    """Tests for AggregationType enum."""
 
-    def test_analysis_kind_values(self) -> None:
+    def test_aggregation_type_values(self) -> None:
         # Verify all expected kinds exist
-        assert hasattr(AnalysisKind, "SUMMARY")
-        assert hasattr(AnalysisKind, "DISTRIBUTION_1D")
-        assert hasattr(AnalysisKind, "OUTLIERS_1D")
-        assert hasattr(AnalysisKind, "COUNTER")
-        assert hasattr(AnalysisKind, "RATE")
-        assert hasattr(AnalysisKind, "ELLIPSE_2D")
-        assert hasattr(AnalysisKind, "CONTOUR_2D")
-        assert hasattr(AnalysisKind, "INFO")
+        assert hasattr(AggregationType, "STATS")
+        assert hasattr(AggregationType, "HISTOGRAM")
+        assert hasattr(AggregationType, "OUTLIERS")
+        assert hasattr(AggregationType, "TALLY")
+        assert hasattr(AggregationType, "RATE")
+        assert hasattr(AggregationType, "SCATTER_ELLIPSE")
+        assert hasattr(AggregationType, "DENSITY_MAP")
+        assert hasattr(AggregationType, "RAW")
 
-    def test_analysis_kind_is_intflag(self) -> None:
+    def test_aggregation_type_is_intflag(self) -> None:
         # Should be combinable with bitwise OR
-        combined = AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D
+        combined = AggregationType.STATS | AggregationType.HISTOGRAM
 
-        assert AnalysisKind.SUMMARY in combined
-        assert AnalysisKind.DISTRIBUTION_1D in combined
-        assert AnalysisKind.COUNTER not in combined
+        assert AggregationType.STATS in combined
+        assert AggregationType.HISTOGRAM in combined
+        assert AggregationType.TALLY not in combined
 
-    def test_analysis_kind_values_are_powers_of_two(self) -> None:
+    def test_aggregation_type_values_are_powers_of_two(self) -> None:
         # IntFlag requires powers of 2 for proper combination
-        for kind in AnalysisKind:
+        for kind in AggregationType:
             # Each value should be a power of 2
             assert kind.value > 0
             assert (kind.value & (kind.value - 1)) == 0
 
-    def test_analysis_kind_no_overlap(self) -> None:
+    def test_aggregation_type_no_overlap(self) -> None:
         # Each kind should have a unique value
-        values = [kind.value for kind in AnalysisKind]
+        values = [kind.value for kind in AggregationType]
         assert len(values) == len(set(values))
 
-    def test_analysis_kind_can_combine_all(self) -> None:
+    def test_aggregation_type_can_combine_all(self) -> None:
         # Should be able to combine all kinds
-        all_kinds = AnalysisKind(0)
-        for kind in AnalysisKind:
+        all_kinds = AggregationType(0)
+        for kind in AggregationType:
             all_kinds |= kind
 
-        for kind in AnalysisKind:
+        for kind in AggregationType:
             assert kind in all_kinds

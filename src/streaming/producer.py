@@ -105,7 +105,7 @@ class EventProducer:
         # Publish a job created event
         event = producer.publish_job_created(
             source_id="directory-1",
-            job_id="job-123",
+            task_id="job-123",
             directory_key="path0",
             path="/data/image.png",
             fingerprint="abc123",
@@ -297,95 +297,95 @@ class EventProducer:
     def publish_job_created(
         self,
         source_id: str,
-        job_id: str,
+        task_id: str,
         directory_key: str,
         path: str,
         fingerprint: str,
         file_hash: str | None = None,
     ) -> EventEnvelope:
-        """Publish JOB_CREATED event."""
-        from src.domain.events import job_created_payload
+        """Publish TASK_CREATED event."""
+        from src.domain.events import task_created_payload
 
-        payload = job_created_payload(
-            job_id=job_id,
+        payload = task_created_payload(
+            task_id=task_id,
             directory_key=directory_key,
             path=path,
             fingerprint=fingerprint,
             file_hash=file_hash,
         )
-        event = self.create_event(EventType.JOB_CREATED, source_id, payload)
+        event = self.create_event(EventType.TASK_CREATED, source_id, payload)
         self.publish_with_audit(self._config.topic_jobs, event)
         return event
 
     def publish_job_started(
         self,
         source_id: str,
-        job_id: str,
-        algo_name: str,
-        algo_version: str,
+        task_id: str,
+        processor_name: str,
+        processor_version: str,
     ) -> EventEnvelope:
-        """Publish JOB_STARTED event."""
-        from src.domain.events import job_started_payload
+        """Publish TASK_STARTED event."""
+        from src.domain.events import task_started_payload
 
-        payload = job_started_payload(
-            job_id=job_id,
-            algo_name=algo_name,
-            algo_version=algo_version,
+        payload = task_started_payload(
+            task_id=task_id,
+            processor_name=processor_name,
+            processor_version=processor_version,
         )
-        event = self.create_event(EventType.JOB_STARTED, source_id, payload)
+        event = self.create_event(EventType.TASK_STARTED, source_id, payload)
         self.publish_with_audit(self._config.topic_jobs, event)
         return event
 
     def publish_job_completed(
         self,
         source_id: str,
-        job_id: str,
-        algo_name: str,
-        algo_version: str,
+        task_id: str,
+        processor_name: str,
+        processor_version: str,
         duration_ms: float,
     ) -> EventEnvelope:
-        """Publish JOB_COMPLETED event."""
-        from src.domain.events import job_completed_payload
+        """Publish TASK_COMPLETED event."""
+        from src.domain.events import task_completed_payload
 
-        payload = job_completed_payload(
-            job_id=job_id,
-            algo_name=algo_name,
-            algo_version=algo_version,
+        payload = task_completed_payload(
+            task_id=task_id,
+            processor_name=processor_name,
+            processor_version=processor_version,
             duration_ms=duration_ms,
         )
-        event = self.create_event(EventType.JOB_COMPLETED, source_id, payload)
+        event = self.create_event(EventType.TASK_COMPLETED, source_id, payload)
         self.publish_with_audit(self._config.topic_jobs, event)
         return event
 
     def publish_job_failed(
         self,
         source_id: str,
-        job_id: str,
+        task_id: str,
         error: str,
-        algo_name: str | None = None,
-        algo_version: str | None = None,
+        processor_name: str | None = None,
+        processor_version: str | None = None,
         error_type: str | None = None,
     ) -> EventEnvelope:
-        """Publish JOB_FAILED event."""
-        from src.domain.events import job_failed_payload
+        """Publish TASK_FAILED event."""
+        from src.domain.events import task_failed_payload
 
-        payload = job_failed_payload(
-            job_id=job_id,
-            algo_name=algo_name,
-            algo_version=algo_version,
+        payload = task_failed_payload(
+            task_id=task_id,
+            processor_name=processor_name,
+            processor_version=processor_version,
             error=error,
             error_type=error_type,
         )
-        event = self.create_event(EventType.JOB_FAILED, source_id, payload)
+        event = self.create_event(EventType.TASK_FAILED, source_id, payload)
         self.publish_with_audit(self._config.topic_jobs, event)
         return event
 
     def publish_result_produced(
         self,
         source_id: str,
-        job_id: str,
-        algo_name: str,
-        algo_version: str,
+        task_id: str,
+        processor_name: str,
+        processor_version: str,
         metric_count: int,
         artifact_refs: list[str],
     ) -> EventEnvelope:
@@ -393,9 +393,9 @@ class EventProducer:
         from src.domain.events import result_produced_payload
 
         payload = result_produced_payload(
-            job_id=job_id,
-            algo_name=algo_name,
-            algo_version=algo_version,
+            task_id=task_id,
+            processor_name=processor_name,
+            processor_version=processor_version,
             metric_count=metric_count,
             artifact_refs=artifact_refs,
         )
@@ -406,39 +406,39 @@ class EventProducer:
     def publish_metric_emitted(
         self,
         source_id: str,
-        job_id: str,
-        algo_name: str,
-        algo_version: str,
+        task_id: str,
+        processor_name: str,
+        processor_version: str,
         metric_name: str,
         value: Any,
-        analysis_mask: int,
+        aggregation_mask: int,
         meta: dict[str, Any] | None = None,
     ) -> EventEnvelope:
         """Publish METRIC_EMITTED event to metrics topic.
 
-        Metrics are partitioned by algo_name for efficient aggregation.
+        Metrics are partitioned by processor_name for efficient aggregation.
         """
         from src.domain.events import metric_emitted_payload
 
         payload = metric_emitted_payload(
-            job_id=job_id,
-            algo_name=algo_name,
-            algo_version=algo_version,
+            task_id=task_id,
+            processor_name=processor_name,
+            processor_version=processor_version,
             metric_name=metric_name,
             value=value,
-            analysis_mask=analysis_mask,
+            aggregation_mask=aggregation_mask,
             meta=meta,
         )
-        # Use algo_name as partition key for metric aggregation
-        event = self.create_event(EventType.METRIC_EMITTED, algo_name, payload)
-        self.publish(self._config.topic_metrics, event, key=algo_name)
+        # Use processor_name as partition key for metric aggregation
+        event = self.create_event(EventType.METRIC_EMITTED, processor_name, payload)
+        self.publish(self._config.topic_metrics, event, key=processor_name)
         return event
 
     def publish_aggregate_produced(
         self,
         source_id: str,
-        algo_name: str,
-        algo_version: str,
+        processor_name: str,
+        processor_version: str,
         metric_name: str,
         window_start: str,
         window_end: str,
@@ -460,17 +460,17 @@ class EventProducer:
             end_unix = 0.0
 
         payload = aggregate_computed_payload(
-            algo_name=algo_name,
-            algo_version=algo_version,
+            processor_name=processor_name,
+            processor_version=processor_version,
             metric_name=metric_name,
-            analysis_kind="SUMMARY",
+            aggregation_type="SUMMARY",
             window_start_unix=start_unix,
             window_end_unix=end_unix,
             summary=summary,
             artifact_ref=object_ref,
         )
         event = self.create_event(EventType.AGGREGATE_COMPUTED, source_id, payload)
-        self.publish(self._config.topic_aggregates, event, key=algo_name)
+        self.publish(self._config.topic_aggregates, event, key=processor_name)
         return event
 
     def publish_artifact_stored(
@@ -481,7 +481,7 @@ class EventProducer:
         key: str,
         size: int,
         mime: str,
-        source_job_id: str | None = None,
+        source_task_id: str | None = None,
     ) -> EventEnvelope:
         """Publish ARTIFACT_STORED event."""
         from src.domain.events import artifact_stored_payload
@@ -492,7 +492,7 @@ class EventProducer:
             key=key,
             size=size,
             mime=mime,
-            source_job_id=source_job_id,
+            source_task_id=source_task_id,
         )
         event = self.create_event(EventType.ARTIFACT_STORED, source_id, payload)
         self.publish_with_audit(self._config.topic_results, event)

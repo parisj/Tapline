@@ -1,4 +1,4 @@
-"""Image quality assessment algorithm.
+"""Image quality assessment processor.
 
 Computes various image quality metrics useful for filtering or preprocessing decisions:
 - Sharpness (Laplacian variance for blur detection)
@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ImageQualityAlgo(Algorithm):
-    """Image quality assessment algorithm.
+class ImageQualityProcessor(Processor):
+    """Image quality assessment processor.
 
     Computes quality metrics for images to support filtering decisions
     and quality control workflows.
@@ -53,7 +53,7 @@ class ImageQualityAlgo(Algorithm):
         self._min_saturation = float(thresholds.get("min_saturation", 0.1))
 
         logger.info(
-            "ImageQualityAlgo initialized with thresholds: "
+            "ImageQualityProcessor initialized with thresholds: "
             "sharpness>%.1f, brightness=[%.1f,%.1f], contrast>%.1f, noise<%.2f, saturation>%.2f",
             self._min_sharpness,
             self._min_brightness,
@@ -112,23 +112,23 @@ class ImageQualityAlgo(Algorithm):
         saturation_channel = hsv[:, :, 1]
         return float(np.mean(saturation_channel.astype(np.float64)) / 255.0)
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         """Compute image quality metrics."""
         # Decode image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "sharpness": MetricValue(
+                    "sharpness": Measurement(
                         value=0.0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D | AnalysisKind.OUTLIERS_1D,
+                        aggregation=AggregationType.STATS | AggregationType.HISTOGRAM | AggregationType.OUTLIERS,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "quality_passed": MetricValue(
+                    "quality_passed": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "pass", "false_label": "fail"},
                     ),
                 },
@@ -154,19 +154,19 @@ class ImageQualityAlgo(Algorithm):
         )
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "sharpness": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "sharpness": Measurement(
                 value=sharpness,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM | AggregationType.OUTLIERS,
                 meta={
                     "units": "variance",
                     "threshold": self._min_sharpness,
                     "description": "Laplacian variance (higher = sharper)",
                 },
             ),
-            "brightness": MetricValue(
+            "brightness": Measurement(
                 value=brightness,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "intensity",
                     "range": [0.0, 255.0],
@@ -174,17 +174,17 @@ class ImageQualityAlgo(Algorithm):
                     "threshold_max": self._max_brightness,
                 },
             ),
-            "contrast": MetricValue(
+            "contrast": Measurement(
                 value=contrast,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "std_dev",
                     "threshold": self._min_contrast,
                 },
             ),
-            "noise_estimate": MetricValue(
+            "noise_estimate": Measurement(
                 value=noise_estimate,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.OUTLIERS,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
@@ -192,18 +192,18 @@ class ImageQualityAlgo(Algorithm):
                     "description": "High-frequency energy ratio (lower = less noise)",
                 },
             ),
-            "saturation": MetricValue(
+            "saturation": Measurement(
                 value=saturation,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
                     "threshold": self._min_saturation,
                 },
             ),
-            "quality_passed": MetricValue(
+            "quality_passed": Measurement(
                 value=quality_passed,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "pass",
                     "false_label": "fail",
@@ -249,7 +249,7 @@ class ImageQualityAlgo(Algorithm):
             },
         }
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=(
                 Artifact(
@@ -259,3 +259,7 @@ class ImageQualityAlgo(Algorithm):
                 ),
             ),
         )
+
+
+# Backwards compatibility alias
+ImageQualityAlgo = ImageQualityProcessor

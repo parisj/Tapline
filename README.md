@@ -1,7 +1,7 @@
-# VisioEval
+# Tapline
 
-[![CI](https://github.com/yourusername/VisioEval/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/VisioEval/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/yourusername/VisioEval/branch/master/graph/badge.svg)](https://codecov.io/gh/yourusername/VisioEval)
+[![CI](https://github.com/yourusername/Tapline/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/Tapline/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/yourusername/Tapline/branch/master/graph/badge.svg)](https://codecov.io/gh/yourusername/Tapline)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -10,7 +10,7 @@ Configuration-driven evaluation pipeline for continuous ingestion, processing, a
 <p align="center">
   <img
     src="https://github.com/user-attachments/assets/0f8d68a1-b047-46cd-969c-90db5706cac7"
-    alt="VisioEval Architecture"
+    alt="Tapline Architecture"
     height="600"
   />
 </p>
@@ -36,11 +36,11 @@ pixi run dashboard  # http://localhost:5007
 
 ## What It Does
 
-**Ingest** -> **Kafka** -> **Workers** -> **Algorithms** -> **MinIO** -> **Aggregation** -> **Dashboard**
+**Ingest** -> **Kafka** -> **Workers** -> **Processors** -> **MinIO** -> **Aggregation** -> **Dashboard**
 
 - Watches directories for new files
-- Routes files to algorithms via configuration
-- Executes algorithms in parallel workers
+- Routes files to processors via configuration
+- Executes processors in parallel workers
 - Stores results in content-addressed storage
 - Aggregates metrics in time windows
 - Visualizes via REST API and web dashboard
@@ -49,10 +49,10 @@ pixi run dashboard  # http://localhost:5007
 
 | Concept | Description |
 |---------|-------------|
-| **Job** | Unit of work with lifecycle (created -> started -> completed/failed) |
-| **Algorithm** | Computes metrics from input data |
-| **MetricValue** | Value + AnalysisKind flags for post-processing |
-| **AnalysisKind** | Declares how metrics should be analyzed (SUMMARY, DISTRIBUTION_1D, etc.) |
+| **Task** | Unit of work with lifecycle (created -> started -> completed/failed) |
+| **Processor** | Computes metrics from input data |
+| **Measurement** | Value + AggregationType flags for post-processing |
+| **AggregationType** | Declares how metrics should be analyzed (STATS, HISTOGRAM, etc.) |
 | **Analyzer** | Transforms metrics to summaries and artifacts |
 
 ## Tech Stack
@@ -85,24 +85,24 @@ pixi run security-audit   # Dependency scan
 pixi run bandit-check     # Code analysis
 ```
 
-## Adding an Algorithm
+## Adding a Processor
 
-1. Create class extending `Algorithm`
-2. Return `MetricValue` with `AnalysisKind` flags
+1. Create class extending `Processor`
+2. Return `Measurement` with `AggregationType` flags
 3. Register in `build_default_registry()`
 4. Add route in `routes.toml`
 
 That's it. Kafka, storage, and dashboard configuration is automatic.
 
 ```python
-class MyAlgorithm(Algorithm):
+class MyProcessor(Processor):
     @property
     def name(self) -> str:
-        return "my_algorithm"
+        return "my_processor"
 
-    def run(self, data: bytes, settings: Mapping[str, Any]) -> AlgoResult:
-        return AlgoResult(
-            metrics={"score": MetricValue(0.87, AnalysisKind.SUMMARY)},
+    def run(self, data: bytes, settings: Mapping[str, Any]) -> ProcessorResult:
+        return ProcessorResult(
+            metrics={"score": Measurement(0.87, AggregationType.STATS)},
             artifacts={},
         )
 ```

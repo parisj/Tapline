@@ -19,16 +19,16 @@ def compute_fingerprint(path: Path) -> str:
 
 def make_aggregate_artifact_hash(
     *,
-    algo_name: str,
-    algo_version: str,
+    processor_name: str,
+    processor_version: str,
     metric_name: str,
-    analysis_kind: str,
+    aggregation_type: str,
     window_start_unix: float,
     window_end_unix: float,
     artifact_name: str,
 ) -> str:
     payload = (
-        f"{algo_name}|{algo_version}|{metric_name}|{analysis_kind}|"
+        f"{processor_name}|{processor_version}|{metric_name}|{aggregation_type}|"
         f"{window_start_unix}|{window_end_unix}|{artifact_name}"
     ).encode()
     return hashlib.sha256(payload).hexdigest()

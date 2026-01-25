@@ -126,9 +126,9 @@ class TestEventConsumer:
 
         # Create a valid event envelope
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(value=event.to_json().encode("utf-8"))
         mock_consumer.poll.return_value = mock_msg
@@ -138,8 +138,8 @@ class TestEventConsumer:
         result = consumer.poll(timeout=1.0)
 
         assert result is not None
-        assert result.event_type == EventType.JOB_CREATED
-        assert result.payload["job_id"] == "job-123"
+        assert result.event_type == EventType.TASK_CREATED
+        assert result.payload["task_id"] == "task-123"
         consumer.close()
 
     @patch("src.streaming.consumer.Consumer")
@@ -176,9 +176,9 @@ class TestEventConsumer:
         mock_consumer = MagicMock()
 
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(value=event.to_json().encode("utf-8"))
         mock_consumer.poll.return_value = mock_msg
@@ -212,9 +212,9 @@ class TestEventConsumer:
         mock_consumer = MagicMock()
 
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(
             value=event.to_json().encode("utf-8"),
@@ -238,9 +238,9 @@ class TestEventConsumer:
         mock_consumer = MagicMock()
 
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(
             value=event.to_json().encode("utf-8"),
@@ -383,9 +383,9 @@ class TestEventConsumer:
         mock_consumer = MagicMock()
 
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(value=event.to_json().encode("utf-8"))
 
@@ -455,9 +455,9 @@ class TestBatchEventConsumer:
 
         events = [
             EventEnvelope.create(
-                event_type=EventType.JOB_CREATED,
+                event_type=EventType.TASK_CREATED,
                 source_id="test-source",
-                payload={"job_id": f"job-{i}"},
+                payload={"task_id": f"task-{i}"},
             )
             for i in range(3)
         ]
@@ -491,9 +491,9 @@ class TestBatchEventConsumer:
         mock_consumer = MagicMock()
 
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         mock_msg = MockMessage(value=event.to_json().encode("utf-8"))
         mock_consumer.poll.return_value = mock_msg
@@ -588,9 +588,9 @@ class TestBatchEventConsumer:
         # Return error on first message, valid message on second
         error_msg = MockMessage(error=MockKafkaError(KafkaError._PARTITION_EOF))
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="test-source",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
         valid_msg = MockMessage(value=event.to_json().encode("utf-8"))
 

@@ -59,7 +59,7 @@ class TestMinioStorageIntegration:
             data=sample_image_bytes,
             bucket=minio_storage.buckets["artifacts"],
             mime="image/png",
-            metadata={"job_id": "test-job-123", "name": "output.png"},
+            metadata={"task_id": "test-task-123", "name": "output.png"},
         )
 
         info = minio_storage.get_object_info(ref)

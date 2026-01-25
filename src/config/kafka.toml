@@ -1,8 +1,8 @@
-# Kafka configuration for VisioEval streaming architecture
+# Kafka configuration for Tapline streaming architecture
 
 [broker]
 bootstrap_servers = "localhost:9092"
-client_id = "visioeval"
+client_id = "tapline"
 
 [producer]
 acks = "all"                    # Wait for all replicas
@@ -14,7 +14,7 @@ compression_type = "lz4"        # Fast compression
 enable_idempotence = true       # Exactly-once semantics
 
 [consumer]
-group_id = "visioeval-workers"
+group_id = "tapline-workers"
 auto_offset_reset = "earliest"  # Start from beginning if no offset
 enable_auto_commit = false      # Manual commit after processing
 session_timeout_ms = 30000
@@ -31,23 +31,23 @@ socket_connection_setup_timeout_ms = 10000
 
 [topics]
 # Job lifecycle events (partitioned by source_id for ordering)
-jobs = "visio.jobs"
+jobs = "tapline.tasks"
 jobs_partitions = 32
 
 # Algorithm results (partitioned by source_id)
-results = "visio.results"
+results = "tapline.results"
 results_partitions = 32
 
-# Metrics for Flink aggregation (partitioned by algo_name)
-metrics = "visio.metrics"
+# Metrics for Flink aggregation (partitioned by processor_name)
+metrics = "tapline.metrics"
 metrics_partitions = 32
 
 # Append-only audit log (single partition for total ordering)
-audit_log = "visio.audit-log"
+audit_log = "tapline.audit"
 audit_log_partitions = 1
 
 # Aggregation results from Flink
-aggregates = "visio.aggregates"
+aggregates = "tapline.aggregates"
 aggregates_partitions = 16
 
 [schema_registry]

@@ -1,4 +1,4 @@
-# Observability configuration for VisioEval pipeline
+# Observability configuration for Tapline pipeline
 # This file configures tracing, metrics, and logging behavior
 
 [tracing]
@@ -6,7 +6,7 @@
 enabled = true
 
 # Service name for traces
-service_name = "visioeval"
+service_name = "tapline"
 
 # Exporter type: "otlp", "jaeger", "console", "none"
 exporter = "otlp"

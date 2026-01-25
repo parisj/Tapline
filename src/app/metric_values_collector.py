@@ -1,6 +1,6 @@
 """Metric values collector for raw value storage and analysis.
 
-Stores raw metric values to MinIO for AnalysisKind-specific computations
+Stores raw metric values to MinIO for AggregationType-specific computations
 (histograms, ellipses, contours, rates, counters). Values are stored in
 time-windowed buckets matching Flink aggregation windows.
 """
@@ -68,19 +68,19 @@ class MetricValuesWindow:
 
     def add(
         self,
-        algo_name: str,
-        algo_version: str,
+        processor_name: str,
+        processor_version: str,
         metric_name: str,
         value: float | bool | dict | list,
-        analysis_mask: int,
+        aggregation_mask: int,
         meta: dict | None,
     ) -> None:
         """Add a metric value to the window."""
-        key = (algo_name, algo_version, metric_name)
+        key = (processor_name, processor_version, metric_name)
         self.metrics[key].append(
             {
                 "value": value,
-                "analysis_mask": analysis_mask,
+                "aggregation_mask": aggregation_mask,
                 "meta": meta,
             },
         )
@@ -108,21 +108,21 @@ def _store_window_values(
     """
     stored = 0
 
-    for (algo_name, algo_version, metric_name), entries in window.metrics.items():
+    for (processor_name, processor_version, metric_name), entries in window.metrics.items():
         if not entries:
             continue
 
-        # Extract just the values and the analysis_mask (should be same for all)
+        # Extract just the values and the aggregation_mask (should be same for all)
         values = [e["value"] for e in entries]
-        analysis_mask = entries[0]["analysis_mask"] if entries else 0
+        aggregation_mask = entries[0]["aggregation_mask"] if entries else 0
         meta = entries[0].get("meta")
 
         # Create the values document
         doc = {
-            "algo_name": algo_name,
-            "algo_version": algo_version,
+            "processor_name": processor_name,
+            "processor_version": processor_version,
             "metric_name": metric_name,
-            "analysis_mask": analysis_mask,
+            "aggregation_mask": aggregation_mask,
             "meta": meta,
             "window_start": window.window_start.isoformat(),
             "window_end": window.window_end.isoformat(),
@@ -136,7 +136,7 @@ def _store_window_values(
             doc_bytes = json_dumps(doc)
 
             # Create a deterministic key based on metric identity and window
-            key_str = f"{algo_name}|{algo_version}|{metric_name}|{window.window_start.isoformat()}"
+            key_str = f"{processor_name}|{processor_version}|{metric_name}|{window.window_start.isoformat()}"
             content_hash = hashlib.sha256(key_str.encode()).hexdigest()
 
             # Store with sharded path
@@ -152,8 +152,8 @@ def _store_window_values(
 
             logger.debug(
                 "Stored values: %s/%s/%s [%s], count=%d",
-                algo_name,
-                algo_version,
+                processor_name,
+                processor_version,
                 metric_name,
                 window.window_start.isoformat(),
                 len(values),
@@ -163,8 +163,8 @@ def _store_window_values(
         except Exception as e:
             logger.warning(
                 "Failed to store values for %s/%s/%s: %s",
-                algo_name,
-                algo_version,
+                processor_name,
+                processor_version,
                 metric_name,
                 e,
             )
@@ -271,11 +271,11 @@ def run_metric_values_collector(
                     continue
 
                 payload = event.get("payload", {})
-                algo_name = payload.get("algo_name", "unknown")
-                algo_version = payload.get("algo_version", "0.0.0")
+                processor_name = payload.get("processor_name", "unknown")
+                processor_version = payload.get("processor_version", "0.0.0")
                 metric_name = payload.get("metric_name", "unknown")
                 value = payload.get("value")
-                analysis_mask = payload.get("analysis_mask", 0)
+                aggregation_mask = payload.get("aggregation_mask", 0)
                 meta = payload.get("meta")
 
                 # Skip if no value
@@ -289,11 +289,11 @@ def run_metric_values_collector(
 
                 # Add value to current window
                 current_window.add(
-                    algo_name=algo_name,
-                    algo_version=algo_version,
+                    processor_name=processor_name,
+                    processor_version=processor_version,
                     metric_name=metric_name,
                     value=value,
-                    analysis_mask=analysis_mask,
+                    aggregation_mask=aggregation_mask,
                     meta=meta,
                 )
 

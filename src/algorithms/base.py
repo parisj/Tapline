@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from src.domain.results import AlgoResult
+    from src.domain.results import ProcessorResult
 
 
-class Algorithm(abc.ABC):
-    """Shared interface for both traditional CV algorithms and trained-model inference.
+class Processor(abc.ABC):
+    """Shared interface for both traditional CV processors and trained-model inference.
 
     Contract:
-    - initialize(...) is called once per worker instance (not per image).
+    - initialize(...) is called once per worker instance (not per file).
     - run(...) is pure compute (no DB, no threading, no filesystem writes).
-    - Return AlgoResult only.
+    - Return ProcessorResult only.
     """
 
     @property
@@ -36,6 +36,10 @@ class Algorithm(abc.ABC):
         return
 
     @abc.abstractmethod
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:
         """Pure compute: takes bytes and settings, returns metrics + optional artifacts."""
         raise NotImplementedError
+
+
+# Backwards compatibility alias (deprecated)
+Algorithm = Processor

@@ -128,7 +128,7 @@ class KafkaDirectoryObserver:
                 self._files_skipped += 1
                 continue
 
-            job_id = hashlib.sha256(
+            task_id = hashlib.sha256(
                 f"{directory_key}|{p.resolve()}|{fingerprint}".encode(),
             ).hexdigest()
 
@@ -139,7 +139,7 @@ class KafkaDirectoryObserver:
             # Use directory_key as source_id for partition ordering
             self._producer.publish_job_created(
                 source_id=directory_key,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key=directory_key,
                 path=str(p),
                 fingerprint=fingerprint,
@@ -148,7 +148,7 @@ class KafkaDirectoryObserver:
 
             self._seen_paths[key] = st.st_mtime
             self._jobs_published += 1
-            logger.info("Published JOB_CREATED: job_id=%s, path=%s", job_id, p)
+            logger.info("Published JOB_CREATED: task_id=%s, path=%s", task_id, p)
 
     def _compute_file_hash(self, path: Path) -> str:
         """Compute SHA-256 hash of file contents for audit trail."""

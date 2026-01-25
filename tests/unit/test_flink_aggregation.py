@@ -9,34 +9,34 @@ from src.app.flink_aggregation import MetricAggregate, TumblingWindowAggregator
 class TestMetricAggregate:
     def test_create_aggregate(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
-        assert agg.algo_name == "test_algo"
-        assert agg.algo_version == "1.0.0"
+        assert agg.processor_name == "test_processor"
+        assert agg.processor_version == "1.0.0"
         assert agg.metric_name == "accuracy"
-        assert agg.analysis_mask == 1
+        assert agg.aggregation_mask == 1
         assert agg.values == []
 
     def test_count_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         assert agg.count == 0
 
     def test_count_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[0.1, 0.2, 0.3],
         )
 
@@ -44,10 +44,10 @@ class TestMetricAggregate:
 
     def test_numeric_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[0.1, "ignored", 0.2, {"x": 1, "y": 2}, 0.3],
         )
 
@@ -55,10 +55,10 @@ class TestMetricAggregate:
 
     def test_point_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="position",
-            analysis_mask=32,  # ELLIPSE_2D
+            aggregation_mask=32,  # SCATTER_ELLIPSE
             values=[
                 {"x": 1.0, "y": 2.0},
                 {"x": 3.0, "y": 4.0},
@@ -74,39 +74,39 @@ class TestMetricAggregate:
 
     def test_has_2d_data(self) -> None:
         agg_with_points = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="position",
-            analysis_mask=32,
+            aggregation_mask=32,
             values=[{"x": 1.0, "y": 2.0}],
         )
         assert agg_with_points.has_2d_data is True
 
         agg_without_points = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[0.1, 0.2],
         )
         assert agg_without_points.has_2d_data is False
 
     def test_sum_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         assert agg.sum == 0.0
 
     def test_sum_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0, 2.0, 3.0],
         )
 
@@ -114,20 +114,20 @@ class TestMetricAggregate:
 
     def test_mean_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         assert agg.mean == 0.0
 
     def test_mean_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0, 2.0, 3.0],
         )
 
@@ -135,20 +135,20 @@ class TestMetricAggregate:
 
     def test_min_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         assert agg.min is None
 
     def test_min_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[3.0, 1.0, 2.0],
         )
 
@@ -156,20 +156,20 @@ class TestMetricAggregate:
 
     def test_max_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         assert agg.max is None
 
     def test_max_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[3.0, 1.0, 2.0],
         )
 
@@ -177,10 +177,10 @@ class TestMetricAggregate:
 
     def test_std_insufficient_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0],  # Only one value
         )
 
@@ -188,10 +188,10 @@ class TestMetricAggregate:
 
     def test_std_with_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0],
         )
 
@@ -200,10 +200,10 @@ class TestMetricAggregate:
 
     def test_to_summary_empty(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
         )
 
         summary = agg.to_summary()
@@ -218,10 +218,10 @@ class TestMetricAggregate:
 
     def test_to_summary_with_numeric_values(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0, 2.0, 3.0, 4.0, 5.0],
         )
 
@@ -239,10 +239,10 @@ class TestMetricAggregate:
 
     def test_to_summary_with_2d_points(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="position",
-            analysis_mask=32,
+            aggregation_mask=32,
             values=[
                 {"x": 1.0, "y": 10.0},
                 {"x": 2.0, "y": 20.0},
@@ -262,10 +262,10 @@ class TestMetricAggregate:
 
     def test_median_even_count(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0, 2.0, 3.0, 4.0],
         )
 
@@ -274,10 +274,10 @@ class TestMetricAggregate:
 
     def test_median_odd_count(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[1.0, 2.0, 3.0, 4.0, 5.0],
         )
 
@@ -286,10 +286,10 @@ class TestMetricAggregate:
 
     def test_percentile_calculation(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=list(range(1, 101)),  # 1 to 100
         )
 
@@ -299,10 +299,10 @@ class TestMetricAggregate:
 
     def test_meta_field(self) -> None:
         agg = MetricAggregate(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
-            analysis_mask=1,
+            aggregation_mask=1,
             meta={"unit": "percent", "source": "validation"},
         )
 
@@ -334,11 +334,11 @@ class TestTumblingWindowAggregator:
         )
 
         payload = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_processor",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
             "value": 0.95,
-            "analysis_mask": 1,
+            "aggregation_mask": 1,
         }
 
         aggregator.add_metric(payload)
@@ -358,15 +358,15 @@ class TestTumblingWindowAggregator:
 
         for i in range(5):
             payload = {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "accuracy",
                 "value": 0.9 + i * 0.01,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             }
             aggregator.add_metric(payload)
 
-        key = ("test_algo", "1.0.0", "accuracy")
+        key = ("test_processor", "1.0.0", "accuracy")
         assert key in aggregator._current_window
         assert aggregator._current_window[key].count == 5
 
@@ -381,11 +381,11 @@ class TestTumblingWindowAggregator:
         )
 
         payload = {
-            "algo_name": "test_algo",
-            "algo_version": "1.0.0",
+            "processor_name": "test_processor",
+            "processor_version": "1.0.0",
             "metric_name": "accuracy",
             "value": None,
-            "analysis_mask": 1,
+            "aggregation_mask": 1,
         }
 
         aggregator.add_metric(payload)
@@ -404,24 +404,24 @@ class TestTumblingWindowAggregator:
 
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "passed",
                 "value": True,
-                "analysis_mask": 8,  # COUNTER
+                "aggregation_mask": 8,  # TALLY
             },
         )
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "passed",
                 "value": False,
-                "analysis_mask": 8,
+                "aggregation_mask": 8,
             },
         )
 
-        key = ("test_algo", "1.0.0", "passed")
+        key = ("test_processor", "1.0.0", "passed")
         assert aggregator._current_window[key].values == [1, 0]
 
     def test_add_metric_handles_dict_values(self) -> None:
@@ -436,15 +436,15 @@ class TestTumblingWindowAggregator:
 
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "position",
                 "value": {"x": 1.0, "y": 2.0},
-                "analysis_mask": 32,  # ELLIPSE_2D
+                "aggregation_mask": 32,  # SCATTER
             },
         )
 
-        key = ("test_algo", "1.0.0", "position")
+        key = ("test_processor", "1.0.0", "position")
         assert aggregator._current_window[key].values == [{"x": 1.0, "y": 2.0}]
 
     def test_flush_stores_aggregates(self) -> None:
@@ -462,11 +462,11 @@ class TestTumblingWindowAggregator:
         for i in range(3):
             aggregator.add_metric(
                 {
-                    "algo_name": "test_algo",
-                    "algo_version": "1.0.0",
+                    "processor_name": "test_processor",
+                    "processor_version": "1.0.0",
                     "metric_name": "accuracy",
                     "value": 0.9 + i * 0.01,
-                    "analysis_mask": 1,
+                    "aggregation_mask": 1,
                 },
             )
 
@@ -507,21 +507,21 @@ class TestTumblingWindowAggregator:
         # Initialize window but don't add values
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "accuracy",
                 "value": 0.95,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             },
         )
 
         # Manually create an empty aggregate
-        key = ("empty_algo", "1.0.0", "empty_metric")
+        key = ("empty_processor", "1.0.0", "empty_metric")
         aggregator._current_window[key] = MetricAggregate(
-            algo_name="empty_algo",
-            algo_version="1.0.0",
+            processor_name="empty_processor",
+            processor_version="1.0.0",
             metric_name="empty_metric",
-            analysis_mask=1,
+            aggregation_mask=1,
             values=[],  # Empty
         )
 
@@ -543,11 +543,11 @@ class TestTumblingWindowAggregator:
         # Initialize window
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "accuracy",
                 "value": 0.95,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             },
         )
 
@@ -569,26 +569,26 @@ class TestTumblingWindowAggregator:
         # Add different metrics
         aggregator.add_metric(
             {
-                "algo_name": "algo1",
-                "algo_version": "1.0.0",
+                "processor_name": "processor1",
+                "processor_version": "1.0.0",
                 "metric_name": "accuracy",
                 "value": 0.95,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             },
         )
         aggregator.add_metric(
             {
-                "algo_name": "algo2",
-                "algo_version": "2.0.0",
+                "processor_name": "processor2",
+                "processor_version": "2.0.0",
                 "metric_name": "precision",
                 "value": 0.90,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             },
         )
 
         assert len(aggregator._current_window) == 2
-        assert ("algo1", "1.0.0", "accuracy") in aggregator._current_window
-        assert ("algo2", "2.0.0", "precision") in aggregator._current_window
+        assert ("processor1", "1.0.0", "accuracy") in aggregator._current_window
+        assert ("processor2", "2.0.0", "precision") in aggregator._current_window
 
     def test_thread_safety(self) -> None:
         mock_storage = MagicMock()
@@ -608,11 +608,11 @@ class TestTumblingWindowAggregator:
                 for i in range(10):
                     aggregator.add_metric(
                         {
-                            "algo_name": "test_algo",
-                            "algo_version": "1.0.0",
+                            "processor_name": "test_processor",
+                            "processor_version": "1.0.0",
                             "metric_name": "accuracy",
                             "value": 0.9 + i * 0.001,
-                            "analysis_mask": 1,
+                            "aggregation_mask": 1,
                         },
                     )
             except Exception as e:
@@ -625,7 +625,7 @@ class TestTumblingWindowAggregator:
             t.join()
 
         assert len(errors) == 0
-        key = ("test_algo", "1.0.0", "accuracy")
+        key = ("test_processor", "1.0.0", "accuracy")
         assert aggregator._current_window[key].count == 50
 
     def test_storage_error_handling(self) -> None:
@@ -641,11 +641,11 @@ class TestTumblingWindowAggregator:
 
         aggregator.add_metric(
             {
-                "algo_name": "test_algo",
-                "algo_version": "1.0.0",
+                "processor_name": "test_processor",
+                "processor_version": "1.0.0",
                 "metric_name": "accuracy",
                 "value": 0.95,
-                "analysis_mask": 1,
+                "aggregation_mask": 1,
             },
         )
 

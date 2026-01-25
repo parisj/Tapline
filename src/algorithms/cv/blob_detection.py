@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.gpu import GPUContext, get_gpu_state
 from src.utils.logging import get_logger
 
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class BlobDetectionAlgo(Algorithm):
-    """Blob detection algorithm using OpenCV's SimpleBlobDetector.
+class BlobDetectionProcessor(Processor):
+    """Blob detection processor using OpenCV's SimpleBlobDetector.
 
     Detects and counts objects/blobs in images, returning metrics about
     blob count, sizes, and positions for downstream analysis.
@@ -80,11 +80,11 @@ class BlobDetectionAlgo(Algorithm):
 
         if self._use_gpu:
             logger.info(
-                "BlobDetectionAlgo: GPU acceleration enabled (device: %s)",
+                "BlobDetectionProcessor: GPU acceleration enabled (device: %s)",
                 gpu_state.device_name,
             )
         else:
-            logger.info("BlobDetectionAlgo: Using CPU processing")
+            logger.info("BlobDetectionProcessor: Using CPU processing")
 
     def _preprocess_gpu(self, img: np.ndarray) -> np.ndarray:
         """Preprocess image using GPU acceleration.
@@ -135,7 +135,7 @@ class BlobDetectionAlgo(Algorithm):
         # Apply Gaussian blur for noise reduction (matching GPU path)
         return cv2.GaussianBlur(gray, (5, 5), 0)
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:
         """Detect blobs in the image and return metrics."""
         algorithm_cfg = settings.get("algorithm", {})
         min_blob_count = int(algorithm_cfg.get("min_blob_count", 1))
@@ -145,16 +145,16 @@ class BlobDetectionAlgo(Algorithm):
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "blob_count": MetricValue(
+                    "blob_count": Measurement(
                         value=0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                        aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "detection_passed": MetricValue(
+                    "detection_passed": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "pass", "false_label": "fail"},
                     ),
                 },
@@ -196,20 +196,20 @@ class BlobDetectionAlgo(Algorithm):
             centroid_x, centroid_y = 0.0, 0.0
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "blob_count": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "blob_count": Measurement(
                 value=blob_count,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={"units": "count"},
             ),
-            "avg_blob_size": MetricValue(
+            "avg_blob_size": Measurement(
                 value=avg_size,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM | AggregationType.OUTLIERS,
                 meta={"units": "pixels", "range": [0.0, max(sizes) if sizes else 0.0]},
             ),
-            "detection_passed": MetricValue(
+            "detection_passed": Measurement(
                 value=detection_passed,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "pass",
                     "false_label": "fail",
@@ -220,9 +220,9 @@ class BlobDetectionAlgo(Algorithm):
             ),
             # Single 2D metric: centroid of all detected blobs per image
             # Aggregates across images to show spatial distribution of blob centroids
-            "blob_centroid_xy": MetricValue(
+            "blob_centroid_xy": Measurement(
                 value={"x": centroid_x, "y": centroid_y},
-                analysis=AnalysisKind.ELLIPSE_2D | AnalysisKind.CONTOUR_2D,
+                aggregation=AggregationType.SCATTER_ELLIPSE | AggregationType.DENSITY_MAP,
                 meta={
                     "coordinate_system": "image",
                     "units": "pixels",
@@ -243,7 +243,7 @@ class BlobDetectionAlgo(Algorithm):
             "image_shape": list(img.shape),
         }
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=(
                 Artifact(
@@ -253,3 +253,7 @@ class BlobDetectionAlgo(Algorithm):
                 ),
             ),
         )
+
+
+# Backwards compatibility alias
+BlobDetectionAlgo = BlobDetectionProcessor

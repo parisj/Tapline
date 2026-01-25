@@ -32,19 +32,19 @@ if TYPE_CHECKING:
 class TestPipelineEventFlow:
     """Test complete event flow through the pipeline."""
 
-    def test_full_job_lifecycle_with_metrics(
+    def test_full_task_lifecycle_with_metrics(
         self,
         skip_without_infrastructure,
         kafka_config: KafkaConfig,
         event_producer: EventProducer,
     ) -> None:
-        """Test complete job lifecycle: CREATED -> STARTED -> metrics -> COMPLETED."""
+        """Test complete task lifecycle: CREATED -> STARTED -> metrics -> COMPLETED."""
         from src.streaming.consumer import EventConsumer
 
-        job_id = f"e2e-full-{uuid.uuid4().hex}"
+        task_id = f"e2e-full-{uuid.uuid4().hex}"
         source_id = f"e2e-source-{uuid.uuid4().hex[:8]}"
-        algo_name = "analysis_probe"
-        algo_version = "1.0.0"
+        processor_name = "analysis_probe"
+        processor_version = "1.0.0"
 
         # Create consumers for all relevant topics
         jobs_consumer = EventConsumer(
@@ -64,21 +64,21 @@ class TestPipelineEventFlow:
         )
 
         try:
-            # 1. Publish JOB_CREATED
-            event_producer.publish_job_created(
+            # 1. Publish TASK_CREATED
+            event_producer.publish_task_created(
                 source_id=source_id,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="path0",
                 path="/data/test_image.png",
                 fingerprint=f"fp-{uuid.uuid4().hex[:16]}",
             )
 
-            # 2. Publish JOB_STARTED
-            event_producer.publish_job_started(
+            # 2. Publish TASK_STARTED
+            event_producer.publish_task_started(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
             )
 
             # 3. Publish multiple metrics
@@ -90,58 +90,58 @@ class TestPipelineEventFlow:
 
             for metric_name, value, meta in metrics_to_emit:
                 event_producer.publish_metric_emitted(
-                    source_id=algo_name,
-                    job_id=job_id,
-                    algo_name=algo_name,
-                    algo_version=algo_version,
+                    source_id=processor_name,
+                    task_id=task_id,
+                    processor_name=processor_name,
+                    processor_version=processor_version,
                     metric_name=metric_name,
                     value=value,
-                    analysis_mask=3,  # SUMMARY | DISTRIBUTION_1D
+                    aggregation_mask=3,  # STATS | HISTOGRAM
                     meta=meta,
                 )
 
             # 4. Publish RESULT_PRODUCED
             event_producer.publish_result_produced(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 metric_count=len(metrics_to_emit),
                 artifact_refs=[],
             )
 
-            # 5. Publish JOB_COMPLETED
-            event_producer.publish_job_completed(
+            # 5. Publish TASK_COMPLETED
+            event_producer.publish_task_completed(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 duration_ms=150.5,
             )
 
             event_producer.flush(timeout=10.0)
 
             # Collect and verify job events
-            job_events = _collect_events_for_job(jobs_consumer, job_id, expected_count=3, timeout=15.0)
+            job_events = _collect_events_for_job(jobs_consumer, task_id, expected_count=3, timeout=15.0)
             job_event_types = {e.event_type for e in job_events}
 
-            assert EventType.JOB_CREATED in job_event_types, "Missing JOB_CREATED event"
-            assert EventType.JOB_STARTED in job_event_types, "Missing JOB_STARTED event"
-            assert EventType.JOB_COMPLETED in job_event_types, "Missing JOB_COMPLETED event"
+            assert EventType.TASK_CREATED in job_event_types, "Missing TASK_CREATED event"
+            assert EventType.TASK_STARTED in job_event_types, "Missing TASK_STARTED event"
+            assert EventType.TASK_COMPLETED in job_event_types, "Missing TASK_COMPLETED event"
 
-            # Verify JOB_COMPLETED has correct duration
-            completed = next(e for e in job_events if e.event_type == EventType.JOB_COMPLETED)
+            # Verify TASK_COMPLETED has correct duration
+            completed = next(e for e in job_events if e.event_type == EventType.TASK_COMPLETED)
             assert completed.payload["duration_ms"] == 150.5
 
             # Collect and verify metric events
-            metric_events = _collect_events_for_job(metrics_consumer, job_id, expected_count=3, timeout=15.0)
+            metric_events = _collect_events_for_job(metrics_consumer, task_id, expected_count=3, timeout=15.0)
             assert len(metric_events) == 3, f"Expected 3 metric events, got {len(metric_events)}"
 
             metric_names = {e.payload["metric_name"] for e in metric_events}
             assert metric_names == {"brightness_mean", "contrast_std", "sharpness_score"}
 
             # Collect and verify result event
-            result_events = _collect_events_for_job(results_consumer, job_id, expected_count=1, timeout=15.0)
+            result_events = _collect_events_for_job(results_consumer, task_id, expected_count=1, timeout=15.0)
             assert len(result_events) == 1
             assert result_events[0].event_type == EventType.RESULT_PRODUCED
             assert result_events[0].payload["metric_count"] == 3
@@ -167,7 +167,7 @@ class TestMinIOArtifactStorage:
             data=test_image_bytes,
             bucket=minio_storage.buckets["artifacts"],
             mime="image/png",
-            metadata={"job_id": "test-job", "name": "test_artifact"},
+            metadata={"task_id": "test-job", "name": "test_artifact"},
         )
 
         # Verify object reference
@@ -237,7 +237,7 @@ class TestMinIOArtifactStorage:
                 key=obj_ref.key,
                 size=obj_ref.size,
                 mime="image/png",
-                source_job_id="test-job",
+                source_task_id="test-job",
             )
             event_producer.flush(timeout=5.0)
 
@@ -278,33 +278,33 @@ class TestAuditTrailIntegrity:
 
         try:
             source_id = f"e2e-chain-source-{uuid.uuid4().hex[:8]}"
-            job_id = f"e2e-chain-job-{uuid.uuid4().hex}"
+            task_id = f"e2e-chain-job-{uuid.uuid4().hex}"
 
             # Publish sequence of events with same source_id
-            event_producer.publish_job_created(
+            event_producer.publish_task_created(
                 source_id=source_id,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="path0",
                 path="/data/test.png",
                 fingerprint="fp123",
             )
-            event_producer.publish_job_started(
+            event_producer.publish_task_started(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name="test_algo",
-                algo_version="1.0.0",
+                task_id=task_id,
+                processor_name="test_algo",
+                processor_version="1.0.0",
             )
-            event_producer.publish_job_completed(
+            event_producer.publish_task_completed(
                 source_id=source_id,
-                job_id=job_id,
-                algo_name="test_algo",
-                algo_version="1.0.0",
+                task_id=task_id,
+                processor_name="test_algo",
+                processor_version="1.0.0",
                 duration_ms=100.0,
             )
             event_producer.flush(timeout=5.0)
 
             # Collect events for this source
-            events = _collect_events_for_job(consumer, job_id, expected_count=3, timeout=15.0)
+            events = _collect_events_for_job(consumer, task_id, expected_count=3, timeout=15.0)
 
             # Verify all events have content hashes
             for event in events:
@@ -339,13 +339,13 @@ class TestAuditTrailIntegrity:
         )
 
         try:
-            job_id = f"e2e-audit-{uuid.uuid4().hex}"
+            task_id = f"e2e-audit-{uuid.uuid4().hex}"
             source_id = f"e2e-audit-source-{uuid.uuid4().hex[:8]}"
 
-            # publish_job_created uses publish_with_audit (dual-write)
-            event_producer.publish_job_created(
+            # publish_task_created uses publish_with_audit (dual-write)
+            event_producer.publish_task_created(
                 source_id=source_id,
-                job_id=job_id,
+                task_id=task_id,
                 directory_key="path0",
                 path="/data/audit_test.png",
                 fingerprint="audit123",
@@ -355,7 +355,7 @@ class TestAuditTrailIntegrity:
             # Verify event appears in jobs topic
             job_event = _poll_for_event(
                 jobs_consumer,
-                lambda e: e.payload.get("job_id") == job_id,
+                lambda e: e.payload.get("task_id") == task_id,
                 timeout=10.0,
             )
             assert job_event is not None, "Event not found in jobs topic"
@@ -363,7 +363,7 @@ class TestAuditTrailIntegrity:
             # Verify event also appears in audit-log topic
             audit_event = _poll_for_event(
                 audit_consumer,
-                lambda e: e.payload.get("job_id") == job_id,
+                lambda e: e.payload.get("task_id") == task_id,
                 timeout=10.0,
             )
             assert audit_event is not None, "Event not found in audit-log topic"
@@ -473,19 +473,19 @@ class TestMetricAggregation:
         # This test verifies the aggregation pipeline writes to MinIO
         # It may take time for aggregation windows to complete
 
-        job_id = f"e2e-agg-{uuid.uuid4().hex}"
-        algo_name = "analysis_probe"
+        task_id = f"e2e-agg-{uuid.uuid4().hex}"
+        processor_name = "analysis_probe"
 
         # Emit several metrics
         for i in range(5):
             event_producer.publish_metric_emitted(
-                source_id=algo_name,
-                job_id=f"{job_id}-{i}",
-                algo_name=algo_name,
-                algo_version="1.0.0",
+                source_id=processor_name,
+                task_id=f"{task_id}-{i}",
+                processor_name=processor_name,
+                processor_version="1.0.0",
                 metric_name="test_metric",
                 value=float(i * 10),
-                analysis_mask=1,
+                aggregation_mask=1,
             )
 
         event_producer.flush(timeout=5.0)
@@ -499,17 +499,17 @@ class TestMetricAggregation:
 
 def _collect_events_for_job(
     consumer,
-    job_id: str,
+    task_id: str,
     expected_count: int,
     timeout: float = 15.0,
 ) -> list:
-    """Collect events for a specific job_id."""
+    """Collect events for a specific task_id."""
     events = []
     start = time.time()
 
     while time.time() - start < timeout and len(events) < expected_count:
         event = consumer.poll(timeout=1.0)
-        if event and event.payload.get("job_id") == job_id:
+        if event and event.payload.get("task_id") == task_id:
             events.append(event)
 
     return events

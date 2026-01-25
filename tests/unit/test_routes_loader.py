@@ -3,10 +3,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.algorithms.registry import AlgorithmRegistry
+from src.algorithms.registry import ProcessorRegistry
 from src.dispatch.dispatcher import Dispatcher, DispatchPlan
 from src.dispatch.routes import LoadedRoute, build_dispatch_plans, load_routes_toml
-from src.domain.jobs import Job
+from src.domain.tasks import Task
 
 
 @pytest.fixture
@@ -74,19 +74,19 @@ def loaded_routes(tmp_path: pytest.TempPathFactory) -> dict[str, LoadedRoute]:
 
 
 @pytest.fixture
-def job_unknown() -> Job:
-    return Job(
-        job_id="job-unknown",
+def task_unknown() -> Task:
+    return Task(
+        task_id="task-unknown",
         directory_key="unknown_path",
         path="/path/to/image.jpg",
         created_at_unix=1_700_000_000.0,
-        fingerprint="fp-unknown",
+        fingerprint="fp-task-unknown",
     )
 
 
 @pytest.fixture
-def registry() -> AlgorithmRegistry:
-    reg = AlgorithmRegistry()
+def registry() -> ProcessorRegistry:
+    reg = ProcessorRegistry()
     # For testing purposes, we can register dummy algorithms
     algo_a = Mock()
     algo_b = Mock()
@@ -139,7 +139,7 @@ def test_load_routes_toml_missing_settings_file(tmp_path: pytest.TempPathFactory
 
 def test_build_dispatch_plans(
     loaded_routes: dict[str, LoadedRoute],
-    registry: AlgorithmRegistry,
+    registry: ProcessorRegistry,
 ) -> None:
     registry.register("unknown", "1.0.0", lambda: Mock(name="AlgoA_Instance"))
     dispatch_plans = build_dispatch_plans(
@@ -149,18 +149,18 @@ def test_build_dispatch_plans(
     assert len(dispatch_plans) == 2
     plan0 = dispatch_plans["path0"]
     assert isinstance(plan0, DispatchPlan)
-    assert plan0.algo is registry.create("algoA", "1.0.0")
+    assert plan0.processor is registry.create("algoA", "1.0.0")
     assert plan0.settings["algorithm"]["threshold"] == 0.4
     plan1 = dispatch_plans["path1"]
     assert isinstance(plan1, DispatchPlan)
-    assert plan1.algo is registry.create("algoB", "0.1.0")
+    assert plan1.processor is registry.create("algoB", "0.1.0")
     assert plan1.settings["model"]["artifact_path"] == "/models/model.onnx"
 
 
 def test_unknown_directory_key_dispatch_plans(
     loaded_routes: dict[str, LoadedRoute],
-    registry: AlgorithmRegistry,
-    job_unknown: Job,
+    registry: ProcessorRegistry,
+    task_unknown: Task,
 ) -> None:
     dispatch_plans = build_dispatch_plans(
         loaded_routes,
@@ -168,18 +168,18 @@ def test_unknown_directory_key_dispatch_plans(
     )
     dispatcher = Dispatcher(dispatch_plans)
     with pytest.raises(KeyError):
-        _ = dispatcher.dispatch(job_unknown)
+        _ = dispatcher.dispatch(task_unknown)
 
 
 def test_registry_duplicate_entry() -> None:
-    reg = AlgorithmRegistry()
-    algo_a = Mock()
+    reg = ProcessorRegistry()
+    processor_a = Mock()
 
-    reg.register("algoA", "1.0.0", algo_a)
-    with pytest.raises(ValueError, match="Algorithm already registered: algoA 1.0.0"):
-        reg.register("algoA", "1.0.0", algo_a)
+    reg.register("processorA", "1.0.0", processor_a)
+    with pytest.raises(ValueError, match="Processor already registered: processorA 1.0.0"):
+        reg.register("processorA", "1.0.0", processor_a)
 
 
-def test_create_unknown_algorithm(registry: AlgorithmRegistry) -> None:
+def test_create_unknown_processor(registry: ProcessorRegistry) -> None:
     with pytest.raises(KeyError):
-        registry.create("unknownAlgo", "0.1.0")
+        registry.create("unknownProcessor", "0.1.0")

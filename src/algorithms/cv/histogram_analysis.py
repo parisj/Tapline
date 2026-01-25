@@ -1,4 +1,4 @@
-"""Histogram analysis algorithm.
+"""Histogram analysis processor.
 
 Analyzes color and intensity distributions in images:
 - Histogram peaks (number of dominant peaks)
@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class HistogramAnalysisAlgo(Algorithm):
-    """Histogram analysis algorithm.
+class HistogramAnalysisProcessor(Processor):
+    """Histogram analysis processor.
 
     Analyzes intensity and color distributions to characterize
     image content and detect distribution anomalies.
@@ -55,7 +55,7 @@ class HistogramAnalysisAlgo(Algorithm):
         self._bimodal_threshold = float(histogram_cfg.get("bimodal_threshold", 0.3))
 
         logger.info(
-            "HistogramAnalysisAlgo initialized: bins=%d, peak_thresh=%.2f, bimodal_thresh=%.2f",
+            "HistogramAnalysisProcessor initialized: bins=%d, peak_thresh=%.2f, bimodal_thresh=%.2f",
             self._num_bins,
             self._peak_threshold,
             self._bimodal_threshold,
@@ -182,23 +182,23 @@ class HistogramAnalysisAlgo(Algorithm):
 
         return False
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         """Analyze histogram and return metrics."""
         # Decode image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "histogram_peaks": MetricValue(
+                    "histogram_peaks": Measurement(
                         value=0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.COUNTER,
+                        aggregation=AggregationType.STATS | AggregationType.TALLY,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "is_bimodal": MetricValue(
+                    "is_bimodal": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "bimodal", "false_label": "unimodal"},
                     ),
                 },
@@ -224,37 +224,37 @@ class HistogramAnalysisAlgo(Algorithm):
                 channel_hists[name] = self._compute_histogram(img[:, :, i]).tolist()
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "histogram_peaks": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "histogram_peaks": Measurement(
                 value=histogram_peaks,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.COUNTER,
+                aggregation=AggregationType.STATS | AggregationType.TALLY,
                 meta={
                     "units": "count",
                     "threshold": self._peak_threshold,
                     "description": "Number of significant peaks in intensity histogram",
                 },
             ),
-            "histogram_spread": MetricValue(
+            "histogram_spread": Measurement(
                 value=histogram_spread,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "bins",
                     "range": [0.0, float(self._num_bins / 2)],
                     "description": "Standard deviation of intensity distribution",
                 },
             ),
-            "channel_balance": MetricValue(
+            "channel_balance": Measurement(
                 value=channel_balance,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.OUTLIERS,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
                     "description": "RGB channel similarity (1.0 = perfectly balanced)",
                 },
             ),
-            "dynamic_range": MetricValue(
+            "dynamic_range": Measurement(
                 value=dynamic_range,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
@@ -263,9 +263,9 @@ class HistogramAnalysisAlgo(Algorithm):
                     "description": "Proportion of intensity range used",
                 },
             ),
-            "is_bimodal": MetricValue(
+            "is_bimodal": Measurement(
                 value=is_bimodal,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "bimodal",
                     "false_label": "unimodal",
@@ -300,7 +300,7 @@ class HistogramAnalysisAlgo(Algorithm):
             "image_shape": list(img.shape),
         }
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=(
                 Artifact(
@@ -310,3 +310,7 @@ class HistogramAnalysisAlgo(Algorithm):
                 ),
             ),
         )
+
+
+# Backwards compatibility alias
+HistogramAnalysisAlgo = HistogramAnalysisProcessor

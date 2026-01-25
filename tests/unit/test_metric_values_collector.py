@@ -29,19 +29,19 @@ class TestMetricValuesWindow:
         )
 
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta={"unit": "percent"},
         )
 
-        key = ("test_algo", "1.0.0", "accuracy")
+        key = ("test_processor", "1.0.0", "accuracy")
         assert key in window.metrics
         assert len(window.metrics[key]) == 1
         assert window.metrics[key][0]["value"] == 0.95
-        assert window.metrics[key][0]["analysis_mask"] == 1
+        assert window.metrics[key][0]["aggregation_mask"] == 1
         assert window.metrics[key][0]["meta"] == {"unit": "percent"}
 
     def test_add_multiple_values_same_metric(self) -> None:
@@ -52,15 +52,15 @@ class TestMetricValuesWindow:
 
         for i in range(5):
             window.add(
-                algo_name="test_algo",
-                algo_version="1.0.0",
+                processor_name="test_processor",
+                processor_version="1.0.0",
                 metric_name="accuracy",
                 value=0.9 + i * 0.01,
-                analysis_mask=1,
+                aggregation_mask=1,
                 meta=None,
             )
 
-        key = ("test_algo", "1.0.0", "accuracy")
+        key = ("test_processor", "1.0.0", "accuracy")
         assert len(window.metrics[key]) == 5
 
     def test_add_multiple_different_metrics(self) -> None:
@@ -70,25 +70,25 @@ class TestMetricValuesWindow:
         )
 
         window.add(
-            algo_name="algo1",
-            algo_version="1.0.0",
+            processor_name="processor1",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
         window.add(
-            algo_name="algo2",
-            algo_version="2.0.0",
+            processor_name="processor2",
+            processor_version="2.0.0",
             metric_name="precision",
             value=0.90,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
         assert len(window.metrics) == 2
-        assert ("algo1", "1.0.0", "accuracy") in window.metrics
-        assert ("algo2", "2.0.0", "precision") in window.metrics
+        assert ("processor1", "1.0.0", "accuracy") in window.metrics
+        assert ("processor2", "2.0.0", "precision") in window.metrics
 
     def test_add_boolean_value(self) -> None:
         window = MetricValuesWindow(
@@ -97,15 +97,15 @@ class TestMetricValuesWindow:
         )
 
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="passed",
             value=True,
-            analysis_mask=8,  # COUNTER
+            aggregation_mask=8,  # TALLY
             meta=None,
         )
 
-        key = ("test_algo", "1.0.0", "passed")
+        key = ("test_processor", "1.0.0", "passed")
         assert window.metrics[key][0]["value"] is True
 
     def test_add_dict_value(self) -> None:
@@ -115,15 +115,15 @@ class TestMetricValuesWindow:
         )
 
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="position",
             value={"x": 1.0, "y": 2.0},
-            analysis_mask=32,  # ELLIPSE_2D
+            aggregation_mask=32,  # SCATTER_ELLIPSE
             meta=None,
         )
 
-        key = ("test_algo", "1.0.0", "position")
+        key = ("test_processor", "1.0.0", "position")
         assert window.metrics[key][0]["value"] == {"x": 1.0, "y": 2.0}
 
     def test_add_list_value(self) -> None:
@@ -133,15 +133,15 @@ class TestMetricValuesWindow:
         )
 
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="points",
             value=[1.0, 2.0, 3.0],
-            analysis_mask=64,  # CONTOUR_2D
+            aggregation_mask=64,  # DENSITY_MAP
             meta=None,
         )
 
-        key = ("test_algo", "1.0.0", "points")
+        key = ("test_processor", "1.0.0", "points")
         assert window.metrics[key][0]["value"] == [1.0, 2.0, 3.0]
 
 
@@ -199,11 +199,11 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
@@ -235,19 +235,19 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="algo1",
-            algo_version="1.0.0",
+            processor_name="processor1",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
         window.add(
-            algo_name="algo2",
-            algo_version="2.0.0",
+            processor_name="processor2",
+            processor_version="2.0.0",
             metric_name="precision",
             value=0.90,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
@@ -265,11 +265,11 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
@@ -288,11 +288,11 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
@@ -318,7 +318,7 @@ class TestStoreWindowValues:
         )
 
         # Manually add an empty list
-        window.metrics[("test_algo", "1.0.0", "empty_metric")] = []
+        window.metrics[("test_processor", "1.0.0", "empty_metric")] = []
 
         mock_storage = MagicMock()
         mock_storage.buckets = {"metric-values": "metric-values"}
@@ -328,17 +328,17 @@ class TestStoreWindowValues:
         assert stored == 0
         mock_storage.store_with_key.assert_not_called()
 
-    def test_store_window_values_preserves_analysis_mask(self) -> None:
+    def test_store_window_values_preserves_aggregation_mask(self) -> None:
         window = MetricValuesWindow(
             datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=42,  # Some specific mask
+            aggregation_mask=42,  # Some specific mask
             meta=None,
         )
 
@@ -347,13 +347,13 @@ class TestStoreWindowValues:
 
         _store_window_values(window, mock_storage)
 
-        # Verify the stored document contains the analysis_mask
+        # Verify the stored document contains the aggregation_mask
         call_args = mock_storage.store_with_key.call_args
         data = call_args.kwargs.get("data") or call_args[1].get("data")
 
         # Parse the stored JSON
         doc = json.loads(data.decode("utf-8") if isinstance(data, bytes) else data)
-        assert doc["analysis_mask"] == 42
+        assert doc["aggregation_mask"] == 42
 
     def test_store_window_values_with_meta(self) -> None:
         window = MetricValuesWindow(
@@ -361,11 +361,11 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta={"unit": "percent", "source": "validation"},
         )
 
@@ -386,11 +386,11 @@ class TestStoreWindowValues:
             datetime(2024, 1, 15, 12, 1, 0, tzinfo=UTC),
         )
         window.add(
-            algo_name="test_algo",
-            algo_version="1.0.0",
+            processor_name="test_processor",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta=None,
         )
 
@@ -405,10 +405,10 @@ class TestStoreWindowValues:
         doc = json.loads(data.decode("utf-8") if isinstance(data, bytes) else data)
 
         # Verify document structure
-        assert doc["algo_name"] == "test_algo"
-        assert doc["algo_version"] == "1.0.0"
+        assert doc["processor_name"] == "test_processor"
+        assert doc["processor_version"] == "1.0.0"
         assert doc["metric_name"] == "accuracy"
-        assert doc["analysis_mask"] == 1
+        assert doc["aggregation_mask"] == 1
         assert "window_start" in doc
         assert "window_end" in doc
         assert "window_start_unix" in doc

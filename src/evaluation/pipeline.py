@@ -1,7 +1,7 @@
 # src/evaluation/pipeline.py
 from collections.abc import Callable
 
-from src.domain.evaluation import AnalysisKind
+from src.domain.evaluation import AggregationType
 from src.evaluation.analyzers import (
     ContourAnalyzer,
     CounterAnalyzer,
@@ -15,26 +15,30 @@ from src.evaluation.analyzers.base import Analyzer
 
 AnalyzerFactory = Callable[[], Analyzer]
 
-ANALYSIS_PIPELINE: dict[AnalysisKind, list[AnalyzerFactory]] = {
-    AnalysisKind.SUMMARY: [
+ANALYSIS_PIPELINE: dict[AggregationType, list[AnalyzerFactory]] = {
+    AggregationType.STATS: [
         SummaryAnalyzer,
     ],
-    AnalysisKind.DISTRIBUTION_1D: [
+    AggregationType.HISTOGRAM: [
         HistogramAnalyzer,
     ],
-    AnalysisKind.OUTLIERS_1D: [
+    AggregationType.OUTLIERS: [
         OutliersAnalyzer,
     ],
-    AnalysisKind.COUNTER: [
+    AggregationType.TALLY: [
         CounterAnalyzer,
     ],
-    AnalysisKind.RATE: [
+    AggregationType.RATE: [
         RateAnalyzer,
     ],
-    AnalysisKind.ELLIPSE_2D: [
+    AggregationType.SCATTER_ELLIPSE: [
         CovEllipseAnalyzer,
     ],
-    AnalysisKind.CONTOUR_2D: [
+    AggregationType.DENSITY_MAP: [
         ContourAnalyzer,
     ],
 }
+
+
+# Backwards compatibility alias (deprecated)
+AnalysisKind = AggregationType

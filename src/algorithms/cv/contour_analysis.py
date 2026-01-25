@@ -1,4 +1,4 @@
-"""Contour analysis algorithm.
+"""Contour analysis processor.
 
 Detects and analyzes contours (shapes) in images:
 - Contour count
@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ContourAnalysisAlgo(Algorithm):
-    """Contour analysis algorithm using OpenCV.
+class ContourAnalysisProcessor(Processor):
+    """Contour analysis processor using OpenCV.
 
     Detects contours and computes shape metrics useful for
     object detection and spatial analysis.
@@ -61,7 +61,7 @@ class ContourAnalysisAlgo(Algorithm):
         self._min_contour_count = int(algorithm_cfg.get("min_contour_count", 1))
 
         logger.info(
-            "ContourAnalysisAlgo initialized: area=[%.1f,%.1f], thresh=%s, min_count=%d",
+            "ContourAnalysisProcessor initialized: area=[%.1f,%.1f], thresh=%s, min_count=%d",
             self._min_contour_area,
             self._max_contour_area,
             self._threshold_method,
@@ -106,23 +106,23 @@ class ContourAnalysisAlgo(Algorithm):
         cy = moments["m01"] / moments["m00"]
         return float(cx), float(cy)
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         """Detect and analyze contours."""
         # Decode image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "contour_count": MetricValue(
+                    "contour_count": Measurement(
                         value=0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                        aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "contour_detected": MetricValue(
+                    "contour_detected": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "detected", "false_label": "none"},
                     ),
                 },
@@ -177,41 +177,41 @@ class ContourAnalysisAlgo(Algorithm):
             )
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "contour_count": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "contour_count": Measurement(
                 value=contour_count,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "count",
                     "threshold": self._min_contour_count,
                 },
             ),
-            "largest_contour_area": MetricValue(
+            "largest_contour_area": Measurement(
                 value=largest_contour_area,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM | AggregationType.OUTLIERS,
                 meta={
                     "units": "pixels_squared",
                     "min_area": self._min_contour_area,
                     "max_area": self._max_contour_area,
                 },
             ),
-            "total_contour_area": MetricValue(
+            "total_contour_area": Measurement(
                 value=total_contour_area,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={"units": "pixels_squared"},
             ),
-            "avg_contour_circularity": MetricValue(
+            "avg_contour_circularity": Measurement(
                 value=avg_circularity,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
                     "description": "Mean circularity (1.0 = perfect circle)",
                 },
             ),
-            "contour_centroid_xy": MetricValue(
+            "contour_centroid_xy": Measurement(
                 value={"x": centroid_x, "y": centroid_y},
-                analysis=AnalysisKind.ELLIPSE_2D | AnalysisKind.CONTOUR_2D,
+                aggregation=AggregationType.SCATTER_ELLIPSE | AggregationType.DENSITY_MAP,
                 meta={
                     "coordinate_system": "image",
                     "units": "pixels",
@@ -219,9 +219,9 @@ class ContourAnalysisAlgo(Algorithm):
                     "description": "Centroid of largest contour",
                 },
             ),
-            "contour_detected": MetricValue(
+            "contour_detected": Measurement(
                 value=contour_detected,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "detected",
                     "false_label": "none",
@@ -254,7 +254,7 @@ class ContourAnalysisAlgo(Algorithm):
             },
         }
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=(
                 Artifact(
@@ -264,3 +264,7 @@ class ContourAnalysisAlgo(Algorithm):
                 ),
             ),
         )
+
+
+# Backwards compatibility alias
+ContourAnalysisAlgo = ContourAnalysisProcessor

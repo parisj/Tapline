@@ -47,13 +47,13 @@ class JobStatus(str, Enum):
 class JobState:
     """Stateful representation of a job."""
 
-    job_id: str
+    task_id: str
     directory_key: str
     path: str
     fingerprint: str
     status: JobStatus
-    algo_name: str | None = None
-    algo_version: str | None = None
+    processor_name: str | None = None
+    processor_version: str | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -63,13 +63,13 @@ class JobState:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "job_id": self.job_id,
+            "task_id": self.task_id,
             "directory_key": self.directory_key,
             "path": self.path,
             "fingerprint": self.fingerprint,
             "status": self.status.value,
-            "algo_name": self.algo_name,
-            "algo_version": self.algo_version,
+            "processor_name": self.processor_name,
+            "processor_version": self.processor_version,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
@@ -81,13 +81,13 @@ class JobState:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> JobState:
         return cls(
-            job_id=data["job_id"],
+            task_id=data["task_id"],
             directory_key=data["directory_key"],
             path=data["path"],
             fingerprint=data["fingerprint"],
             status=JobStatus(data["status"]),
-            algo_name=data.get("algo_name"),
-            algo_version=data.get("algo_version"),
+            processor_name=data.get("processor_name"),
+            processor_version=data.get("processor_version"),
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
             started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
             completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
@@ -132,7 +132,7 @@ class JobStateProcessor(KeyedProcessFunction):
         # Process based on event type
         if event_type == "JOB_CREATED":
             job_state = JobState(
-                job_id=payload["job_id"],
+                task_id=payload["task_id"],
                 directory_key=payload["directory_key"],
                 path=payload["path"],
                 fingerprint=payload["fingerprint"],
@@ -143,8 +143,8 @@ class JobStateProcessor(KeyedProcessFunction):
 
         elif event_type == "JOB_STARTED" and job_state:
             job_state.status = JobStatus.STARTED
-            job_state.algo_name = payload.get("algo_name")
-            job_state.algo_version = payload.get("algo_version")
+            job_state.processor_name = payload.get("processor_name")
+            job_state.processor_version = payload.get("processor_version")
             job_state.started_at = timestamp
 
         elif event_type == "JOB_COMPLETED" and job_state:
@@ -174,7 +174,7 @@ class JobStateProcessor(KeyedProcessFunction):
 
             # Emit state change
             yield Row(
-                job_id=job_state.job_id,
+                task_id=job_state.task_id,
                 status=job_state.status.value,
                 state_json=json.dumps(job_state.to_dict()),
                 updated_at=timestamp.isoformat() if timestamp else None,
@@ -228,13 +228,13 @@ class JobStateTrackerJob:
 
         # Define row type for job events
         Types.ROW_NAMED(
-            ["job_id", "event_type", "payload", "timestamp"],
+            ["task_id", "event_type", "payload", "timestamp"],
             [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()],
         )
 
         # Define output row type
         Types.ROW_NAMED(
-            ["job_id", "status", "state_json", "updated_at"],
+            ["task_id", "status", "state_json", "updated_at"],
             [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()],
         )
 
@@ -257,7 +257,7 @@ def parse_job_event(json_str: str) -> Row | None:
         data = json.loads(json_str)
 
         return Row(
-            job_id=data.get("payload", {}).get("job_id", ""),
+            task_id=data.get("payload", {}).get("task_id", ""),
             event_type=data.get("event_type", ""),
             payload=json.dumps(data.get("payload", {})),
             timestamp=data.get("timestamp", ""),

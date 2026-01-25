@@ -10,8 +10,8 @@ _MIN_PREFIX_LENGTH = 2
 
 
 @dataclass(frozen=True)
-class ObjectRef:
-    """Reference to an object stored in MinIO.
+class ArtifactRef:
+    """Reference to an artifact stored in MinIO.
 
     Content-addressed storage means the key is derived from
     the content hash, enabling deduplication and verification.
@@ -34,8 +34,8 @@ class ObjectRef:
         size: int,
         stored_at: datetime | None = None,
         prefix_length: int = 4,
-    ) -> ObjectRef:
-        """Create ObjectRef from content hash.
+    ) -> ArtifactRef:
+        """Create ArtifactRef from content hash.
 
         Args:
             content_hash: SHA-256 hash of content
@@ -45,7 +45,7 @@ class ObjectRef:
             prefix_length: Number of chars for directory sharding
 
         Returns:
-            ObjectRef with computed key path
+            ArtifactRef with computed key path
 
         """
         key = hash_to_key(content_hash, prefix_length)
@@ -73,7 +73,7 @@ class ObjectRef:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> ObjectRef:
+    def from_dict(cls, data: dict) -> ArtifactRef:
         """Deserialize from dictionary."""
         stored_at = data["stored_at"]
         if isinstance(stored_at, str):
@@ -128,3 +128,7 @@ def key_to_hash(key: str) -> str:
     """
     parts = key.split("/")
     return parts[-1] if parts else key
+
+
+# Backwards compatibility alias (deprecated)
+ObjectRef = ArtifactRef

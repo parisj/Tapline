@@ -11,13 +11,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from src.domain.evaluation import AnalysisKind
+from src.domain.evaluation import AggregationType
 from src.domain.events import EventType
-from src.domain.results import MetricValue
+from src.domain.results import Measurement
 from src.observability.metrics import (
-    JOB_DURATION,
-    JOBS_COMPLETED,
-    JOBS_FAILED,
+    TASK_DURATION,
+    TASKS_COMPLETED,
+    TASKS_FAILED,
     WORKERS_ACTIVE,
 )
 from src.utils.logging import get_logger
@@ -189,7 +189,7 @@ class KafkaWorkerPool:
                 break
 
             try:
-                if event.event_type == EventType.JOB_CREATED:
+                if event.event_type == EventType.TASK_CREATED:
                     self._process_job_event(consumer, event, worker_id)
             except Exception as e:
                 logger.exception(
@@ -231,7 +231,7 @@ class KafkaWorkerPool:
 
         # Reconstruct Job from event payload
         job = Job(
-            job_id=payload["job_id"],
+            task_id=payload["task_id"],
             directory_key=payload["directory_key"],
             path=payload["path"],
             created_at_unix=event.timestamp.timestamp(),
@@ -241,24 +241,24 @@ class KafkaWorkerPool:
         logger.info(
             "Worker %d processing job: %s",
             worker_id,
-            job.job_id,
+            job.task_id,
         )
 
         WORKERS_ACTIVE.labels(worker_id=str(worker_id)).inc()
-        algo_name: str | None = None
-        algo_version: str | None = None
+        processor_name: str | None = None
+        processor_version: str | None = None
         try:
             plan = self._dispatcher.dispatch(job)
-            algo_name = plan.algo.name
-            algo_version = plan.algo.version
+            processor_name = plan.processor.name
+            processor_version = plan.processor.version
 
             self._lifecycle.ensure_initialized(plan)
 
             self._producer.publish_job_started(
                 source_id=source_id,
-                job_id=job.job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=job.task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
             )
 
             # Read image data (using I/O executor if available for non-blocking reads)
@@ -267,7 +267,7 @@ class KafkaWorkerPool:
             # Execute algorithm
             context = ExecutionContext(
                 job=job,
-                algo=plan.algo,
+                algo=plan.processor,
                 settings=dict(plan.settings),
                 image_bytes=image_bytes,
             )
@@ -293,16 +293,16 @@ class KafkaWorkerPool:
             if result and result.artifacts:
                 artifact_refs = self._store_artifacts_parallel(
                     list(result.artifacts),
-                    job.job_id,
+                    job.task_id,
                     source_id,
                 )
 
             # Publish RESULT_PRODUCED
             self._producer.publish_result_produced(
                 source_id=source_id,
-                job_id=job.job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=job.task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 metric_count=len(result.metrics) if result and result.metrics else 0,
                 artifact_refs=artifact_refs,
             )
@@ -310,52 +310,52 @@ class KafkaWorkerPool:
             # Publish individual metrics for Flink aggregation
             if result and result.metrics:
                 for metric_name, metric_value in result.metrics.items():
-                    if isinstance(metric_value, MetricValue):
+                    if isinstance(metric_value, Measurement):
                         self._producer.publish_metric_emitted(
                             source_id=source_id,
-                            job_id=job.job_id,
-                            algo_name=algo_name,
-                            algo_version=algo_version,
+                            task_id=job.task_id,
+                            processor_name=processor_name,
+                            processor_version=processor_version,
                             metric_name=metric_name,
                             value=metric_value.value,
-                            analysis_mask=int(metric_value.analysis.value),
+                            aggregation_mask=int(metric_value.aggregation.value),
                             meta=dict(metric_value.meta) if metric_value.meta else None,
                         )
 
             # Emit job_duration as a metric for dashboard display
             self._producer.publish_metric_emitted(
                 source_id=source_id,
-                job_id=job.job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
-                metric_name="job_duration_ms",
+                task_id=job.task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
+                metric_name="task_duration_ms",
                 value=exec_result.duration_ms,
-                analysis_mask=int(AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D),
-                meta={"unit": "milliseconds", "description": "Total job processing time"},
+                aggregation_mask=int(AggregationType.STATS | AggregationType.HISTOGRAM),
+                meta={"unit": "milliseconds", "description": "Total task processing time"},
             )
 
             # Publish JOB_COMPLETED
             self._producer.publish_job_completed(
                 source_id=source_id,
-                job_id=job.job_id,
-                algo_name=algo_name,
-                algo_version=algo_version,
+                task_id=job.task_id,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 duration_ms=exec_result.duration_ms,
             )
 
-            # Record job duration and completion metrics
-            JOB_DURATION.labels(algo_name=algo_name).observe(
+            # Record task duration and completion metrics
+            TASK_DURATION.labels(processor_name=processor_name).observe(
                 exec_result.duration_ms / 1000.0,  # Convert ms to seconds
             )
-            JOBS_COMPLETED.labels(
-                algo_name=algo_name,
-                algo_version=algo_version,
+            TASKS_COMPLETED.labels(
+                processor_name=processor_name,
+                processor_version=processor_version,
             ).inc()
 
             logger.info(
                 "Worker %d completed job %s in %.2fms",
                 worker_id,
-                job.job_id,
+                job.task_id,
                 exec_result.duration_ms,
             )
 
@@ -363,7 +363,7 @@ class KafkaWorkerPool:
             logger.exception(
                 "Worker %d failed job %s: %s",
                 worker_id,
-                job.job_id,
+                job.task_id,
                 e,
             )
 
@@ -371,16 +371,16 @@ class KafkaWorkerPool:
 
             self._producer.publish_job_failed(
                 source_id=source_id,
-                job_id=job.job_id,
+                task_id=job.task_id,
                 error=str(e),
-                algo_name=algo_name,
-                algo_version=algo_version,
+                processor_name=processor_name,
+                processor_version=processor_version,
                 error_type=error_type,
             )
 
-            # Record job failure metrics
-            JOBS_FAILED.labels(
-                algo_name=algo_name or "unknown",
+            # Record task failure metrics
+            TASKS_FAILED.labels(
+                processor_name=processor_name or "unknown",
                 error_type=error_type,
             ).inc()
         finally:
@@ -412,14 +412,14 @@ class KafkaWorkerPool:
     def _store_artifacts_parallel(
         self,
         artifacts: list[Any],
-        job_id: str,
+        task_id: str,
         source_id: str,
     ) -> list[str]:
         """Store artifacts to MinIO in parallel.
 
         Args:
             artifacts: List of Artifact objects to store
-            job_id: Job ID for metadata
+            task_id: Job ID for metadata
             source_id: Source ID for event publishing
 
         Returns:
@@ -436,7 +436,7 @@ class KafkaWorkerPool:
 
         # If no parallel workers configured, use sequential storage
         if self._artifact_upload_workers == 0:
-            return self._store_artifacts_sequential(to_store, job_id, source_id)
+            return self._store_artifacts_sequential(to_store, task_id, source_id)
 
         artifact_refs: list[str] = []
         with ThreadPoolExecutor(max_workers=self._artifact_upload_workers) as executor:
@@ -446,7 +446,7 @@ class KafkaWorkerPool:
                     self._store_single_artifact,
                     artifact,
                     data,
-                    job_id,
+                    task_id,
                     source_id,
                 )
                 futures[future] = artifact
@@ -461,7 +461,7 @@ class KafkaWorkerPool:
                     logger.warning(
                         "Failed to store artifact %s for job %s: %s",
                         artifact.name,
-                        job_id,
+                        task_id,
                         e,
                     )
 
@@ -470,21 +470,21 @@ class KafkaWorkerPool:
     def _store_artifacts_sequential(
         self,
         to_store: list[tuple[Any, bytes]],
-        job_id: str,
+        task_id: str,
         source_id: str,
     ) -> list[str]:
         """Store artifacts sequentially (fallback when parallel disabled)."""
         artifact_refs: list[str] = []
         for artifact, data in to_store:
             try:
-                content_hash = self._store_single_artifact(artifact, data, job_id, source_id)
+                content_hash = self._store_single_artifact(artifact, data, task_id, source_id)
                 if content_hash:
                     artifact_refs.append(content_hash)
             except Exception as e:
                 logger.warning(
                     "Failed to store artifact %s for job %s: %s",
                     artifact.name,
-                    job_id,
+                    task_id,
                     e,
                 )
         return artifact_refs
@@ -493,7 +493,7 @@ class KafkaWorkerPool:
         self,
         artifact: Any,
         data: bytes,
-        job_id: str,
+        task_id: str,
         source_id: str,
     ) -> str | None:
         """Store a single artifact to MinIO and publish event.
@@ -506,7 +506,7 @@ class KafkaWorkerPool:
             data=data,
             bucket=self._storage.buckets["artifacts"],
             mime=artifact.mime,
-            metadata={"job_id": job_id, "name": artifact.name},
+            metadata={"task_id": task_id, "name": artifact.name},
         )
 
         # Publish ARTIFACT_STORED event
@@ -517,7 +517,7 @@ class KafkaWorkerPool:
             key=obj_ref.key,
             size=obj_ref.size,
             mime=artifact.mime,
-            source_job_id=job_id,
+            source_task_id=task_id,
         )
 
         return obj_ref.content_hash

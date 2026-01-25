@@ -3,9 +3,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  # VisioEval pipeline metrics
+  # Tapline pipeline metrics
   # On Linux, use Docker host gateway IP (172.17.0.1) instead of host.docker.internal
-  - job_name: 'visioeval'
+  - job_name: 'tapline'
     static_configs:
       - targets: ['172.17.0.1:8000']
     scrape_interval: 10s

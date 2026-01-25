@@ -106,9 +106,9 @@ class TestHashChainVerifier:
     def test_verify_single_event(self) -> None:
         verifier = HashChainVerifier()
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         result = verifier.verify_chain([event])
@@ -119,23 +119,23 @@ class TestHashChainVerifier:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
             prev_hash=None,
         )
 
         event2 = EventEnvelope.create(
-            event_type=EventType.JOB_STARTED,
+            event_type=EventType.TASK_STARTED,
             source_id="source-1",
-            payload={"job_id": "job-123", "algo": "test"},
+            payload={"task_id": "task-123", "processor": "test"},
             prev_hash=event1.content_hash,
         )
 
         event3 = EventEnvelope.create(
-            event_type=EventType.JOB_COMPLETED,
+            event_type=EventType.TASK_COMPLETED,
             source_id="source-1",
-            payload={"job_id": "job-123", "duration": 100},
+            payload={"task_id": "task-123", "duration": 100},
             prev_hash=event2.content_hash,
         )
 
@@ -148,16 +148,16 @@ class TestHashChainVerifier:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         # Create event2 with wrong prev_hash
         event2 = EventEnvelope.create(
-            event_type=EventType.JOB_STARTED,
+            event_type=EventType.TASK_STARTED,
             source_id="source-1",
-            payload={"job_id": "job-123", "algo": "test"},
+            payload={"task_id": "task-123", "processor": "test"},
             prev_hash="wrong-hash",
         )
 
@@ -169,9 +169,9 @@ class TestHashChainVerifier:
     def test_verify_single_valid(self) -> None:
         verifier = HashChainVerifier()
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         assert verifier.verify_single(event) is True
@@ -180,15 +180,15 @@ class TestHashChainVerifier:
         verifier = HashChainVerifier()
 
         event1 = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         event2 = EventEnvelope.create(
-            event_type=EventType.JOB_STARTED,
+            event_type=EventType.TASK_STARTED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
             prev_hash=event1.content_hash,
         )
 
@@ -200,9 +200,9 @@ class TestVerifyEventChain:
     def test_convenience_function(self) -> None:
         events = [
             EventEnvelope.create(
-                event_type=EventType.JOB_CREATED,
+                event_type=EventType.TASK_CREATED,
                 source_id="source-1",
-                payload={"job_id": "job-123"},
+                payload={"task_id": "task-123"},
             ),
         ]
 
@@ -212,15 +212,15 @@ class TestVerifyEventChain:
 
     def test_result_bool_false_on_invalid(self) -> None:
         event1 = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         event2 = EventEnvelope.create(
-            event_type=EventType.JOB_STARTED,
+            event_type=EventType.TASK_STARTED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
             prev_hash="invalid",
         )
 

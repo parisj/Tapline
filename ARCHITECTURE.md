@@ -2,16 +2,16 @@
 
 ## System Overview
 
-VisioEval is a configuration-driven evaluation pipeline built on event sourcing principles.
+Tapline is a configuration-driven evaluation pipeline built on event sourcing principles.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                              VisioEval                                   │
+│                              Tapline                                     │
 │                                                                         │
 │  ┌─────────┐    ┌─────────┐    ┌──────────┐    ┌─────────┐    ┌──────┐ │
 │  │ Ingest  │───►│  Kafka  │───►│ Workers  │───►│  MinIO  │───►│ API  │ │
 │  │         │    │         │    │          │    │         │    │      │ │
-│  │ Files   │    │ Events  │    │ Algos    │    │ Storage │    │ REST │ │
+│  │ Files   │    │ Events  │    │ Procs    │    │ Storage │    │ REST │ │
 │  └─────────┘    └─────────┘    └──────────┘    └─────────┘    └──────┘ │
 │       │              │              │              │              │     │
 │       └──────────────┴──────────────┴──────────────┴──────────────┘     │
@@ -24,7 +24,7 @@ VisioEval is a configuration-driven evaluation pipeline built on event sourcing 
 
 ### Ingest Layer (`src/ingest/`)
 
-Watches directories for new files, ensures stability, deduplicates, and publishes jobs.
+Watches directories for new files, ensures stability, deduplicates, and publishes tasks.
 
 - **KafkaObserver** - Directory watcher that publishes to Kafka
 - **DedupCache** - Content-hash based deduplication
@@ -37,33 +37,33 @@ Kafka-based event streaming with ordered, durable event delivery.
 **Topics:**
 | Topic | Purpose |
 |-------|---------|
-| `visio.jobs` | Job lifecycle events |
-| `visio.results` | Algorithm results |
-| `visio.metrics` | Metric emissions |
-| `visio.audit-log` | Immutable audit trail |
+| `tapline.tasks` | Task lifecycle events |
+| `tapline.results` | Processor results |
+| `tapline.metrics` | Metric emissions |
+| `tapline.audit-log` | Immutable audit trail |
 
 ### Worker Pool (`src/workers/`)
 
-Parallel job execution with algorithm lifecycle management.
+Parallel task execution with processor lifecycle management.
 
-- **KafkaWorkerPool** - Consumes jobs, executes algorithms
-- **Lifecycle** - Algorithm initialization and teardown
+- **KafkaWorkerPool** - Consumes tasks, executes processors
+- **Lifecycle** - Processor initialization and teardown
 - **Offload** - Strategy pattern for compute offloading
 
-### Algorithms (`src/algorithms/`)
+### Processors (`src/processors/`)
 
-Pluggable algorithm implementations with registry-based discovery.
+Pluggable processor implementations with registry-based discovery.
 
-- **Algorithm** - Base class defining the contract
+- **Processor** - Base class defining the contract
 - **Registry** - (name, version) -> factory mapping
-- **AlgoResult** - Metrics + artifacts output
+- **ProcessorResult** - Metrics + artifacts output
 
 ### Storage (`src/storage/`)
 
 Content-addressed object storage on MinIO.
 
 - **MinIOService** - CRUD operations
-- **ObjectRef** - Hash-based path generation
+- **ArtifactRef** - Hash-based path generation
 - Path format: `bucket/ab/cd/{full_hash}`
 
 ### Aggregation (`src/app/flink_aggregation.py`)
@@ -84,16 +84,16 @@ Flask-based REST API and dashboard.
 
 ## Data Flow
 
-### Job Lifecycle
+### Task Lifecycle
 
 ```
 1. File detected in watched directory
 2. Readiness check (file stable)
 3. Deduplication check (not seen before)
-4. JOB_CREATED event published to Kafka
-5. Worker consumes job
-6. Algorithm executes
-7. JOB_COMPLETED/FAILED event published
+4. TASK_CREATED event published to Kafka
+5. Worker consumes task
+6. Processor executes
+7. TASK_COMPLETED/FAILED event published
 8. Metrics aggregated in time window
 9. Aggregates stored to MinIO
 ```
@@ -102,15 +102,15 @@ Flask-based REST API and dashboard.
 
 | Event | Description |
 |-------|-------------|
-| `JOB_CREATED` | New job queued |
-| `JOB_STARTED` | Worker picked up job |
-| `JOB_COMPLETED` | Algorithm finished successfully |
-| `JOB_FAILED` | Algorithm failed |
+| `TASK_CREATED` | New task queued |
+| `TASK_STARTED` | Worker picked up task |
+| `TASK_COMPLETED` | Processor finished successfully |
+| `TASK_FAILED` | Processor failed |
 | `METRIC_EMITTED` | Metric value produced |
 
 ## Key Abstractions
 
-### Job
+### Task
 
 Unit of work with lifecycle state machine:
 
@@ -119,32 +119,32 @@ created -> started -> completed
                    -> failed
 ```
 
-### MetricValue
+### Measurement
 
-Algorithm output with analysis hints:
+Processor output with analysis hints:
 
 ```python
-MetricValue(
+Measurement(
     value=0.87,
-    analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+    analysis=AggregationType.STATS | AggregationType.HISTOGRAM,
     meta={"range": [0.0, 1.0]}
 )
 ```
 
-### AnalysisKind
+### AggregationType
 
 Bitmask declaring post-processing recipes:
 
 | Flag | Purpose |
 |------|---------|
-| SUMMARY | Mean, median, std, etc. |
-| DISTRIBUTION_1D | Histogram |
-| OUTLIERS_1D | Z-score outlier detection |
-| COUNTER | Boolean counting |
+| STATS | Mean, median, std, etc. |
+| HISTOGRAM | Histogram |
+| OUTLIERS | Z-score outlier detection |
+| TALLY | Boolean counting |
 | RATE | Boolean rate with CI |
-| ELLIPSE_2D | 2D covariance ellipse |
-| CONTOUR_2D | 2D density contours |
-| INFO | Informational (no aggregation) |
+| SCATTER_ELLIPSE | 2D covariance ellipse |
+| DENSITY_MAP | 2D density contours |
+| RAW | Informational (no aggregation) |
 
 ### EventEnvelope
 
@@ -197,14 +197,14 @@ EventEnvelope(
 ### Tracing
 
 OpenTelemetry spans for:
-- Job processing
+- Task processing
 - Kafka produce/consume
 - MinIO operations
 
 ### Metrics
 
 Prometheus metrics for:
-- Job counts and durations
+- Task counts and durations
 - Kafka message rates
 - Storage latencies
 

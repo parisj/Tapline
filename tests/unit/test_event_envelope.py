@@ -9,12 +9,12 @@ from src.domain.events import (
     EventType,
     compute_chain_hash,
     compute_content_hash,
-    job_completed_payload,
-    job_created_payload,
-    job_failed_payload,
-    job_started_payload,
     metric_emitted_payload,
     result_produced_payload,
+    task_completed_payload,
+    task_created_payload,
+    task_failed_payload,
+    task_started_payload,
 )
 
 
@@ -66,23 +66,23 @@ class TestComputeChainHash:
 class TestEventEnvelope:
     def test_create_event(self) -> None:
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
-        assert event.event_type == EventType.JOB_CREATED
+        assert event.event_type == EventType.TASK_CREATED
         assert event.source_id == "source-1"
-        assert event.payload == {"job_id": "job-123"}
+        assert event.payload == {"task_id": "task-123"}
         assert event.content_hash is not None
         assert event.prev_hash is None
         assert event.signature is None
 
     def test_create_event_with_prev_hash(self) -> None:
         event = EventEnvelope.create(
-            event_type=EventType.JOB_STARTED,
+            event_type=EventType.TASK_STARTED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
             prev_hash="previous-hash-value",
         )
 
@@ -91,9 +91,9 @@ class TestEventEnvelope:
     def test_create_event_with_timestamp(self) -> None:
         ts = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
         event = EventEnvelope.create(
-            event_type=EventType.JOB_COMPLETED,
+            event_type=EventType.TASK_COMPLETED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
             timestamp=ts,
         )
 
@@ -101,24 +101,24 @@ class TestEventEnvelope:
 
     def test_to_dict(self) -> None:
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         data = event.to_dict()
-        assert data["event_type"] == "JOB_CREATED"
+        assert data["event_type"] == "TASK_CREATED"
         assert data["source_id"] == "source-1"
-        assert data["payload"] == {"job_id": "job-123"}
+        assert data["payload"] == {"task_id": "task-123"}
         assert "event_id" in data
         assert "timestamp" in data
         assert "content_hash" in data
 
     def test_from_dict(self) -> None:
         original = EventEnvelope.create(
-            event_type=EventType.JOB_FAILED,
+            event_type=EventType.TASK_FAILED,
             source_id="source-1",
-            payload={"job_id": "job-123", "error": "test error"},
+            payload={"task_id": "task-123", "error": "test error"},
         )
 
         data = original.to_dict()
@@ -134,7 +134,7 @@ class TestEventEnvelope:
         original = EventEnvelope.create(
             event_type=EventType.RESULT_PRODUCED,
             source_id="source-1",
-            payload={"job_id": "job-123", "metric_count": 5},
+            payload={"task_id": "task-123", "metric_count": 5},
         )
 
         json_str = original.to_json()
@@ -145,9 +145,9 @@ class TestEventEnvelope:
 
     def test_immutability(self) -> None:
         event = EventEnvelope.create(
-            event_type=EventType.JOB_CREATED,
+            event_type=EventType.TASK_CREATED,
             source_id="source-1",
-            payload={"job_id": "job-123"},
+            payload={"task_id": "task-123"},
         )
 
         with pytest.raises(AttributeError):
@@ -155,82 +155,82 @@ class TestEventEnvelope:
 
 
 class TestPayloadFactories:
-    def test_job_created_payload(self) -> None:
-        payload = job_created_payload(
-            job_id="job-123",
+    def test_task_created_payload(self) -> None:
+        payload = task_created_payload(
+            task_id="task-123",
             directory_key="path0",
             path="/data/image.png",
             fingerprint="fp123",
             file_hash="hash456",
         )
 
-        assert payload["job_id"] == "job-123"
+        assert payload["task_id"] == "task-123"
         assert payload["directory_key"] == "path0"
         assert payload["path"] == "/data/image.png"
         assert payload["fingerprint"] == "fp123"
         assert payload["file_hash"] == "hash456"
 
-    def test_job_started_payload(self) -> None:
-        payload = job_started_payload(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+    def test_task_started_payload(self) -> None:
+        payload = task_started_payload(
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
         )
 
-        assert payload["job_id"] == "job-123"
-        assert payload["algo_name"] == "analysis_probe"
-        assert payload["algo_version"] == "1.0.0"
+        assert payload["task_id"] == "task-123"
+        assert payload["processor_name"] == "analysis_probe"
+        assert payload["processor_version"] == "1.0.0"
 
-    def test_job_completed_payload(self) -> None:
-        payload = job_completed_payload(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+    def test_task_completed_payload(self) -> None:
+        payload = task_completed_payload(
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             duration_ms=150.5,
         )
 
-        assert payload["job_id"] == "job-123"
+        assert payload["task_id"] == "task-123"
         assert payload["duration_ms"] == 150.5
 
-    def test_job_failed_payload(self) -> None:
-        payload = job_failed_payload(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+    def test_task_failed_payload(self) -> None:
+        payload = task_failed_payload(
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             error="Something went wrong",
             error_type="RuntimeError",
         )
 
-        assert payload["job_id"] == "job-123"
+        assert payload["task_id"] == "task-123"
         assert payload["error"] == "Something went wrong"
         assert payload["error_type"] == "RuntimeError"
 
     def test_result_produced_payload(self) -> None:
         payload = result_produced_payload(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             metric_count=5,
             artifact_refs=["hash1", "hash2"],
         )
 
-        assert payload["job_id"] == "job-123"
+        assert payload["task_id"] == "task-123"
         assert payload["metric_count"] == 5
         assert payload["artifact_refs"] == ["hash1", "hash2"]
 
     def test_metric_emitted_payload(self) -> None:
         payload = metric_emitted_payload(
-            job_id="job-123",
-            algo_name="analysis_probe",
-            algo_version="1.0.0",
+            task_id="task-123",
+            processor_name="analysis_probe",
+            processor_version="1.0.0",
             metric_name="accuracy",
             value=0.95,
-            analysis_mask=1,
+            aggregation_mask=1,
             meta={"unit": "percent"},
         )
 
-        assert payload["job_id"] == "job-123"
+        assert payload["task_id"] == "task-123"
         assert payload["metric_name"] == "accuracy"
         assert payload["value"] == 0.95
-        assert payload["analysis_mask"] == 1
+        assert payload["aggregation_mask"] == 1
         assert payload["meta"] == {"unit": "percent"}

@@ -621,8 +621,8 @@ def get_metrics() -> FlaskResponse:
 
         # Use discovery service filters
         metrics = discovery.discover_metrics_from_minio(
-            algo_name=algorithm if algorithm else None,
-            algo_version=version if version else None,
+            processor_name=algorithm if algorithm else None,
+            processor_version=version if version else None,
             refresh=refresh,
             time_range_minutes=time_range_minutes,
         )
@@ -635,10 +635,10 @@ def get_metrics() -> FlaskResponse:
             result.append(
                 {
                     "metric_name": m.metric_name,
-                    "algo_name": m.algo_name,
-                    "algo_version": m.algo_version,
-                    "analysis_mask": m.analysis_mask,
-                    "analysis_kinds": m.analysis_kinds,
+                    "processor_name": m.processor_name,
+                    "processor_version": m.processor_version,
+                    "aggregation_mask": m.aggregation_mask,
+                    "aggregation_types": m.aggregation_types,
                     "count": summary.get("count"),
                     "sum": summary.get("sum"),
                     "avg": summary.get("avg") or summary.get("mean"),
@@ -707,19 +707,19 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
         matching = [m for m in metrics if m.metric_name == metric_name]
 
         if algorithm:
-            matching = [m for m in matching if m.algo_name == algorithm]
+            matching = [m for m in matching if m.processor_name == algorithm]
         if version:
-            matching = [m for m in matching if m.algo_version == version]
+            matching = [m for m in matching if m.processor_version == version]
 
         if not matching:
             # Return empty data structure instead of 404 when time range has no data
             return jsonify(
                 {
                     "metric_name": metric_name,
-                    "algo_name": algorithm or "",
-                    "algo_version": version or "",
-                    "analysis_mask": 0,
-                    "analysis_kinds": [],
+                    "processor_name": algorithm or "",
+                    "processor_version": version or "",
+                    "aggregation_mask": 0,
+                    "aggregation_types": [],
                     "count": 0,
                     "sum": 0,
                     "avg": None,
@@ -745,10 +745,10 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
         artifacts: dict[str, Any] = {}
         response: dict[str, Any] = {
             "metric_name": metric.metric_name,
-            "algo_name": metric.algo_name,
-            "algo_version": metric.algo_version,
-            "analysis_mask": metric.analysis_mask,
-            "analysis_kinds": metric.analysis_kinds,
+            "processor_name": metric.processor_name,
+            "processor_version": metric.processor_version,
+            "aggregation_mask": metric.aggregation_mask,
+            "aggregation_types": metric.aggregation_types,
             "count": summary.get("count"),
             "sum": summary.get("sum"),
             "avg": summary.get("avg") or summary.get("mean"),
@@ -764,16 +764,16 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
         # Try to get raw values from the metric-values bucket first
         raw_values = None
         values_data = discovery.get_metric_values_with_meta(
-            algo_name=metric.algo_name,
-            algo_version=metric.algo_version,
+            processor_name=metric.processor_name,
+            processor_version=metric.processor_version,
             metric_name=metric.metric_name,
             time_range_minutes=time_range_minutes,
         )
         if values_data.get("values"):
             raw_values = values_data["values"]
-            if metric.analysis_mask == 0 and values_data.get("analysis_mask"):
-                response["analysis_mask"] = values_data["analysis_mask"]
-                response["analysis_kinds"] = list(mask_to_kind_names(values_data["analysis_mask"]))
+            if metric.aggregation_mask == 0 and values_data.get("aggregation_mask"):
+                response["aggregation_mask"] = values_data["aggregation_mask"]
+                response["aggregation_types"] = list(mask_to_kind_names(values_data["aggregation_mask"]))
 
         # Fall back to artifact document values
         if artifact_doc:
@@ -792,37 +792,37 @@ def get_metric_data(metric_name: str) -> FlaskResponse:
                 if key in artifact_doc and key not in artifacts:
                     artifacts[key] = artifact_doc[key]
 
-        # Compute on-the-fly artifacts based on analysis_mask and raw values
+        # Compute on-the-fly artifacts based on aggregation_mask and raw values
         if raw_values and artifact_computer:
             artifacts["values"] = raw_values
-            analysis_mask: int = response.get("analysis_mask") or metric.analysis_mask
+            aggregation_mask: int = response.get("aggregation_mask") or metric.aggregation_mask
 
             # Generate histogram for DISTRIBUTION_1D (mask value 2)
-            if analysis_mask & 2 and "histogram" not in artifacts:
+            if aggregation_mask & 2 and "histogram" not in artifacts:
                 histogram = artifact_computer.compute_histogram(raw_values)
                 if histogram:
                     artifacts["histogram"] = histogram
 
             # Generate categories for COUNTER (mask value 8)
-            if analysis_mask & 8 and "categories" not in artifacts:
+            if aggregation_mask & 8 and "categories" not in artifacts:
                 categories = artifact_computer.compute_categories(raw_values)
                 if categories:
                     artifacts["categories"] = categories
 
             # Generate rate CI for RATE (mask value 16)
-            if analysis_mask & 16 and "rate" not in artifacts:
+            if aggregation_mask & 16 and "rate" not in artifacts:
                 rate_data = artifact_computer.compute_rate(raw_values)
                 if rate_data:
                     artifacts["rate"] = rate_data
 
             # Generate ellipse data for ELLIPSE_2D (mask value 32)
-            if analysis_mask & 32 and "ellipse" not in artifacts:
+            if aggregation_mask & 32 and "ellipse" not in artifacts:
                 ellipse_data = artifact_computer.compute_ellipse(raw_values)
                 if ellipse_data:
                     artifacts["ellipse"] = ellipse_data
 
             # Generate contour data for CONTOUR_2D (mask value 64)
-            if analysis_mask & 64 and "contour" not in artifacts:
+            if aggregation_mask & 64 and "contour" not in artifacts:
                 contour_data = artifact_computer.compute_contour(raw_values)
                 if contour_data:
                     artifacts["contour"] = contour_data

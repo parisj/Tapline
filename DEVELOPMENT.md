@@ -13,8 +13,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/VisioEval.git
-cd VisioEval
+git clone https://github.com/yourusername/Tapline.git
+cd Tapline
 
 # Install dependencies
 pixi install
@@ -88,7 +88,7 @@ pixi run test
 
 ## Common Tasks
 
-### Add a New Algorithm
+### Add a New Processor
 
 See [extending guide](.claude/docs/extending.md).
 

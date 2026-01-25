@@ -20,13 +20,13 @@ from typing import Any
 
 
 class EventType(str, Enum):
-    """Event types for the VisioEval streaming pipeline."""
+    """Event types for the Tapline streaming pipeline."""
 
-    # Job lifecycle events
-    JOB_CREATED = "JOB_CREATED"
-    JOB_STARTED = "JOB_STARTED"
-    JOB_COMPLETED = "JOB_COMPLETED"
-    JOB_FAILED = "JOB_FAILED"
+    # Task lifecycle events
+    TASK_CREATED = "TASK_CREATED"
+    TASK_STARTED = "TASK_STARTED"
+    TASK_COMPLETED = "TASK_COMPLETED"
+    TASK_FAILED = "TASK_FAILED"
 
     # Result events
     RESULT_PRODUCED = "RESULT_PRODUCED"
@@ -35,6 +35,13 @@ class EventType(str, Enum):
     # Aggregation events
     AGGREGATE_COMPUTED = "AGGREGATE_COMPUTED"
     ARTIFACT_STORED = "ARTIFACT_STORED"
+
+
+# Backwards compatibility aliases (deprecated)
+JOB_CREATED = EventType.TASK_CREATED
+JOB_STARTED = EventType.TASK_STARTED
+JOB_COMPLETED = EventType.TASK_COMPLETED
+JOB_FAILED = EventType.TASK_FAILED
 
 
 @dataclass(frozen=True)
@@ -115,9 +122,19 @@ class EventEnvelope:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EventEnvelope:
         """Deserialize from dictionary."""
+        event_type_value = data["event_type"]
+        # Handle backwards compatibility for old JOB_* event types
+        event_type_map = {
+            "JOB_CREATED": EventType.TASK_CREATED,
+            "JOB_STARTED": EventType.TASK_STARTED,
+            "JOB_COMPLETED": EventType.TASK_COMPLETED,
+            "JOB_FAILED": EventType.TASK_FAILED,
+        }
+        event_type = event_type_map.get(event_type_value, EventType(event_type_value))
+
         return cls(
             event_id=data["event_id"],
-            event_type=EventType(data["event_type"]),
+            event_type=event_type,
             source_id=data["source_id"],
             timestamp=datetime.fromisoformat(data["timestamp"]),
             payload=data["payload"],
@@ -173,16 +190,16 @@ def compute_chain_hash(content_hash: str, prev_hash: str | None) -> str:
 # Payload factory functions for common event types
 
 
-def job_created_payload(
-    job_id: str,
+def task_created_payload(
+    task_id: str,
     directory_key: str,
     path: str,
     fingerprint: str,
     file_hash: str | None = None,
 ) -> dict[str, Any]:
-    """Create payload for JOB_CREATED event."""
+    """Create payload for TASK_CREATED event."""
     return {
-        "job_id": job_id,
+        "task_id": task_id,
         "directory_key": directory_key,
         "path": path,
         "fingerprint": fingerprint,
@@ -190,90 +207,90 @@ def job_created_payload(
     }
 
 
-def job_started_payload(job_id: str, algo_name: str, algo_version: str) -> dict[str, Any]:
-    """Create payload for JOB_STARTED event."""
+def task_started_payload(task_id: str, processor_name: str, processor_version: str) -> dict[str, Any]:
+    """Create payload for TASK_STARTED event."""
     return {
-        "job_id": job_id,
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "task_id": task_id,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
     }
 
 
-def job_completed_payload(
-    job_id: str,
-    algo_name: str,
-    algo_version: str,
+def task_completed_payload(
+    task_id: str,
+    processor_name: str,
+    processor_version: str,
     duration_ms: float,
 ) -> dict[str, Any]:
-    """Create payload for JOB_COMPLETED event."""
+    """Create payload for TASK_COMPLETED event."""
     return {
-        "job_id": job_id,
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "task_id": task_id,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
         "duration_ms": duration_ms,
     }
 
 
-def job_failed_payload(
-    job_id: str,
-    algo_name: str | None,
-    algo_version: str | None,
+def task_failed_payload(
+    task_id: str,
+    processor_name: str | None,
+    processor_version: str | None,
     error: str,
     error_type: str | None = None,
 ) -> dict[str, Any]:
-    """Create payload for JOB_FAILED event."""
+    """Create payload for TASK_FAILED event."""
     return {
-        "job_id": job_id,
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "task_id": task_id,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
         "error": error,
         "error_type": error_type,
     }
 
 
 def result_produced_payload(
-    job_id: str,
-    algo_name: str,
-    algo_version: str,
+    task_id: str,
+    processor_name: str,
+    processor_version: str,
     metric_count: int,
     artifact_refs: list[str],
 ) -> dict[str, Any]:
     """Create payload for RESULT_PRODUCED event."""
     return {
-        "job_id": job_id,
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "task_id": task_id,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
         "metric_count": metric_count,
         "artifact_refs": artifact_refs,
     }
 
 
 def metric_emitted_payload(
-    job_id: str,
-    algo_name: str,
-    algo_version: str,
+    task_id: str,
+    processor_name: str,
+    processor_version: str,
     metric_name: str,
     value: float | str | dict[str, Any] | bool | None,
-    analysis_mask: int,
+    aggregation_mask: int,
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create payload for METRIC_EMITTED event."""
     return {
-        "job_id": job_id,
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "task_id": task_id,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
         "metric_name": metric_name,
         "value": value,
-        "analysis_mask": analysis_mask,
+        "aggregation_mask": aggregation_mask,
         "meta": meta or {},
     }
 
 
 def aggregate_computed_payload(
-    algo_name: str,
-    algo_version: str,
+    processor_name: str,
+    processor_version: str,
     metric_name: str,
-    analysis_kind: str,
+    aggregation_type: str,
     window_start_unix: float,
     window_end_unix: float,
     summary: dict[str, Any],
@@ -281,10 +298,10 @@ def aggregate_computed_payload(
 ) -> dict[str, Any]:
     """Create payload for AGGREGATE_COMPUTED event."""
     return {
-        "algo_name": algo_name,
-        "algo_version": algo_version,
+        "processor_name": processor_name,
+        "processor_version": processor_version,
         "metric_name": metric_name,
-        "analysis_kind": analysis_kind,
+        "aggregation_type": aggregation_type,
         "window_start_unix": window_start_unix,
         "window_end_unix": window_end_unix,
         "summary": summary,
@@ -298,7 +315,7 @@ def artifact_stored_payload(
     key: str,
     size: int,
     mime: str,
-    source_job_id: str | None = None,
+    source_task_id: str | None = None,
 ) -> dict[str, Any]:
     """Create payload for ARTIFACT_STORED event."""
     return {
@@ -307,5 +324,12 @@ def artifact_stored_payload(
         "key": key,
         "size": size,
         "mime": mime,
-        "source_job_id": source_job_id,
+        "source_task_id": source_task_id,
     }
+
+
+# Backwards compatibility aliases (deprecated)
+job_created_payload = task_created_payload
+job_started_payload = task_started_payload
+job_completed_payload = task_completed_payload
+job_failed_payload = task_failed_payload

@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from src.storage.models import ObjectRef, hash_to_key, key_to_hash
+from src.storage.models import ArtifactRef, hash_to_key, key_to_hash
 
 
 class TestHashToKey:
@@ -58,9 +58,9 @@ class TestKeyToHash:
         assert extracted == original_hash
 
 
-class TestObjectRef:
+class TestArtifactRef:
     def test_from_hash(self) -> None:
-        ref = ObjectRef.from_hash(
+        ref = ArtifactRef.from_hash(
             content_hash="abcdef1234567890",
             bucket="artifacts",
             size=1024,
@@ -74,7 +74,7 @@ class TestObjectRef:
 
     def test_from_hash_with_timestamp(self) -> None:
         ts = datetime(2024, 1, 15, 12, 0, 0)
-        ref = ObjectRef.from_hash(
+        ref = ArtifactRef.from_hash(
             content_hash="abcdef1234567890",
             bucket="artifacts",
             size=512,
@@ -84,7 +84,7 @@ class TestObjectRef:
         assert ref.stored_at == ts
 
     def test_from_hash_custom_prefix(self) -> None:
-        ref = ObjectRef.from_hash(
+        ref = ArtifactRef.from_hash(
             content_hash="abcdef1234567890",
             bucket="inputs",
             size=2048,
@@ -94,7 +94,7 @@ class TestObjectRef:
         assert ref.key == "ab/cd/ef/abcdef1234567890"
 
     def test_full_path(self) -> None:
-        ref = ObjectRef(
+        ref = ArtifactRef(
             content_hash="hash123",
             bucket="artifacts",
             key="ab/cd/hash123",
@@ -106,7 +106,7 @@ class TestObjectRef:
 
     def test_to_dict(self) -> None:
         ts = datetime(2024, 1, 15, 12, 0, 0)
-        ref = ObjectRef(
+        ref = ArtifactRef(
             content_hash="hash123",
             bucket="artifacts",
             key="ab/cd/hash123",
@@ -130,7 +130,7 @@ class TestObjectRef:
             "stored_at": "2024-01-15T12:00:00",
         }
 
-        ref = ObjectRef.from_dict(data)
+        ref = ArtifactRef.from_dict(data)
         assert ref.content_hash == "hash123"
         assert ref.bucket == "artifacts"
         assert ref.size == 100
@@ -146,11 +146,11 @@ class TestObjectRef:
             "stored_at": ts,
         }
 
-        ref = ObjectRef.from_dict(data)
+        ref = ArtifactRef.from_dict(data)
         assert ref.stored_at == ts
 
     def test_immutability(self) -> None:
-        ref = ObjectRef(
+        ref = ArtifactRef(
             content_hash="hash123",
             bucket="artifacts",
             key="ab/cd/hash123",

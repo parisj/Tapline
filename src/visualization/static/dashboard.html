@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>VisioEval Dashboard</title>
+  <title>Tapline Dashboard</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -628,17 +628,11 @@
     <!-- Sidebar -->
     <div class="sidenav">
       <h2>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <!-- Stylized eye representing "Visio" (vision/inspection) -->
-          <ellipse cx="12" cy="12" rx="9" ry="6"></ellipse>
-          <circle cx="12" cy="12" r="3"></circle>
-          <!-- Data points/metrics around the eye representing "Eval" -->
-          <circle cx="12" cy="4" r="1" fill="currentColor" stroke="none"></circle>
-          <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"></circle>
-          <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"></circle>
-          <circle cx="20" cy="12" r="1" fill="currentColor" stroke="none"></circle>
+        <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <!-- Water tap/faucet icon for Tapline -->
+          <path d="M12 2C9.24 2 7 4.24 7 7v1H5c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1v1c0 1.66 1.34 3 3 3h1v3H8v2h8v-2h-2v-3h1c1.66 0 3-1.34 3-3v-1h1c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2h-2V7c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v1H9V7c0-1.66 1.34-3 3-3z"/>
         </svg>
-        VisioEval
+        Tapline
       </h2>
 
       <div class="nav-section">
@@ -1870,7 +1864,7 @@
       // Sum the max count per algorithm (each algo processes jobs independently)
       const algoMaxCounts = {};
       for (const m of minioMetrics.metrics) {
-        const key = `${m.algo_name}|${m.algo_version}`;
+        const key = `${m.processor_name}|${m.processor_version}`;
         if (m.count && m.count > 0) {
           algoMaxCounts[key] = Math.max(algoMaxCounts[key] || 0, m.count);
         }
@@ -1939,9 +1933,9 @@
       // Estimate jobs per algorithm from MinIO metrics
       const algoJobCounts = {};
       for (const m of minioMetrics.metrics) {
-        const key = `${m.algo_name}|${m.algo_version}`;
+        const key = `${m.processor_name}|${m.processor_version}`;
         if (!algoJobCounts[key]) {
-          algoJobCounts[key] = { name: m.algo_name, version: m.algo_version, jobs: 0, metricCount: 0, success: 100 };
+          algoJobCounts[key] = { name: m.processor_name, version: m.processor_version, jobs: 0, metricCount: 0, success: 100 };
         }
         algoJobCounts[key].metricCount++;
         // Use the aggregated count from MinIO (actual job count)
@@ -2009,7 +2003,7 @@
   async function fetchAlgorithmStats() {
     try {
       // Query Prometheus for per-algorithm stats (via Flask API proxy)
-      const query = 'sum(visioeval_jobs_completed_total) by (algo_name, algo_version)';
+      const query = 'sum(visioeval_jobs_completed_total) by (processor_name, processor_version)';
       const url = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(query)}`;
       const response = await fetch(url);
       if (!response.ok) return [];
@@ -2017,7 +2011,7 @@
 
       if (data.status === 'success' && data.data && data.data.result && data.data.result.length > 0) {
         // Also fetch failed counts to calculate real success rate
-        const failedQuery = 'sum(visioeval_jobs_failed_total) by (algo_name, algo_version)';
+        const failedQuery = 'sum(visioeval_jobs_failed_total) by (processor_name, processor_version)';
         const failedUrl = `${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(failedQuery)}`;
         let failedMap = new Map();
         try {
@@ -2025,7 +2019,7 @@
           const failedData = await failedResp.json();
           if (failedData.status === 'success' && failedData.data && failedData.data.result) {
             for (const r of failedData.data.result) {
-              const key = `${r.metric.algo_name || 'unknown'}:${r.metric.algo_version || '1.0'}`;
+              const key = `${r.metric.processor_name || 'unknown'}:${r.metric.processor_version || '1.0'}`;
               failedMap.set(key, Math.round(parseFloat(r.value[1])) || 0);
             }
           }
@@ -2034,8 +2028,8 @@
         }
 
         return data.data.result.map(r => {
-          const name = r.metric.algo_name || 'unknown';
-          const version = r.metric.algo_version || '1.0';
+          const name = r.metric.processor_name || 'unknown';
+          const version = r.metric.processor_version || '1.0';
           const jobs = Math.round(parseFloat(r.value[1])) || 0;
           const failed = failedMap.get(`${name}:${version}`) || 0;
           const success = jobs > 0 ? ((jobs - failed) / jobs) * 100 : 0;
@@ -2226,10 +2220,10 @@
           .filter(m => m.metric_name !== 'job_duration_ms')
           .map(m => ({
             name: m.metric_name,
-            algo: m.algo_name,
-            version: m.algo_version,
-            type: m.analysis_kinds && m.analysis_kinds.length > 0 ? m.analysis_kinds[0] : getAnalysisType(m.analysis_mask),
-            allTypes: m.analysis_kinds || [],
+            algo: m.processor_name,
+            version: m.processor_version,
+            type: m.aggregation_types && m.aggregation_types.length > 0 ? m.aggregation_types[0] : getAnalysisType(m.aggregation_mask),
+            allTypes: m.aggregation_types || [],
             count: m.count || 0,
             avg: m.avg,
             min: m.min,
@@ -2271,8 +2265,8 @@
           if (infoData.status === 'success' && infoData.data && infoData.data.result && infoData.data.result.length > 0) {
             const byAlgo = new Map();
             for (const result of infoData.data.result) {
-              const algo = result.metric.algo_name || 'system';
-              const version = result.metric.algo_version || '-';
+              const algo = result.metric.processor_name || 'system';
+              const version = result.metric.processor_version || '-';
               const key = `${algo}:${version}`;
 
               if (!byAlgo.has(key)) {
@@ -3793,32 +3787,32 @@
 
     try {
       // Get jobs completed per algorithm
-      const completedQuery = 'sum(visioeval_jobs_completed_total) by (algo_name, algo_version)';
+      const completedQuery = 'sum(visioeval_jobs_completed_total) by (processor_name, processor_version)';
       const completedResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(completedQuery)}`);
       const completedData = await completedResp.json();
 
       // Get jobs failed per algorithm
-      const failedQuery = 'sum(visioeval_jobs_failed_total) by (algo_name, algo_version)';
+      const failedQuery = 'sum(visioeval_jobs_failed_total) by (processor_name, processor_version)';
       const failedResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(failedQuery)}`);
       const failedData = await failedResp.json();
 
       // Get duration sum per algorithm (for calculating average)
-      const durationSumQuery = 'sum(visioeval_job_duration_seconds_sum) by (algo_name)';
+      const durationSumQuery = 'sum(visioeval_job_duration_seconds_sum) by (processor_name)';
       const durationSumResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationSumQuery)}`);
       const durationSumData = await durationSumResp.json();
 
       // Get duration count per algorithm
-      const durationCountQuery = 'sum(visioeval_job_duration_seconds_count) by (algo_name)';
+      const durationCountQuery = 'sum(visioeval_job_duration_seconds_count) by (processor_name)';
       const durationCountResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationCountQuery)}`);
       const durationCountData = await durationCountResp.json();
 
       // Get min duration (approximate from histogram)
-      const durationMinQuery = 'histogram_quantile(0.01, sum(visioeval_job_duration_seconds_bucket) by (le, algo_name))';
+      const durationMinQuery = 'histogram_quantile(0.01, sum(visioeval_job_duration_seconds_bucket) by (le, processor_name))';
       const durationMinResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationMinQuery)}`);
       const durationMinData = await durationMinResp.json();
 
       // Get max duration (approximate from histogram)
-      const durationMaxQuery = 'histogram_quantile(0.99, sum(visioeval_job_duration_seconds_bucket) by (le, algo_name))';
+      const durationMaxQuery = 'histogram_quantile(0.99, sum(visioeval_job_duration_seconds_bucket) by (le, processor_name))';
       const durationMaxResp = await fetch(`${CONFIG.apiUrl}/api/prometheus/query?query=${encodeURIComponent(durationMaxQuery)}`);
       const durationMaxData = await durationMaxResp.json();
 
@@ -3827,8 +3821,8 @@
 
       if (completedData.status === 'success' && completedData.data && completedData.data.result) {
         for (const result of completedData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
-          const version = result.metric.algo_version || '1.0';
+          const name = result.metric.processor_name || 'unknown';
+          const version = result.metric.processor_version || '1.0';
           const key = `${name}:${version}`;
           algoMap.set(key, {
             name,
@@ -3845,8 +3839,8 @@
 
       if (failedData.status === 'success' && failedData.data && failedData.data.result) {
         for (const result of failedData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
-          const version = result.metric.algo_version || '1.0';
+          const name = result.metric.processor_name || 'unknown';
+          const version = result.metric.processor_version || '1.0';
           const key = `${name}:${version}`;
           if (algoMap.has(key)) {
             algoMap.get(key).failed = Math.round(parseFloat(result.value[1])) || 0;
@@ -3854,12 +3848,12 @@
         }
       }
 
-      // Build duration stats map by algo_name
+      // Build duration stats map by processor_name
       const durationStats = new Map();
 
       if (durationSumData.status === 'success' && durationSumData.data && durationSumData.data.result) {
         for (const result of durationSumData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
+          const name = result.metric.processor_name || 'unknown';
           if (!durationStats.has(name)) durationStats.set(name, {});
           durationStats.get(name).sum = parseFloat(result.value[1]);
         }
@@ -3867,7 +3861,7 @@
 
       if (durationCountData.status === 'success' && durationCountData.data && durationCountData.data.result) {
         for (const result of durationCountData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
+          const name = result.metric.processor_name || 'unknown';
           if (!durationStats.has(name)) durationStats.set(name, {});
           durationStats.get(name).count = parseFloat(result.value[1]);
         }
@@ -3875,7 +3869,7 @@
 
       if (durationMinData.status === 'success' && durationMinData.data && durationMinData.data.result) {
         for (const result of durationMinData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
+          const name = result.metric.processor_name || 'unknown';
           if (!durationStats.has(name)) durationStats.set(name, {});
           durationStats.get(name).min = parseFloat(result.value[1]);
         }
@@ -3883,7 +3877,7 @@
 
       if (durationMaxData.status === 'success' && durationMaxData.data && durationMaxData.data.result) {
         for (const result of durationMaxData.data.result) {
-          const name = result.metric.algo_name || 'unknown';
+          const name = result.metric.processor_name || 'unknown';
           if (!durationStats.has(name)) durationStats.set(name, {});
           durationStats.get(name).max = parseFloat(result.value[1]);
         }
@@ -3931,7 +3925,7 @@
 
           if (minioMetrics && minioMetrics.metrics) {
             for (const m of minioMetrics.metrics) {
-              const key = `${m.algo_name}|${m.algo_version}`;
+              const key = `${m.processor_name}|${m.processor_version}`;
               if (!algoJobCounts[key]) {
                 algoJobCounts[key] = { jobs: 0, metricCount: 0 };
               }

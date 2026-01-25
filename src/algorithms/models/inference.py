@@ -3,15 +3,15 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Measurement, ProcessorResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-class ModelInferenceAlgo(Algorithm):
+class ModelInferenceProcessor(Processor):
     @property
     def name(self) -> str:
         return "model_inference"
@@ -23,17 +23,21 @@ class ModelInferenceAlgo(Algorithm):
     def initialize(self, settings: Mapping[str, Any]) -> None:
         self._model_path = str(settings.get("model_path", "model.onnx"))
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         score = (hashlib.sha1(image_bytes[:64], usedforsecurity=False).digest()[0] / 255.0) if image_bytes else 0.0  # nosec B324
-        return AlgoResult(
+        return ProcessorResult(
             metrics={
-                "score": MetricValue(
+                "score": Measurement(
                     score,
-                    AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                    AggregationType.STATS | AggregationType.HISTOGRAM,
                 ),
-                "model_path": MetricValue(
+                "model_path": Measurement(
                     getattr(self, "_model_path", None),
-                    AnalysisKind.INFO,
+                    AggregationType.RAW,
                 ),
             },
         )
+
+
+# Backwards compatibility alias
+ModelInferenceAlgo = ModelInferenceProcessor

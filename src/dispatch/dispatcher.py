@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from src.algorithms.base import Algorithm
-    from src.domain.jobs import Job
+    from src.algorithms.base import Processor
+    from src.domain.tasks import Task
 
 
 @dataclass(frozen=True)
 class DispatchPlan:
-    """Maps an ingest job to one algorithm + settings for that directory."""
+    """Maps an ingest task to one processor + settings for that directory."""
 
-    algo: Algorithm
+    processor: Processor
     settings: Mapping[str, Any]
 
 
@@ -24,8 +24,8 @@ class Dispatcher:
     def __init__(self, routes: Mapping[str, DispatchPlan]) -> None:
         self._routes = routes
 
-    def dispatch(self, job: Job) -> DispatchPlan:
-        if job.directory_key not in self._routes:
-            msg = f"No dispatch route for directory_key={job.directory_key}"
+    def dispatch(self, task: Task) -> DispatchPlan:
+        if task.directory_key not in self._routes:
+            msg = f"No dispatch route for directory_key={task.directory_key}"
             raise KeyError(msg)
-        return self._routes[job.directory_key]
+        return self._routes[task.directory_key]

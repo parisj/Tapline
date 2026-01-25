@@ -1,4 +1,4 @@
-"""YOLO segmentation algorithm.
+"""YOLO segmentation processor.
 
 Instance segmentation using Ultralytics YOLO models.
 Requires the 'ultralytics' package (optional dependency).
@@ -14,9 +14,9 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
-from src.algorithms.base import Algorithm
-from src.domain.evaluation import AnalysisKind
-from src.domain.results import AlgoResult, Artifact, MetricValue
+from src.algorithms.base import Processor
+from src.domain.evaluation import AggregationType
+from src.domain.results import Artifact, Measurement, ProcessorResult
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -34,8 +34,8 @@ except ImportError:
     YOLO = None
 
 
-class YoloSegmentationAlgo(Algorithm):
-    """YOLO instance segmentation algorithm.
+class YoloSegmentationProcessor(Processor):
+    """YOLO instance segmentation processor.
 
     Uses Ultralytics YOLO models (YOLOv8-seg) for instance segmentation.
     Returns detection counts, class distributions, confidence scores,
@@ -81,8 +81,8 @@ class YoloSegmentationAlgo(Algorithm):
         self._iou_threshold = float(model_cfg.get("iou_threshold", 0.45))
         self._device = str(model_cfg.get("device", "auto"))
 
-        algorithm_cfg = settings.get("algorithm", {})
-        self._min_detection_count = int(algorithm_cfg.get("min_detection_count", 1))
+        processor_cfg = settings.get("processor", settings.get("algorithm", {}))
+        self._min_detection_count = int(processor_cfg.get("min_detection_count", 1))
 
         # Fail-fast: load model at initialization, not on first job
         try:
@@ -103,7 +103,7 @@ class YoloSegmentationAlgo(Algorithm):
                 raise RuntimeError(msg)
 
             logger.info(
-                "YoloSegmentationAlgo initialized: model=%s, device=%s, conf=%.2f, iou=%.2f",
+                "YoloSegmentationProcessor initialized: model=%s, device=%s, conf=%.2f, iou=%.2f",
                 self._model_name,
                 device,
                 self._confidence_threshold,
@@ -114,7 +114,7 @@ class YoloSegmentationAlgo(Algorithm):
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
-    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> AlgoResult:  # noqa: ARG002
+    def run(self, image_bytes: bytes, settings: Mapping[str, Any]) -> ProcessorResult:  # noqa: ARG002
         """Run YOLO segmentation and return metrics.
 
         Note: Model availability is guaranteed by fail-fast initialization.
@@ -125,16 +125,16 @@ class YoloSegmentationAlgo(Algorithm):
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            return AlgoResult(
+            return ProcessorResult(
                 metrics={
-                    "detection_count": MetricValue(
+                    "detection_count": Measurement(
                         value=0,
-                        analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                        aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                         meta={"error": "Failed to decode image"},
                     ),
-                    "detection_passed": MetricValue(
+                    "detection_passed": Measurement(
                         value=False,
-                        analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                        aggregation=AggregationType.TALLY | AggregationType.RATE,
                         meta={"true_label": "pass", "false_label": "fail"},
                     ),
                 },
@@ -208,53 +208,53 @@ class YoloSegmentationAlgo(Algorithm):
             centroid_x, centroid_y = 0.0, 0.0
 
         # Build metrics dict
-        metrics: dict[str, MetricValue] = {
-            "detection_count": MetricValue(
+        metrics: dict[str, Measurement] = {
+            "detection_count": Measurement(
                 value=detection_count,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "count",
                     "threshold": self._min_detection_count,
                 },
             ),
-            "class_counts": MetricValue(
+            "class_counts": Measurement(
                 value=class_counts,
-                analysis=AnalysisKind.COUNTER,
+                aggregation=AggregationType.TALLY,
                 meta={
                     "description": "Detection count per class",
                     "total_classes": len(class_counts),
                 },
             ),
-            "avg_confidence": MetricValue(
+            "avg_confidence": Measurement(
                 value=avg_confidence,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D | AnalysisKind.OUTLIERS_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM | AggregationType.OUTLIERS,
                 meta={
                     "units": "probability",
                     "range": [0.0, 1.0],
                     "threshold": self._confidence_threshold,
                 },
             ),
-            "coverage_ratio": MetricValue(
+            "coverage_ratio": Measurement(
                 value=coverage_ratio,
-                analysis=AnalysisKind.SUMMARY | AnalysisKind.DISTRIBUTION_1D,
+                aggregation=AggregationType.STATS | AggregationType.HISTOGRAM,
                 meta={
                     "units": "ratio",
                     "range": [0.0, 1.0],
                     "description": "Fraction of image covered by detection masks",
                 },
             ),
-            "detection_centroid_xy": MetricValue(
+            "detection_centroid_xy": Measurement(
                 value={"x": centroid_x, "y": centroid_y},
-                analysis=AnalysisKind.ELLIPSE_2D | AnalysisKind.CONTOUR_2D,
+                aggregation=AggregationType.SCATTER_ELLIPSE | AggregationType.DENSITY_MAP,
                 meta={
                     "coordinate_system": "image",
                     "units": "pixels",
                     "detection_count": detection_count,
                 },
             ),
-            "detection_passed": MetricValue(
+            "detection_passed": Measurement(
                 value=detection_passed,
-                analysis=AnalysisKind.COUNTER | AnalysisKind.RATE,
+                aggregation=AggregationType.TALLY | AggregationType.RATE,
                 meta={
                     "true_label": "pass",
                     "false_label": "fail",
@@ -264,9 +264,9 @@ class YoloSegmentationAlgo(Algorithm):
                     "avg_confidence": avg_confidence,
                 },
             ),
-            "model_name": MetricValue(
+            "model_name": Measurement(
                 value=self._model_name,
-                analysis=AnalysisKind.INFO,
+                aggregation=AggregationType.RAW,
                 meta={"description": "YOLO model used for inference"},
             ),
         }
@@ -276,7 +276,7 @@ class YoloSegmentationAlgo(Algorithm):
 
         # JSON detection report
         report_data = {
-            "algorithm": self.name,
+            "processor": self.name,
             "version": self.version,
             "model": self._model_name,
             "metrics": {
@@ -334,7 +334,11 @@ class YoloSegmentationAlgo(Algorithm):
                 ),
             )
 
-        return AlgoResult(
+        return ProcessorResult(
             metrics=metrics,
             artifacts=tuple(artifacts),
         )
+
+
+# Backwards compatibility alias
+YoloSegmentationAlgo = YoloSegmentationProcessor

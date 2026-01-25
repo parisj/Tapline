@@ -28,12 +28,12 @@ CREATE TABLE metrics_source (
     source_id STRING,
     `timestamp` STRING,
     payload ROW<
-        job_id STRING,
-        algo_name STRING,
-        algo_version STRING,
+        task_id STRING,
+        processor_name STRING,
+        processor_version STRING,
         metric_name STRING,
         `value` DOUBLE,
-        analysis_mask INT,
+        aggregation_mask INT,
         meta MAP<STRING, STRING>
     >,
     -- Parse ISO timestamp and define watermark with 10 second tolerance
@@ -41,7 +41,7 @@ CREATE TABLE metrics_source (
     WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
 ) WITH (
     'connector' = 'kafka',
-    'topic' = 'visio.metrics',
+    'topic' = 'tapline.metrics',
     'properties.bootstrap.servers' = 'kafka:9093',
     'properties.group.id' = 'visioeval-flink-sql-v2',
     'scan.startup.mode' = 'earliest-offset',
@@ -51,10 +51,10 @@ CREATE TABLE metrics_source (
 
 -- Create Kafka sink table for aggregates
 CREATE TABLE aggregates_sink (
-    algo_name STRING,
-    algo_version STRING,
+    processor_name STRING,
+    processor_version STRING,
     metric_name STRING,
-    analysis_mask INT,
+    aggregation_mask INT,
     window_start TIMESTAMP(3),
     window_end TIMESTAMP(3),
     metric_count BIGINT,
@@ -64,19 +64,19 @@ CREATE TABLE aggregates_sink (
     metric_max DOUBLE
 ) WITH (
     'connector' = 'kafka',
-    'topic' = 'visio.aggregates',
+    'topic' = 'tapline.aggregates',
     'properties.bootstrap.servers' = 'kafka:9093',
     'format' = 'json'
 );
 
 -- Run aggregation query with event time windows
--- Note: analysis_mask is preserved using MAX since it should be constant per metric
+-- Note: aggregation_mask is preserved using MAX since it should be constant per metric
 INSERT INTO aggregates_sink
 SELECT
-    payload.algo_name AS algo_name,
-    payload.algo_version AS algo_version,
+    payload.processor_name AS processor_name,
+    payload.processor_version AS processor_version,
     payload.metric_name AS metric_name,
-    MAX(payload.analysis_mask) AS analysis_mask,
+    MAX(payload.aggregation_mask) AS aggregation_mask,
     TUMBLE_START(event_time, INTERVAL '1' MINUTE) AS window_start,
     TUMBLE_END(event_time, INTERVAL '1' MINUTE) AS window_end,
     COUNT(*) AS metric_count,
@@ -88,7 +88,7 @@ FROM metrics_source
 WHERE event_type = 'METRIC_EMITTED'
   AND payload.`value` IS NOT NULL
 GROUP BY
-    payload.algo_name,
-    payload.algo_version,
+    payload.processor_name,
+    payload.processor_version,
     payload.metric_name,
     TUMBLE(event_time, INTERVAL '1' MINUTE);

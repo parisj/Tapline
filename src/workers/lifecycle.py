@@ -15,12 +15,12 @@ class AlgoLifecycle:
         self._initialized: set[tuple[str, str]] = set()
 
     def ensure_initialized(self, plan: DispatchPlan) -> None:
-        key = (plan.algo.name, plan.algo.version)
+        key = (plan.processor.name, plan.processor.version)
         if key in self._initialized:
             return
 
         with self._init_lock:
             if key in self._initialized:
                 return
-            plan.algo.initialize(plan.settings)
+            plan.processor.initialize(plan.settings)
             self._initialized.add(key)

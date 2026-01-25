@@ -6,7 +6,7 @@ in time windows, and stores results directly to MinIO.
 
 Key features:
 - Preserves raw values (numeric, boolean, 2D points) in aggregates
-- Stores analysis_mask for AnalysisKind-aware processing
+- Stores aggregation_mask for AggregationType-aware processing
 - Supports all value types for COUNTER, RATE, ELLIPSE_2D, CONTOUR_2D, etc.
 - Writes directly to MinIO aggregates bucket
 
@@ -66,10 +66,10 @@ class MetricAggregate:
     structured values like {x, y} dicts (for ELLIPSE_2D, CONTOUR_2D).
     """
 
-    algo_name: str
-    algo_version: str
+    processor_name: str
+    processor_version: str
     metric_name: str
-    analysis_mask: int
+    aggregation_mask: int
     meta: dict[str, Any] | None = None
     values: list[Any] = field(default_factory=list)  # Can be float, bool, dict, etc.
 
@@ -196,7 +196,7 @@ class TumblingWindowAggregator:
         self._storage = storage
         self._producer = producer
 
-        # Current window state keyed by (algo_name, algo_version, metric_name)
+        # Current window state keyed by (processor_name, processor_version, metric_name)
         self._current_window: dict[tuple[str, str, str], MetricAggregate] = {}
         self._window_start: datetime | None = None
         self._window_end: datetime | None = None
@@ -213,18 +213,18 @@ class TumblingWindowAggregator:
         - Dict with x,y: For ELLIPSE_2D, CONTOUR_2D (2D point data)
         """
         try:
-            algo_name = event_payload.get("algo_name", "unknown")
-            algo_version = event_payload.get("algo_version", "0.0.0")
+            processor_name = event_payload.get("processor_name", "unknown")
+            processor_version = event_payload.get("processor_version", "0.0.0")
             metric_name = event_payload.get("metric_name", "unknown")
             value = event_payload.get("value")
-            analysis_mask = event_payload.get("analysis_mask", 0)
+            aggregation_mask = event_payload.get("aggregation_mask", 0)
             meta = event_payload.get("meta")
 
             # Skip None values
             if value is None:
                 return
 
-            key = (algo_name, algo_version, metric_name)
+            key = (processor_name, processor_version, metric_name)
             now = datetime.now(UTC)
 
             with self._lock:
@@ -240,10 +240,10 @@ class TumblingWindowAggregator:
                 # Add to accumulator
                 if key not in self._current_window:
                     self._current_window[key] = MetricAggregate(
-                        algo_name=algo_name,
-                        algo_version=algo_version,
+                        processor_name=processor_name,
+                        processor_version=processor_version,
                         metric_name=metric_name,
-                        analysis_mask=analysis_mask,
+                        aggregation_mask=aggregation_mask,
                         meta=meta,
                     )
 
@@ -300,10 +300,10 @@ class TumblingWindowAggregator:
 
             # Create aggregate document
             aggregate_doc = {
-                "algo_name": aggregate.algo_name,
-                "algo_version": aggregate.algo_version,
+                "processor_name": aggregate.processor_name,
+                "processor_version": aggregate.processor_version,
                 "metric_name": aggregate.metric_name,
-                "analysis_mask": aggregate.analysis_mask,
+                "aggregation_mask": aggregate.aggregation_mask,
                 "meta": aggregate.meta,
                 "window_start": window_start.isoformat(),
                 "window_end": window_end.isoformat(),
@@ -325,8 +325,8 @@ class TumblingWindowAggregator:
 
                 logger.info(
                     "Stored aggregate: %s/%s/%s, count=%d, path=%s",
-                    aggregate.algo_name,
-                    aggregate.algo_version,
+                    aggregate.processor_name,
+                    aggregate.processor_version,
                     aggregate.metric_name,
                     aggregate.count,
                     object_ref.full_path,
@@ -335,8 +335,8 @@ class TumblingWindowAggregator:
                 # Publish AGGREGATE_PRODUCED event
                 self._producer.publish_aggregate_produced(
                     source_id="flink_aggregation",
-                    algo_name=aggregate.algo_name,
-                    algo_version=aggregate.algo_version,
+                    processor_name=aggregate.processor_name,
+                    processor_version=aggregate.processor_version,
                     metric_name=aggregate.metric_name,
                     window_start=window_start.isoformat(),
                     window_end=window_end.isoformat(),

@@ -1,4 +1,4 @@
-"""Algorithm registry with lazy loading for faster startup."""
+"""Processor registry with lazy loading for faster startup."""
 
 from __future__ import annotations
 
@@ -8,88 +8,88 @@ from typing import TYPE_CHECKING
 from src.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from src.algorithms.base import Algorithm
+    from src.algorithms.base import Processor
 
 logger = get_logger(__name__)
 
-AlgorithmFactory = Callable[[], "Algorithm"]
+ProcessorFactory = Callable[[], "Processor"]
 
 
-class AlgorithmRegistry:
-    """Registry mapping (name, version) to algorithm factory.
+class ProcessorRegistry:
+    """Registry mapping (name, version) to processor factory.
 
     Enables declarative routing via routes.toml without hardcoding
-    algorithm selection in application code.
+    processor selection in application code.
     """
 
     def __init__(self) -> None:
-        self._factories: dict[tuple[str, str], AlgorithmFactory] = {}
+        self._factories: dict[tuple[str, str], ProcessorFactory] = {}
 
-    def register(self, name: str, version: str, factory: AlgorithmFactory) -> None:
-        """Register an algorithm factory."""
+    def register(self, name: str, version: str, factory: ProcessorFactory) -> None:
+        """Register a processor factory."""
         key = (name, version)
         if key in self._factories:
-            logger.error("Attempt to re-register algorithm: %s %s", name, version)
-            msg = f"Algorithm already registered: {name} {version}"
+            logger.error("Attempt to re-register processor: %s %s", name, version)
+            msg = f"Processor already registered: {name} {version}"
             raise ValueError(msg)
         self._factories[key] = factory
 
-    def create(self, name: str, version: str) -> "Algorithm":
-        """Create algorithm instance by name and version."""
+    def create(self, name: str, version: str) -> "Processor":
+        """Create processor instance by name and version."""
         key = (name, version)
         if key not in self._factories:
-            logger.error("Algorithm not found in registry: %s %s", name, version)
+            logger.error("Processor not found in registry: %s %s", name, version)
             raise KeyError(key)
         return self._factories[key]()
 
 
-def build_default_registry() -> AlgorithmRegistry:
-    """Create registry with lazy-loaded algorithms.
+def build_default_registry() -> ProcessorRegistry:
+    """Create registry with lazy-loaded processors.
 
-    Algorithms are imported only when their factory is called,
+    Processors are imported only when their factory is called,
     avoiding heavy dependencies at module load time.
     """
-    reg = AlgorithmRegistry()
+    reg = ProcessorRegistry()
 
-    def make_analysis_probe() -> "Algorithm":
-        from src.algorithms.cv.analysis_probe import AnalysisProbeAlgo
+    def make_analysis_probe() -> "Processor":
+        from src.algorithms.cv.analysis_probe import AnalysisProbeProcessor
 
-        return AnalysisProbeAlgo()
+        return AnalysisProbeProcessor()
 
-    def make_blob_detection() -> "Algorithm":
-        from src.algorithms.cv.blob_detection import BlobDetectionAlgo
+    def make_blob_detection() -> "Processor":
+        from src.algorithms.cv.blob_detection import BlobDetectionProcessor
 
-        return BlobDetectionAlgo()
+        return BlobDetectionProcessor()
 
-    def make_image_quality() -> "Algorithm":
-        from src.algorithms.cv.image_quality import ImageQualityAlgo
+    def make_image_quality() -> "Processor":
+        from src.algorithms.cv.image_quality import ImageQualityProcessor
 
-        return ImageQualityAlgo()
+        return ImageQualityProcessor()
 
-    def make_edge_detection() -> "Algorithm":
-        from src.algorithms.cv.edge_detection import EdgeDetectionAlgo
+    def make_edge_detection() -> "Processor":
+        from src.algorithms.cv.edge_detection import EdgeDetectionProcessor
 
-        return EdgeDetectionAlgo()
+        return EdgeDetectionProcessor()
 
-    def make_histogram_analysis() -> "Algorithm":
-        from src.algorithms.cv.histogram_analysis import HistogramAnalysisAlgo
+    def make_histogram_analysis() -> "Processor":
+        from src.algorithms.cv.histogram_analysis import HistogramAnalysisProcessor
 
-        return HistogramAnalysisAlgo()
+        return HistogramAnalysisProcessor()
 
-    def make_contour_analysis() -> "Algorithm":
-        from src.algorithms.cv.contour_analysis import ContourAnalysisAlgo
+    def make_contour_analysis() -> "Processor":
+        from src.algorithms.cv.contour_analysis import ContourAnalysisProcessor
 
-        return ContourAnalysisAlgo()
+        return ContourAnalysisProcessor()
 
-    def make_model_inference() -> "Algorithm":
-        from src.algorithms.models.inference import ModelInferenceAlgo
+    def make_model_inference() -> "Processor":
+        from src.algorithms.models.inference import ModelInferenceProcessor
 
-        return ModelInferenceAlgo()
+        return ModelInferenceProcessor()
 
-    def make_yolo_segmentation() -> "Algorithm":
-        from src.algorithms.models.yolo_segmentation import YoloSegmentationAlgo
+    def make_yolo_segmentation() -> "Processor":
+        from src.algorithms.models.yolo_segmentation import YoloSegmentationProcessor
 
-        return YoloSegmentationAlgo()
+        return YoloSegmentationProcessor()
 
     reg.register("analysis_probe", "1.0.0", make_analysis_probe)
     reg.register("blob_detection", "1.0.0", make_blob_detection)
@@ -101,3 +101,8 @@ def build_default_registry() -> AlgorithmRegistry:
     reg.register("model_yolo_segmentation", "1.0.0", make_yolo_segmentation)
 
     return reg
+
+
+# Backwards compatibility aliases (deprecated)
+AlgorithmFactory = ProcessorFactory
+AlgorithmRegistry = ProcessorRegistry

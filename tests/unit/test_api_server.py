@@ -28,12 +28,12 @@ class TestMaskToKindNames:
 
     def test_single_kind(self) -> None:
         result = mask_to_kind_names(1)
-        assert "SUMMARY" in result
+        assert "STATS" in result
 
     def test_multiple_kinds(self) -> None:
         result = mask_to_kind_names(3)
-        assert "SUMMARY" in result
-        assert "DISTRIBUTION_1D" in result
+        assert "STATS" in result
+        assert "HISTOGRAM" in result
 
     def test_all_common_kinds(self) -> None:
         result = mask_to_kind_names(15)
@@ -239,10 +239,10 @@ class TestMetricsEndpoint:
     def test_metrics_success(self, mock_discovery, client) -> None:
         mock_metric = MagicMock()
         mock_metric.metric_name = "accuracy"
-        mock_metric.algo_name = "test_algo"
-        mock_metric.algo_version = "1.0.0"
-        mock_metric.analysis_mask = 1
-        mock_metric.analysis_kinds = ["SUMMARY"]
+        mock_metric.processor_name = "test_processor"
+        mock_metric.processor_version = "1.0.0"
+        mock_metric.aggregation_mask = 1
+        mock_metric.aggregation_types = ["STATS"]
         mock_metric.summary = {"count": 10, "mean": 0.95}
         mock_metric.artifact_key = "aggregates/ab/cd/hash123"
         mock_discovery.discover_metrics_from_minio.return_value = [mock_metric]
