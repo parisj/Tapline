@@ -73,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dependency audit
-        uses: google/osv-scanner-action@v2
+        uses: google/osv-scanner-action@v2.3.2
         with:
           scan-args: |-
             --lockfile=pixi.lock

@@ -30,7 +30,7 @@ try:
 
     ULTRALYTICS_AVAILABLE = True
 except ImportError:
-    YOLO = None  # type: ignore[misc,assignment]
+    YOLO = None
     ULTRALYTICS_AVAILABLE = False
 
 
