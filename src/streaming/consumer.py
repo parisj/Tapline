@@ -538,8 +538,8 @@ class BatchEventConsumer:
             has_positions = any(p.offset >= 0 for p in positions)
             if has_positions:
                 self._consumer.commit(asynchronous=False)
-        except KafkaException:
-            pass
+        except KafkaException as e:
+            logger.debug("Final commit on close failed (expected if no messages consumed): %s", e)
 
         self._consumer.close()
         logger.info("BatchEventConsumer closed")

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import time as time_module
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from src.domain.evaluation import mask_to_kind_names
 from src.utils.logging import get_logger
+from src.visualization.constants import MINIO_MAX_OBJECTS, get_mime_from_extension
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -125,8 +127,6 @@ class DiscoveryService:
             List of MetricInfo objects for discovered metrics
 
         """
-        import time as time_module
-
         cache_key = f"{processor_name or '*'}|{processor_version or '*'}|{time_range_minutes or '*'}"
         if not refresh and cache_key in self._metrics_cache:
             return self._metrics_cache[cache_key]
@@ -142,7 +142,7 @@ class DiscoveryService:
 
         try:
             bucket = self._storage.buckets["aggregates"]
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 try:
@@ -274,8 +274,6 @@ class DiscoveryService:
             List of raw metric values aggregated across time windows
 
         """
-        import time as time_module
-
         values: list[Any] = []
         aggregation_mask = 0
         meta: dict[str, Any] | None = None
@@ -287,7 +285,7 @@ class DiscoveryService:
 
         try:
             bucket = self._storage.buckets.get("metric-values", "metric-values")
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 try:
@@ -349,8 +347,6 @@ class DiscoveryService:
             Dict with 'values', 'aggregation_mask', and 'meta' keys
 
         """
-        import time as time_module
-
         values: list[Any] = []
         aggregation_mask = 0
         meta: dict[str, Any] | None = None
@@ -363,7 +359,7 @@ class DiscoveryService:
         # First, try the metric-values bucket
         try:
             bucket = self._storage.buckets.get("metric-values", "metric-values")
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 try:
@@ -404,7 +400,7 @@ class DiscoveryService:
         # Also check the aggregates bucket (Python aggregation stores values there)
         try:
             bucket = self._storage.buckets.get("aggregates", "aggregates")
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 try:
@@ -507,7 +503,7 @@ class DiscoveryService:
 
         try:
             bucket = self._storage.buckets.get("artifacts", "artifacts")
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 key = obj.get("key", "")
@@ -586,7 +582,7 @@ class DiscoveryService:
 
         try:
             bucket = self._storage.buckets.get("artifacts", "artifacts")
-            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+            objects = self._storage.list_objects(bucket, prefix="", limit=MINIO_MAX_OBJECTS)
 
             for obj in objects:
                 key = obj.get("key", "")
@@ -625,16 +621,4 @@ class DiscoveryService:
             MIME type string
 
         """
-        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-        mime_map = {
-            "png": "image/png",
-            "jpg": "image/jpeg",
-            "jpeg": "image/jpeg",
-            "gif": "image/gif",
-            "json": "application/json",
-            "npz": "application/x-npz",
-            "csv": "text/csv",
-            "txt": "text/plain",
-            "html": "text/html",
-        }
-        return mime_map.get(ext, "application/octet-stream")
+        return get_mime_from_extension(filename)

@@ -25,7 +25,8 @@ from src.workers.lifecycle import AlgoLifecycle
 from src.workers.offload import ExecutionContext, LocalWorkerStrategy
 
 if TYPE_CHECKING:
-    from src.dispatch.dispatcher import Dispatcher
+    from src.dispatch.dispatcher import Dispatcher, DispatchPlan
+    from src.domain.events import EventEnvelope
     from src.storage.minio_service import MinioStorageService
     from src.streaming.config import KafkaConfig
     from src.streaming.consumer import EventConsumer
@@ -220,7 +221,7 @@ class KafkaWorkerPool:
     def _process_job_event(
         self,
         consumer: EventConsumer,
-        event: Any,
+        event: EventEnvelope,
         worker_id: int,
     ) -> None:
         """Process a JOB_CREATED event."""
@@ -389,7 +390,7 @@ class KafkaWorkerPool:
             # Always decrement active workers when done
             WORKERS_ACTIVE.labels(worker_id=str(worker_id)).dec()
 
-    def _is_slow_job(self, plan: Any) -> bool:
+    def _is_slow_job(self, plan: DispatchPlan) -> bool:
         """Check if job is expected to be slow based on processor type."""
         return bool(plan.processor.name.startswith("model_"))
 

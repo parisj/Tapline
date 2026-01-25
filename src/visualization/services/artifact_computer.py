@@ -7,10 +7,13 @@ and separation of concerns.
 
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class ArtifactComputer:
@@ -53,7 +56,8 @@ class ArtifactComputer:
                 "bin_edges": edges.tolist(),
                 "bins": bins,
             }
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.debug("Failed to compute histogram: %s", e)
             return None
 
     def compute_categories(self, values: list[Any]) -> dict[str, int] | None:
@@ -81,7 +85,8 @@ class ArtifactComputer:
                 categories[key] = categories.get(key, 0) + 1
 
             return categories if categories else None
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.debug("Failed to compute categories: %s", e)
             return None
 
     def compute_rate(self, values: list[Any], confidence: float = 0.95) -> dict[str, Any] | None:
@@ -125,7 +130,8 @@ class ArtifactComputer:
                 "no": n - yes,
                 "n": n,
             }
-        except Exception:
+        except (ValueError, ZeroDivisionError) as e:
+            logger.debug("Failed to compute rate: %s", e)
             return None
 
     def compute_ellipse(self, values: list[Any]) -> dict[str, Any] | None:
@@ -165,7 +171,8 @@ class ArtifactComputer:
                 "angle": float(math.degrees(angle)),
                 "points": arr.tolist(),
             }
-        except Exception:
+        except (ValueError, np.linalg.LinAlgError) as e:
+            logger.debug("Failed to compute ellipse: %s", e)
             return None
 
     def compute_contour(self, values: list[Any], grid_size: int | None = None) -> dict[str, Any] | None:
@@ -219,7 +226,8 @@ class ArtifactComputer:
                 "y_max": y_max,
                 "points": arr.tolist(),
             }
-        except Exception:
+        except (ValueError, RuntimeError) as e:
+            logger.debug("Failed to compute contour: %s", e)
             return None
 
     def _parse_2d_points(self, values: list[Any]) -> list[tuple[float, float]]:

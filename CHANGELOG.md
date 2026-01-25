@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-worker metrics with `worker_id` label for `WORKERS_ACTIVE` gauge
 - Cooperative-sticky Kafka partition assignment strategy (prevents stop-the-world rebalances)
 - Dashboard now shows per-worker busy/idle status accurately
+- AnalyzerRegistry for extensible analyzer registration with lazy loading
+- ViewerRegistry for type-specific artifact visualization in dashboard
+- Modular API server with Flask blueprints (routes split into prometheus, kafka, metrics, artifacts, audit)
+- Rate limiting middleware and security headers for dashboard API
 
 ### Changed
 
@@ -36,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - gitleaks secret scanning
 - Enhanced CI/CD pipeline
   - Parallel lint, typecheck, test, security jobs
-  - 80% coverage threshold enforcement
   - Codecov integration
 - Security scanning
   - pip-audit for dependency vulnerabilities

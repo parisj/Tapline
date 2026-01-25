@@ -26,7 +26,7 @@ class TestComputeHistogram:
 
         assert result is not None
         assert len(result["counts"]) == 5
-        assert len(result["edges"]) == 6
+        assert len(result["bin_edges"]) == 6
         assert result["bins"] == 5
         assert sum(result["counts"]) == 10
 
