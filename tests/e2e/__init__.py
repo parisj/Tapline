@@ -1,1 +1,1 @@
-"""End-to-end tests for VisioEval streaming pipeline."""
+"""End-to-end tests for Tapline streaming pipeline."""

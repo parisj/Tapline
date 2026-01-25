@@ -88,7 +88,7 @@ def load_kafka_config(path: Path) -> KafkaConfig:
     return KafkaConfig(
         # Broker
         bootstrap_servers=broker.get("bootstrap_servers", "localhost:9092"),
-        client_id=broker.get("client_id", "visioeval"),
+        client_id=broker.get("client_id", "tapline"),
         # Producer
         producer_acks=producer.get("acks", "all"),
         producer_retries=producer.get("retries", 3),
@@ -98,7 +98,7 @@ def load_kafka_config(path: Path) -> KafkaConfig:
         producer_compression_type=producer.get("compression_type", "lz4"),
         producer_enable_idempotence=producer.get("enable_idempotence", True),
         # Consumer
-        consumer_group_id=consumer.get("group_id", "visioeval-workers"),
+        consumer_group_id=consumer.get("group_id", "tapline-workers"),
         consumer_auto_offset_reset=consumer.get("auto_offset_reset", "earliest"),
         consumer_enable_auto_commit=consumer.get("enable_auto_commit", False),
         consumer_session_timeout_ms=consumer.get("session_timeout_ms", 30000),
@@ -109,11 +109,11 @@ def load_kafka_config(path: Path) -> KafkaConfig:
             "cooperative-sticky",
         ),
         # Topics
-        topic_jobs=topics.get("jobs", "visio.jobs"),
-        topic_results=topics.get("results", "visio.results"),
-        topic_metrics=topics.get("metrics", "visio.metrics"),
-        topic_audit_log=topics.get("audit_log", "visio.audit-log"),
-        topic_aggregates=topics.get("aggregates", "visio.aggregates"),
+        topic_jobs=topics.get("jobs", "tapline.tasks"),
+        topic_results=topics.get("results", "tapline.results"),
+        topic_metrics=topics.get("metrics", "tapline.metrics"),
+        topic_audit_log=topics.get("audit_log", "tapline.audit"),
+        topic_aggregates=topics.get("aggregates", "tapline.aggregates"),
         # Partitions
         jobs_partitions=topics.get("jobs_partitions", 32),
         results_partitions=topics.get("results_partitions", 32),

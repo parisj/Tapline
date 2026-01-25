@@ -1,4 +1,4 @@
-# Loki configuration for VisioEval
+# Loki configuration for Tapline
 # This is a simple single-instance configuration suitable for development
 
 auth_enabled: false

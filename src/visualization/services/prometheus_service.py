@@ -161,13 +161,13 @@ class PrometheusService:
 
         try:
             # Query pipeline_up to check if pipeline is running
-            pipeline_up = self.get_metric_value("visioeval_pipeline_up") == 1.0
+            pipeline_up = self.get_metric_value("tapline_pipeline_up") == 1.0
 
             # Query workers_active (number currently processing jobs)
-            workers_active = int(self.get_metric_value("visioeval_workers_active"))
+            workers_active = int(self.get_metric_value("tapline_workers_active"))
 
             # Query worker_pool_size
-            worker_pool_size = int(self.get_metric_value("visioeval_worker_pool_size"))
+            worker_pool_size = int(self.get_metric_value("tapline_worker_pool_size"))
         except Exception as e:
             logger.warning("Failed to get pipeline status: %s", e)
 

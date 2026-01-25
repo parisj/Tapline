@@ -54,7 +54,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(visioeval_jobs_created_total)",
+          "expr": "sum(tapline_jobs_created_total)",
           "legendFormat": "Jobs Created",
           "refId": "A"
         }
@@ -98,7 +98,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(visioeval_jobs_failed_total)",
+          "expr": "sum(tapline_jobs_failed_total)",
           "legendFormat": "Jobs Failed",
           "refId": "A"
         }
@@ -140,7 +140,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(visioeval_kafka_messages_produced_total)",
+          "expr": "sum(tapline_kafka_messages_produced_total)",
           "legendFormat": "Kafka Messages",
           "refId": "A"
         }
@@ -182,7 +182,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(tapline_job_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95 Duration",
           "refId": "A"
         }
@@ -234,19 +234,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_jobs_created_total[1m])",
+          "expr": "rate(tapline_jobs_created_total[1m])",
           "legendFormat": "Jobs/min",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_jobs_completed_total[1m])",
+          "expr": "rate(tapline_jobs_completed_total[1m])",
           "legendFormat": "Completed/min",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_jobs_failed_total[1m])",
+          "expr": "rate(tapline_jobs_failed_total[1m])",
           "legendFormat": "Failed/min",
           "refId": "C"
         }
@@ -298,19 +298,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.50, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(tapline_job_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.90, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.90, sum(rate(tapline_job_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.99, sum(rate(visioeval_job_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(tapline_job_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -362,13 +362,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_kafka_messages_produced_total[1m])",
+          "expr": "rate(tapline_kafka_messages_produced_total[1m])",
           "legendFormat": "Produced/min",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_kafka_messages_consumed_total[1m])",
+          "expr": "rate(tapline_kafka_messages_consumed_total[1m])",
           "legendFormat": "Consumed/min",
           "refId": "B"
         }
@@ -420,13 +420,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_minio_uploads_total[1m])",
+          "expr": "rate(tapline_minio_uploads_total[1m])",
           "legendFormat": "Uploads/min",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(visioeval_minio_downloads_total[1m])",
+          "expr": "rate(tapline_minio_downloads_total[1m])",
           "legendFormat": "Downloads/min",
           "refId": "B"
         }
@@ -437,13 +437,13 @@
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["visioeval", "pipeline"],
+  "tags": ["tapline", "pipeline"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "VisioEval Pipeline Overview",
-  "uid": "visioeval-pipeline",
+  "title": "Tapline Pipeline Overview",
+  "uid": "tapline-pipeline",
   "version": 1,
   "weekStart": ""
 }

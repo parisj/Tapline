@@ -91,7 +91,7 @@ def main() -> None:
     configure_logging(obs_config)
 
     logger.info("=" * 60)
-    logger.info("VisioEval Pipeline Runner")
+    logger.info("Tapline Pipeline Runner")
     logger.info("=" * 60)
 
     # Register cleanup
@@ -110,7 +110,7 @@ def main() -> None:
     python_exe = sys.executable
 
     # Check if user wants to use Flink SQL (default: use Python aggregation)
-    use_flink_sql = os.environ.get("VISIOEVAL_USE_FLINK_SQL", "").lower() == "true"
+    use_flink_sql = os.environ.get("TAPLINE_USE_FLINK_SQL", "").lower() == "true"
 
     # Step 1: Start aggregation
     if use_flink_sql:

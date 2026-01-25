@@ -97,7 +97,7 @@ def load_flink_config(path: Path) -> FlinkConfig:
         max_out_of_orderness_sec=watermarks.get("max_out_of_orderness_sec", 10),
         idle_timeout_sec=watermarks.get("idle_timeout_sec", 60),
         # Kafka
-        kafka_consumer_group=kafka.get("consumer_group", "visioeval-flink"),
+        kafka_consumer_group=kafka.get("consumer_group", "tapline-flink"),
         kafka_commit_on_checkpoints=kafka.get("commit_on_checkpoints", True),
         kafka_start_from_earliest=kafka.get("start_from_earliest", True),
     )

@@ -1,4 +1,4 @@
-"""Flask API server for the VisioEval dashboard.
+"""Flask API server for the Tapline dashboard.
 
 Serves the HTML dashboard and provides REST API endpoints for accessing
 MinIO storage and Prometheus metrics.
@@ -393,7 +393,7 @@ def kafka_health() -> FlaskResponse:
         # Try to get message count from Prometheus
         total_messages = 0
         if prometheus_service:
-            result = prometheus_service.query("sum(visioeval_kafka_messages_produced_total)")
+            result = prometheus_service.query("sum(tapline_kafka_messages_produced_total)")
             if result.data.get("status") == "success":
                 data_result = result.data.get("data", {}).get("result", [])
                 if data_result:
@@ -437,7 +437,7 @@ def kafka_audit_log_count() -> FlaskResponse:
     Returns the total message count across all partitions.
     """
     bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    audit_topic = "visio.audit-log"
+    audit_topic = "tapline.audit"
 
     try:
         # Create consumer to query offsets
@@ -1028,7 +1028,7 @@ def verify_audit_chain() -> FlaskResponse:
     Checks that the hash chain in the audit log is intact and untampered.
     Returns verification status, event count, and any integrity errors.
 
-    Note: Audit events are currently stored in Kafka (visio.audit-log topic)
+    Note: Audit events are currently stored in Kafka (tapline.audit topic)
     but not persisted to MinIO. Full chain verification requires reading
     from Kafka or implementing an audit log consumer.
     """
@@ -1044,7 +1044,7 @@ def verify_audit_chain() -> FlaskResponse:
         try:
             prom_url = "http://localhost:9091"
             # Query for messages produced to audit-log topic (use our own metrics)
-            query = 'sum(visioeval_kafka_messages_produced_total{topic="visio.audit-log"}) or vector(0)'
+            query = 'sum(tapline_kafka_messages_produced_total{topic="tapline.audit"}) or vector(0)'
             resp = requests.get(f"{prom_url}/api/v1/query", params={"query": query}, timeout=5)
             if resp.ok:
                 data = resp.json()
@@ -1163,7 +1163,7 @@ def main() -> None:
     load_dotenv()
     init_services()
     logger.info("=" * 60)
-    logger.info("VisioEval Dashboard Server")
+    logger.info("Tapline Dashboard Server")
     logger.info("=" * 60)
     logger.info("Dashboard:  http://localhost:5007")
     logger.info("API:        http://localhost:5007/api/health")

@@ -1,4 +1,4 @@
-"""VisioEval pipeline entry point.
+"""Tapline pipeline entry point.
 
 Streaming mode pipeline using Kafka/Flink/MinIO architecture.
 """
@@ -138,7 +138,7 @@ def main() -> None:
     obs_config = load_observability_config(Path("src/config/observability.toml"))
     configure_logging(obs_config)
 
-    logger.info("VisioEval starting...")
+    logger.info("Tapline starting...")
 
     configure_tracing(obs_config)
     atexit.register(shutdown_tracing)

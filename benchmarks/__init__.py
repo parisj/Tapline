@@ -1,1 +1,1 @@
-"""Benchmarking tools for VisioEval pipeline."""
+"""Benchmarking tools for Tapline pipeline."""

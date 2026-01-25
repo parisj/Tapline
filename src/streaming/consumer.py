@@ -51,7 +51,7 @@ class EventConsumer:
     - Iterator interface for message consumption
 
     Usage:
-        consumer = EventConsumer(config, topics=["visio.jobs"])
+        consumer = EventConsumer(config, topics=["tapline.tasks"])
 
         for event in consumer:
             try:

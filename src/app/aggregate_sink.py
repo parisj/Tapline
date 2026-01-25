@@ -18,7 +18,7 @@ This should be run alongside:
     - pixi run run (main pipeline)
     - pixi run pipeline (includes Python aggregation by default)
 
-Set VISIOEVAL_USE_FLINK_SQL=true to use Flink SQL mode.
+Set TAPLINE_USE_FLINK_SQL=true to use Flink SQL mode.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def main() -> None:
     load_dotenv()
 
     # Check if using Flink SQL mode
-    use_flink_sql = os.environ.get("VISIOEVAL_USE_FLINK_SQL", "").lower() == "true"
+    use_flink_sql = os.environ.get("TAPLINE_USE_FLINK_SQL", "").lower() == "true"
 
     # Load configs
     obs_config = load_observability_config(Path("src/config/observability.toml"))
@@ -92,10 +92,10 @@ def main() -> None:
     logger.info("Metric values collector started in background thread")
 
     if use_flink_sql:
-        # Flink SQL mode: consume from visio.aggregates topic
+        # Flink SQL mode: consume from tapline.aggregates topic
         from src.app.aggregate_consumer import run_aggregate_consumer
 
-        logger.info("Running Flink SQL aggregate consumer (visio.aggregates topic)")
+        logger.info("Running Flink SQL aggregate consumer (tapline.aggregates topic)")
         run_aggregate_consumer(flink_config, kafka_config, storage, stop_event)
     else:
         # Python aggregation mode: aggregates written directly to MinIO

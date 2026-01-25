@@ -1,4 +1,4 @@
-# MinIO configuration for VisioEval artifact storage
+# MinIO configuration for Tapline artifact storage
 
 [connection]
 # Connection settings - credentials should be set via environment variables:

@@ -1,4 +1,4 @@
-"""Load generator for benchmarking the VisioEval streaming pipeline.
+"""Load generator for benchmarking the Tapline streaming pipeline.
 
 Creates synthetic workload by:
 1. Generating test image files at configurable rates
@@ -266,7 +266,7 @@ class LoadGenerator:
 def main() -> None:
     """Run the load generator benchmark."""
     parser = argparse.ArgumentParser(
-        description="VisioEval Load Generator",
+        description="Tapline Load Generator",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -316,7 +316,7 @@ def main() -> None:
 
     # Use temp directory if not specified
     if args.directory is None:
-        temp_dir = tempfile.mkdtemp(prefix="visioeval_bench_")
+        temp_dir = tempfile.mkdtemp(prefix="tapline_bench_")
         args.directory = Path(temp_dir)
         sys.stdout.write(f"Using temp directory: {temp_dir}\n")
 

@@ -1,4 +1,4 @@
-"""PyFlink stream processing module for VisioEval.
+"""PyFlink stream processing module for Tapline.
 
 Provides:
 - Metric aggregation with time windows

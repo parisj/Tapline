@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisioEval Architecture Overview</title>
+    <title>Tapline Architecture Overview</title>
     <style>
         :root {
             --bg-primary: #111827;
@@ -340,7 +340,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>VisioEval</h1>
+            <h1>Tapline</h1>
             <p class="subtitle">Configuration-driven evaluation pipeline for continuous data ingestion, processing, and time-windowed analysis</p>
         </header>
 
@@ -488,39 +488,39 @@
             <h2>Kafka Topics</h2>
             <div class="topics-grid">
                 <div class="topic-card">
-                    <div class="topic-name">visio.jobs</div>
-                    <div class="topic-description">Job lifecycle events with per-directory ordering.</div>
+                    <div class="topic-name">tapline.tasks</div>
+                    <div class="topic-description">Task lifecycle events with per-directory ordering.</div>
                     <div class="topic-events">
-                        <span class="event-tag">JOB_CREATED</span>
-                        <span class="event-tag">JOB_STARTED</span>
-                        <span class="event-tag">JOB_COMPLETED</span>
-                        <span class="event-tag">JOB_FAILED</span>
+                        <span class="event-tag">TASK_CREATED</span>
+                        <span class="event-tag">TASK_STARTED</span>
+                        <span class="event-tag">TASK_COMPLETED</span>
+                        <span class="event-tag">TASK_FAILED</span>
                     </div>
                 </div>
                 <div class="topic-card">
-                    <div class="topic-name">visio.results</div>
-                    <div class="topic-description">Algorithm outputs and artifact references.</div>
+                    <div class="topic-name">tapline.results</div>
+                    <div class="topic-description">Processor outputs and artifact references.</div>
                     <div class="topic-events">
                         <span class="event-tag">RESULT_PRODUCED</span>
                         <span class="event-tag">ARTIFACT_STORED</span>
                     </div>
                 </div>
                 <div class="topic-card">
-                    <div class="topic-name">visio.metrics</div>
-                    <div class="topic-description">Individual metrics partitioned by algorithm.</div>
+                    <div class="topic-name">tapline.metrics</div>
+                    <div class="topic-description">Individual metrics partitioned by processor.</div>
                     <div class="topic-events">
                         <span class="event-tag">METRIC_EMITTED</span>
                     </div>
                 </div>
                 <div class="topic-card">
-                    <div class="topic-name">visio.audit-log</div>
+                    <div class="topic-name">tapline.audit</div>
                     <div class="topic-description">Immutable audit trail with hash chain.</div>
                     <div class="topic-events">
                         <span class="event-tag">ALL EVENTS (dual-write)</span>
                     </div>
                 </div>
                 <div class="topic-card">
-                    <div class="topic-name">visio.aggregates</div>
+                    <div class="topic-name">tapline.aggregates</div>
                     <div class="topic-description">Time-windowed aggregations from Flink.</div>
                     <div class="topic-events">
                         <span class="event-tag">AGGREGATE_COMPUTED</span>
@@ -635,7 +635,7 @@
                         <li>Runs as separate process (GIL isolation)</li>
                         <li>Auto-restarts on failure</li>
                         <li>Collects raw metric values for analysis</li>
-                        <li>Optional: Flink SQL mode consumes visio.aggregates</li>
+                        <li>Optional: Flink SQL mode consumes tapline.aggregates</li>
                     </ul>
                 </div>
                 <div class="component-card">
@@ -776,7 +776,7 @@
 
         <section>
             <h2>Modularity &amp; Zero-Config Extensibility</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1rem;">VisioEval is designed for <strong>zero-configuration extensibility</strong>. Adding new algorithms or metrics requires no changes to storage, Kafka, or dashboard code.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Tapline is designed for <strong>zero-configuration extensibility</strong>. Adding new algorithms or metrics requires no changes to storage, Kafka, or dashboard code.</p>
             <div class="flow-card" style="margin-bottom: 1rem;">
                 <h3>Adding a New Algorithm</h3>
                 <div class="flow-steps">
@@ -891,7 +891,7 @@
         </section>
 
         <footer>
-            VisioEval - Configuration-driven evaluation pipeline
+            Tapline - Configuration-driven evaluation pipeline
         </footer>
     </div>
 </body>

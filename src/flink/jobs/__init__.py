@@ -1,4 +1,4 @@
-"""Flink job definitions for VisioEval stream processing.
+"""Flink job definitions for Tapline stream processing.
 
 Jobs:
 - metric_aggregation.sql: SQL-based metric aggregation

@@ -11,7 +11,7 @@ Key features:
 - Writes directly to MinIO aggregates bucket
 
 Note: This is the default aggregation method. For Flink SQL aggregation,
-set VISIOEVAL_USE_FLINK_SQL=true environment variable.
+set TAPLINE_USE_FLINK_SQL=true environment variable.
 
 Usage:
     pixi run run-flink-agg

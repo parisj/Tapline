@@ -1,4 +1,4 @@
-# Promtail configuration for VisioEval
+# Promtail configuration for Tapline
 # Collects logs from Docker containers and sends to Loki
 
 server:
@@ -35,13 +35,13 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_image']
         target_label: 'image'
 
-      # Filter to only include VisioEval-related containers
+      # Filter to only include Tapline-related containers
       - source_labels: ['__meta_docker_container_name']
         regex: '/(kafka|zookeeper|flink.*|minio|prometheus|grafana|jaeger|loki|schema-registry|promtail)'
         action: keep
 
     pipeline_stages:
-      # Parse JSON logs from VisioEval pipeline
+      # Parse JSON logs from Tapline pipeline
       - json:
           expressions:
             level: level
@@ -69,15 +69,15 @@ scrape_configs:
           expression: '^\s*$'
           drop_counter_reason: empty_message
 
-  # Scrape VisioEval pipeline logs from stdout (when run locally)
+  # Scrape Tapline pipeline logs from stdout (when run locally)
   # This requires piping pipeline output to a log file
-  - job_name: visioeval-pipeline
+  - job_name: tapline-pipeline
     static_configs:
       - targets:
           - localhost
         labels:
-          job: visioeval
-          __path__: /var/log/visioeval/*.log
+          job: tapline
+          __path__: /var/log/tapline/*.log
     pipeline_stages:
       - json:
           expressions:

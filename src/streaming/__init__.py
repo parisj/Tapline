@@ -1,6 +1,6 @@
 """Streaming module for Kafka-based event processing.
 
-Provides producer and consumer abstractions for the VisioEval
+Provides producer and consumer abstractions for the Tapline
 event streaming architecture.
 """
 

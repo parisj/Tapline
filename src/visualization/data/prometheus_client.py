@@ -213,22 +213,22 @@ class PrometheusClient:
 
     def get_jobs_total(self) -> float:
         """Get total jobs completed."""
-        samples = self.query("sum(visioeval_jobs_completed_total)")
+        samples = self.query("sum(tapline_jobs_completed_total)")
         return samples[0].value if samples else 0.0
 
     def get_jobs_failed(self) -> float:
         """Get total failed jobs."""
-        samples = self.query("sum(visioeval_jobs_failed_total)")
+        samples = self.query("sum(tapline_jobs_failed_total)")
         return samples[0].value if samples else 0.0
 
     def get_throughput(self) -> float:
         """Get current throughput (jobs/sec)."""
-        samples = self.query("sum(rate(visioeval_jobs_completed_total[1m]))")
+        samples = self.query("sum(rate(tapline_jobs_completed_total[1m]))")
         return samples[0].value if samples else 0.0
 
     def get_active_workers(self) -> float:
         """Get number of active workers."""
-        samples = self.query("visioeval_workers_active")
+        samples = self.query("tapline_workers_active")
         return samples[0].value if samples else 0.0
 
     def get_metric_value(self, promql: str, default: float = 0.0) -> float:
@@ -266,7 +266,7 @@ class PrometheusClient:
         start = end - timedelta(hours=hours)
 
         vectors = self.query_range(
-            "sum(rate(visioeval_jobs_completed_total[1m]))",
+            "sum(rate(tapline_jobs_completed_total[1m]))",
             start=start,
             end=end,
             step=step,

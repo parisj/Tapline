@@ -1,5 +1,5 @@
 -- ============================================================================
--- VisioEval Metric Aggregation - Flink SQL Job (OPTIONAL)
+-- Tapline Metric Aggregation - Flink SQL Job (OPTIONAL)
 -- ============================================================================
 -- NOTE: Python-based aggregation (src/app/flink_aggregation.py) is now the
 -- default and recommended method as it:
@@ -7,7 +7,7 @@
 --   - Supports all AnalysisKinds (ELLIPSE_2D, CONTOUR_2D, COUNTER, RATE, etc.)
 --   - Writes directly to MinIO (no extra Kafka consumer needed)
 --
--- To use this Flink SQL job instead, set: VISIOEVAL_USE_FLINK_SQL=true
+-- To use this Flink SQL job instead, set: TAPLINE_USE_FLINK_SQL=true
 --
 -- This SQL job reads METRIC_EMITTED events from Kafka, aggregates metrics
 -- in tumbling time windows, and writes results to the aggregates topic.
@@ -43,7 +43,7 @@ CREATE TABLE metrics_source (
     'connector' = 'kafka',
     'topic' = 'tapline.metrics',
     'properties.bootstrap.servers' = 'kafka:9093',
-    'properties.group.id' = 'visioeval-flink-sql-v2',
+    'properties.group.id' = 'tapline-flink-sql-v2',
     'scan.startup.mode' = 'earliest-offset',
     'format' = 'json',
     'json.ignore-parse-errors' = 'true'

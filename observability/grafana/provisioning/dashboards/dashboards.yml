@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: 'VisioEval'
+  - name: 'Tapline'
     orgId: 1
-    folder: 'VisioEval'
+    folder: 'Tapline'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

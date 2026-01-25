@@ -1,1 +1,1 @@
-"""Integration tests for VisioEval streaming architecture."""
+"""Integration tests for Tapline streaming architecture."""

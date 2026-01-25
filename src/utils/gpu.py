@@ -64,8 +64,8 @@ def _detect_gpu() -> GPUState:
     )
 
     # Check environment variable override
-    if os.environ.get("VISIOEVAL_USE_GPU", "").lower() == "false":
-        logger.info("GPU disabled via VISIOEVAL_USE_GPU=false")
+    if os.environ.get("TAPLINE_USE_GPU", "").lower() == "false":
+        logger.info("GPU disabled via TAPLINE_USE_GPU=false")
         return state
 
     # Try to detect NVIDIA GPU via pynvml

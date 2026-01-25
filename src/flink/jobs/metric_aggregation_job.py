@@ -177,9 +177,9 @@ def create_job() -> StreamExecutionEnvironment:
     """Create and configure the Flink job."""
     # Get configuration from environment
     kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9093")
-    kafka_group_id = os.getenv("FLINK_CONSUMER_GROUP", "visioeval-flink-aggregation")
-    metrics_topic = os.getenv("KAFKA_TOPIC_METRICS", "visio.metrics")
-    aggregates_topic = os.getenv("KAFKA_TOPIC_AGGREGATES", "visio.aggregates")
+    kafka_group_id = os.getenv("FLINK_CONSUMER_GROUP", "tapline-flink-aggregation")
+    metrics_topic = os.getenv("KAFKA_TOPIC_METRICS", "tapline.metrics")
+    aggregates_topic = os.getenv("KAFKA_TOPIC_AGGREGATES", "tapline.aggregates")
     window_size_sec = int(os.getenv("FLINK_WINDOW_SIZE_SEC", "60"))
     parallelism = int(os.getenv("FLINK_PARALLELISM", "4"))
 
@@ -253,7 +253,7 @@ def main() -> None:
 
     env = create_job()
 
-    env.execute("VisioEval-MetricAggregation")
+    env.execute("Tapline-MetricAggregation")
 
 
 if __name__ == "__main__":

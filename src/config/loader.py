@@ -1,4 +1,4 @@
-"""Configuration loader for VisioEval pipeline.
+"""Configuration loader for Tapline pipeline.
 
 Supports loading configuration from TOML files for:
 - Runtime settings (pipeline.toml)
@@ -26,7 +26,7 @@ class ConfigError(ValueError):
 
 @dataclass(frozen=True)
 class RuntimeConfig:
-    """Runtime configuration for the VisioEval pipeline."""
+    """Runtime configuration for the Tapline pipeline."""
 
     ingest_queue_maxsize: int
     ingest_poll_interval_sec: float

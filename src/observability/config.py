@@ -64,7 +64,7 @@ def load_observability_config(path: Path | None = None) -> ObservabilityConfig:
     return ObservabilityConfig(
         # Tracing
         tracing_enabled=tracing.get("enabled", True),
-        service_name=tracing.get("service_name", "visioeval"),
+        service_name=tracing.get("service_name", "tapline"),
         tracing_exporter=tracing.get("exporter", "otlp"),
         otlp_endpoint=tracing.get("otlp_endpoint", "http://localhost:4317"),
         sample_rate=tracing.get("sample_rate", 1.0),

@@ -295,7 +295,7 @@
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["visioeval", "logs", "loki"],
+  "tags": ["tapline", "logs", "loki"],
   "templating": {
     "list": [
       {
@@ -313,8 +313,8 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "VisioEval Logs",
-  "uid": "visioeval-logs",
+  "title": "Tapline Logs",
+  "uid": "tapline-logs",
   "version": 1,
   "weekStart": ""
 }

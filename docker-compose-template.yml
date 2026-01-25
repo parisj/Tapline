@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16
-    container_name: visioeval-postgres
+    container_name: tapline-postgres
     environment:
       POSTGRES_DB: [DATABASE_NAME]
       POSTGRES_USER: [USER_NAME]
@@ -9,6 +9,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - visioeval_pgdata:/var/lib/postgresql/data
+      - tapline_pgdata:/var/lib/postgresql/data
 volumes:
-  visioeval_pgdata:
+  tapline_pgdata:

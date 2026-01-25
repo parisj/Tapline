@@ -467,7 +467,7 @@ class TestKafkaHealthEndpoint:
     def test_kafka_health_success(self, mock_admin_class, client) -> None:
         mock_admin = MagicMock()
         mock_metadata = MagicMock()
-        mock_metadata.topics = {"visio.jobs": MagicMock(partitions={})}
+        mock_metadata.topics = {"tapline.tasks": MagicMock(partitions={})}
         mock_metadata.brokers = {"1": MagicMock()}
         mock_admin.list_topics.return_value = mock_metadata
         mock_admin_class.return_value = mock_admin

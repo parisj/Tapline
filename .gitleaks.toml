@@ -1,5 +1,5 @@
 [allowlist]
-description = "VisioEval allowlist"
+description = "Tapline allowlist"
 paths = [
   '''\.env\.example$''',
   '''tests/.*''',

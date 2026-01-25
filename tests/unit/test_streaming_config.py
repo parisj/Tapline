@@ -48,11 +48,11 @@ class TestKafkaConfig:
             consumer_heartbeat_interval_ms=10000,
             consumer_max_poll_interval_ms=300000,
             consumer_partition_assignment_strategy="cooperative-sticky",
-            topic_jobs="visio.jobs",
-            topic_results="visio.results",
-            topic_metrics="visio.metrics",
-            topic_audit_log="visio.audit-log",
-            topic_aggregates="visio.aggregates",
+            topic_jobs="tapline.tasks",
+            topic_results="tapline.results",
+            topic_metrics="tapline.metrics",
+            topic_audit_log="tapline.audit",
+            topic_aggregates="tapline.aggregates",
             jobs_partitions=32,
             results_partitions=32,
             metrics_partitions=32,
@@ -76,7 +76,7 @@ class TestKafkaConfig:
         assert config.producer_acks == "all"
         assert config.producer_enable_idempotence is True
         assert config.consumer_group_id == "test-group"
-        assert config.topic_jobs == "visio.jobs"
+        assert config.topic_jobs == "tapline.tasks"
         assert config.security_protocol == "PLAINTEXT"
         assert config.socket_timeout_ms == 30000
 
@@ -98,11 +98,11 @@ class TestKafkaConfig:
             consumer_heartbeat_interval_ms=10000,
             consumer_max_poll_interval_ms=300000,
             consumer_partition_assignment_strategy="cooperative-sticky",
-            topic_jobs="visio.jobs",
-            topic_results="visio.results",
-            topic_metrics="visio.metrics",
-            topic_audit_log="visio.audit-log",
-            topic_aggregates="visio.aggregates",
+            topic_jobs="tapline.tasks",
+            topic_results="tapline.results",
+            topic_metrics="tapline.metrics",
+            topic_audit_log="tapline.audit",
+            topic_aggregates="tapline.aggregates",
             jobs_partitions=32,
             results_partitions=32,
             metrics_partitions=32,
@@ -144,15 +144,15 @@ class TestLoadKafkaConfig:
 
         # Check defaults
         assert config.bootstrap_servers == "localhost:9092"
-        assert config.client_id == "visioeval"
+        assert config.client_id == "tapline"
         assert config.producer_acks == "all"
         assert config.producer_retries == 3
         assert config.producer_compression_type == "lz4"
         assert config.producer_enable_idempotence is True
-        assert config.consumer_group_id == "visioeval-workers"
+        assert config.consumer_group_id == "tapline-workers"
         assert config.consumer_auto_offset_reset == "earliest"
         assert config.consumer_enable_auto_commit is False
-        assert config.topic_jobs == "visio.jobs"
+        assert config.topic_jobs == "tapline.tasks"
         assert config.jobs_partitions == 32
         assert config.schema_registry_url == "http://localhost:8085"
 
@@ -311,4 +311,4 @@ class TestLoadKafkaConfig:
 
         # Should use all defaults
         assert config.bootstrap_servers == "localhost:9092"
-        assert config.topic_jobs == "visio.jobs"
+        assert config.topic_jobs == "tapline.tasks"
