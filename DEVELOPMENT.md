@@ -116,7 +116,6 @@ pixi run pytest tests/unit/test_my_module.py::test_specific_function -v
 
 ```bash
 pixi run bandit-check    # Code analysis
-# Dependency scanning runs via osv-scanner in CI
 ```
 
 ## Infrastructure Services
