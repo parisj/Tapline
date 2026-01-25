@@ -115,8 +115,8 @@ pixi run pytest tests/unit/test_my_module.py::test_specific_function -v
 ### Check Security
 
 ```bash
-pixi run security-audit  # Dependency vulnerabilities
 pixi run bandit-check    # Code analysis
+# Dependency scanning runs via osv-scanner in CI
 ```
 
 ## Infrastructure Services

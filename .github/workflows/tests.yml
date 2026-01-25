@@ -72,13 +72,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Dependency audit
+        uses: google/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --lockfile=pixi.lock
+
       - name: Install pixi
         uses: prefix-dev/setup-pixi@v0.8.3
         with:
           cache: true
-
-      - name: Dependency audit
-        run: pixi run security-audit
 
       - name: Code security analysis
         run: pixi run bandit-check

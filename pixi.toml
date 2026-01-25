@@ -29,7 +29,6 @@ pytest-cov = ">=5"
 pytest-timeout = ">=2.2"
 
 # Security & quality
-pip-audit = ">=2.7"
 bandit = ">=1.7"
 mypy = ">=1.14"
 types-requests = ">=2.31"
@@ -37,7 +36,6 @@ pre-commit = ">=4.0"
 
 [dependencies]
 python = ">=3.12,<3.13"
-pip = ">=24.0"
 python-dotenv = ">=1.2.1,<2"
 numpy = ">=1.24.0,<2.2"
 pytest = ">=9.0.2,<10"
@@ -59,7 +57,6 @@ lint = "ruff check ."
 format = "ruff format ."
 typecheck = "mypy src --ignore-missing-imports"
 
-security-audit = "pip-audit"
 bandit-check = "bandit -r src -ll -q"
 
 precommit-install = "pre-commit install"

@@ -81,7 +81,6 @@ pixi run typecheck        # Type check
 pixi run precommit-run    # All checks
 
 # Security
-pixi run security-audit   # Dependency scan
 pixi run bandit-check     # Code analysis
 ```
 
