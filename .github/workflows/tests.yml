@@ -72,11 +72,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install osv-scanner
+        run: |
+          curl -fsSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-scanner
+          chmod +x osv-scanner
+
       - name: Dependency audit
-        uses: google/osv-scanner-action@v2.3.2
-        with:
-          scan-args: |-
-            --lockfile=pixi.lock
+        run: ./osv-scanner --lockfile=pixi.lock
 
       - name: Install pixi
         uses: prefix-dev/setup-pixi@v0.8.3
