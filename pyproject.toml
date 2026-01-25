@@ -3,12 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "VisioEval"
+name = "Tapline"
 version = "0.1.0"
 requires-python = ">=3.11"
 
-[tool.setuptools]
-packages = ["VisioEval"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
 
 [tool.ruff]
 line-length = 120
@@ -133,4 +134,23 @@ exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "error",
+    # Ignore resource warnings from temporary log files in tests
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    # Ignore deprecation warnings from third-party packages
+    "ignore::DeprecationWarning:confluent_kafka.*",
+    "ignore::DeprecationWarning:minio.*",
+]
+markers = [
+    "integration: marks tests as integration tests (require infrastructure)",
+    "e2e: marks tests as end-to-end tests (require full pipeline)",
 ]

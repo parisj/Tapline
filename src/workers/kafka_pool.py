@@ -388,8 +388,8 @@ class KafkaWorkerPool:
             WORKERS_ACTIVE.labels(worker_id=str(worker_id)).dec()
 
     def _is_slow_job(self, plan: Any) -> bool:
-        """Check if job is expected to be slow based on algorithm type."""
-        return bool(plan.algo.name.startswith("model_"))
+        """Check if job is expected to be slow based on processor type."""
+        return bool(plan.processor.name.startswith("model_"))
 
     def _read_file(self, path: str, timeout: float = 30.0) -> bytes:
         """Read file contents, using I/O executor if available.

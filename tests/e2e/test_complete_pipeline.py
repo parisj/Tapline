@@ -65,7 +65,7 @@ class TestPipelineEventFlow:
 
         try:
             # 1. Publish TASK_CREATED
-            event_producer.publish_task_created(
+            event_producer.publish_job_created(
                 source_id=source_id,
                 task_id=task_id,
                 directory_key="path0",
@@ -74,7 +74,7 @@ class TestPipelineEventFlow:
             )
 
             # 2. Publish TASK_STARTED
-            event_producer.publish_task_started(
+            event_producer.publish_job_started(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name=processor_name,
@@ -111,7 +111,7 @@ class TestPipelineEventFlow:
             )
 
             # 5. Publish TASK_COMPLETED
-            event_producer.publish_task_completed(
+            event_producer.publish_job_completed(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name=processor_name,
@@ -281,20 +281,20 @@ class TestAuditTrailIntegrity:
             task_id = f"e2e-chain-job-{uuid.uuid4().hex}"
 
             # Publish sequence of events with same source_id
-            event_producer.publish_task_created(
+            event_producer.publish_job_created(
                 source_id=source_id,
                 task_id=task_id,
                 directory_key="path0",
                 path="/data/test.png",
                 fingerprint="fp123",
             )
-            event_producer.publish_task_started(
+            event_producer.publish_job_started(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name="test_algo",
                 processor_version="1.0.0",
             )
-            event_producer.publish_task_completed(
+            event_producer.publish_job_completed(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name="test_algo",
@@ -342,8 +342,8 @@ class TestAuditTrailIntegrity:
             task_id = f"e2e-audit-{uuid.uuid4().hex}"
             source_id = f"e2e-audit-source-{uuid.uuid4().hex[:8]}"
 
-            # publish_task_created uses publish_with_audit (dual-write)
-            event_producer.publish_task_created(
+            # publish_job_created uses publish_with_audit (dual-write)
+            event_producer.publish_job_created(
                 source_id=source_id,
                 task_id=task_id,
                 directory_key="path0",

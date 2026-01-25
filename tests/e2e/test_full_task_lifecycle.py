@@ -43,7 +43,7 @@ class TestTaskLifecycle:
             source_id = "test-source"
 
             # Publish TASK_CREATED event
-            producer.publish_task_created(
+            producer.publish_job_created(
                 source_id=source_id,
                 task_id=task_id,
                 directory_key="test-dir",
@@ -98,7 +98,7 @@ class TestTaskLifecycle:
             processor_version = "1.0.0"
 
             # Publish lifecycle events in sequence
-            producer.publish_task_created(
+            producer.publish_job_created(
                 source_id=source_id,
                 task_id=task_id,
                 directory_key="test-dir",
@@ -106,14 +106,14 @@ class TestTaskLifecycle:
                 fingerprint="xyz789",
             )
 
-            producer.publish_task_started(
+            producer.publish_job_started(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name=processor_name,
                 processor_version=processor_version,
             )
 
-            producer.publish_task_completed(
+            producer.publish_job_completed(
                 source_id=source_id,
                 task_id=task_id,
                 processor_name=processor_name,
@@ -276,7 +276,7 @@ class TestTaskLifecycle:
             error_msg = "Test error: file not found"
             error_type = "FileNotFoundError"
 
-            producer.publish_task_failed(
+            producer.publish_job_failed(
                 source_id="test-source",
                 task_id=task_id,
                 error=error_msg,
@@ -389,7 +389,7 @@ class TestEventHashChain:
         try:
             task_id = f"test-hash-{uuid.uuid4().hex}"
 
-            producer.publish_task_created(
+            producer.publish_job_created(
                 source_id="test-source",
                 task_id=task_id,
                 directory_key="test-dir",

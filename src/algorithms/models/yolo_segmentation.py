@@ -25,13 +25,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Optional import for ultralytics
+YOLO: Any = None
+ULTRALYTICS_AVAILABLE = False
 try:
     from ultralytics import YOLO
 
     ULTRALYTICS_AVAILABLE = True
 except ImportError:
-    ULTRALYTICS_AVAILABLE = False
-    YOLO = None
+    pass
 
 
 class YoloSegmentationProcessor(Processor):
