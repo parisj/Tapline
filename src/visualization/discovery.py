@@ -452,3 +452,189 @@ class DiscoveryService:
     def clear_cache(self) -> None:
         """Clear the metrics discovery cache."""
         self._metrics_cache.clear()
+
+    def _get_artifact_metadata(self, bucket: str, key: str) -> dict[str, Any]:
+        """Get metadata for an artifact from MinIO.
+
+        Args:
+            bucket: Bucket name
+            key: Object key
+
+        Returns:
+            Dict with task_id, name, processor info, and other metadata
+
+        """
+        try:
+            stat = self._storage._client.stat_object(bucket, key)
+            # MinIO stores user metadata with lowercase keys and x-amz-meta- prefix
+            metadata = stat.metadata or {}
+            # Convert datetime to ISO format string for JSON serialization
+            last_modified = stat.last_modified
+            last_modified_str = last_modified.isoformat() if last_modified else None
+            return {
+                "task_id": metadata.get("x-amz-meta-task_id", ""),
+                "name": metadata.get("x-amz-meta-name", key.split("/")[-1]),
+                "processor_name": metadata.get("x-amz-meta-processor_name", ""),
+                "processor_version": metadata.get("x-amz-meta-processor_version", ""),
+                "content_type": stat.content_type,
+                "size": stat.size,
+                "last_modified": last_modified_str,
+            }
+        except Exception as e:
+            logger.debug("Failed to get metadata for %s/%s: %s", bucket, key, e)
+            return {}
+
+    def list_recent_tasks(
+        self,
+        processor_name: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """List recent tasks from the artifacts bucket.
+
+        Tasks are discovered by reading artifact metadata stored by workers.
+
+        Args:
+            processor_name: Filter by processor name (optional)
+            limit: Maximum number of tasks to return
+            offset: Number of tasks to skip for pagination
+
+        Returns:
+            List of task info dicts with task_id, processor, artifacts, etc.
+
+        """
+        tasks: dict[str, dict[str, Any]] = {}
+
+        try:
+            bucket = self._storage.buckets.get("artifacts", "artifacts")
+            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+
+            for obj in objects:
+                key = obj.get("key", "")
+                # Get metadata from object (contains task_id, name, processor info)
+                metadata = self._get_artifact_metadata(bucket, key)
+                task_id = metadata.get("task_id", "")
+                artifact_name = metadata.get("name", "")
+                proc_name = metadata.get("processor_name", "")
+                proc_version = metadata.get("processor_version", "")
+
+                # Skip objects without task_id metadata
+                if not task_id:
+                    continue
+
+                # Apply processor filter
+                if processor_name and proc_name and proc_name != processor_name:
+                    continue
+
+                # Get mime type from content_type or guess from name
+                content_type = metadata.get("content_type", "")
+                mime = content_type if content_type else self._guess_mime_type(artifact_name)
+
+                if task_id not in tasks:
+                    tasks[task_id] = {
+                        "task_id": task_id,
+                        "processor_name": proc_name,
+                        "processor_version": proc_version,
+                        "artifacts": [],
+                        "status": "completed",
+                        "timestamp": metadata.get("last_modified"),
+                    }
+                else:
+                    # Update processor info if not already set
+                    if proc_name and not tasks[task_id].get("processor_name"):
+                        tasks[task_id]["processor_name"] = proc_name
+                    if proc_version and not tasks[task_id].get("processor_version"):
+                        tasks[task_id]["processor_version"] = proc_version
+
+                tasks[task_id]["artifacts"].append(
+                    {
+                        "name": artifact_name,
+                        "key": key,
+                        "bucket": bucket,
+                        "size": metadata.get("size", 0),
+                        "mime": mime,
+                    },
+                )
+                # Update timestamp to latest
+                if metadata.get("last_modified"):
+                    existing_ts = tasks[task_id].get("timestamp")
+                    if not existing_ts or metadata["last_modified"] > existing_ts:
+                        tasks[task_id]["timestamp"] = metadata["last_modified"]
+
+        except Exception as e:
+            logger.warning("Failed to list tasks: %s", e)
+
+        # Sort by timestamp (most recent first), apply offset and limit
+        sorted_tasks = sorted(
+            tasks.values(),
+            key=lambda t: t.get("timestamp") or "",
+            reverse=True,
+        )
+        return sorted_tasks[offset : offset + limit]
+
+    def list_task_artifacts(self, task_id: str) -> list[dict[str, Any]]:
+        """List all artifacts for a specific task.
+
+        Args:
+            task_id: The task ID to look up
+
+        Returns:
+            List of artifact info dicts with name, key, size, mime type
+
+        """
+        artifacts: list[dict[str, Any]] = []
+
+        try:
+            bucket = self._storage.buckets.get("artifacts", "artifacts")
+            objects = self._storage.list_objects(bucket, prefix="", limit=10000)
+
+            for obj in objects:
+                key = obj.get("key", "")
+                # Get metadata from object
+                metadata = self._get_artifact_metadata(bucket, key)
+                obj_task_id = metadata.get("task_id", "")
+
+                # Only include artifacts belonging to this task
+                if obj_task_id == task_id:
+                    artifact_name = metadata.get("name", key.split("/")[-1])
+                    content_type = metadata.get("content_type", "")
+                    mime = content_type if content_type else self._guess_mime_type(artifact_name)
+                    artifacts.append(
+                        {
+                            "name": artifact_name,
+                            "key": key,
+                            "bucket": bucket,
+                            "size": metadata.get("size", 0),
+                            "mime": mime,
+                            "last_modified": metadata.get("last_modified"),
+                        },
+                    )
+
+        except Exception as e:
+            logger.warning("Failed to list task artifacts: %s", e)
+
+        return artifacts
+
+    def _guess_mime_type(self, filename: str) -> str:
+        """Guess MIME type from filename extension.
+
+        Args:
+            filename: Artifact filename
+
+        Returns:
+            MIME type string
+
+        """
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        mime_map = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "gif": "image/gif",
+            "json": "application/json",
+            "npz": "application/x-npz",
+            "csv": "text/csv",
+            "txt": "text/plain",
+            "html": "text/html",
+        }
+        return mime_map.get(ext, "application/octet-stream")

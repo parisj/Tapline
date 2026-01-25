@@ -50,7 +50,7 @@ class ArtifactComputer:
             counts, edges = np.histogram(arr, bins=bins)
             return {
                 "counts": counts.tolist(),
-                "edges": edges.tolist(),
+                "bin_edges": edges.tolist(),
                 "bins": bins,
             }
         except Exception:

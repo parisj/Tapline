@@ -542,6 +542,16 @@
       border-color: var(--accent-muted);
     }
 
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     /* Form controls */
     .select {
       padding: 6px 10px;
@@ -774,6 +784,84 @@
       .health-grid { grid-template-columns: 1fr; }
     }
 
+    /* Task list items */
+    .task-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .task-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .task-item.selected {
+      background: var(--bg-tertiary);
+      border-left: 2px solid var(--accent);
+    }
+
+    .task-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .task-item-id {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      font-family: monospace;
+    }
+
+    .task-item-processor {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .task-item-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* Image viewer */
+    .image-viewer {
+      text-align: center;
+    }
+
+    .image-viewer img {
+      max-width: 100%;
+      max-height: 60vh;
+      border-radius: var(--radius);
+    }
+
+    /* JSON viewer */
+    .json-viewer {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow: auto;
+      max-height: 60vh;
+    }
+
+    .json-viewer pre {
+      margin: 0;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .json-key { color: #9cdcfe; }
+    .json-string { color: #ce9178; }
+    .json-number { color: #b5cea8; }
+    .json-boolean { color: #569cd6; }
+    .json-null { color: #569cd6; }
+
     /* Scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
@@ -821,6 +909,10 @@
           <a class="nav-item" data-page="algorithms">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             Processors
+          </a>
+          <a class="nav-item" data-page="artifacts-browser">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Artifacts
           </a>
         </div>
 
@@ -1272,6 +1364,74 @@
           </table>
         </div>
       </section>
+
+      <!-- Artifacts Browser -->
+      <section id="page-artifacts-browser" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Artifacts</h1>
+            <p class="page-description">Browse task outputs and reports</p>
+          </div>
+        </header>
+
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">Processor</label>
+            <select class="select" id="artifact-processor-filter">
+              <option value="">All Processors</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="loadTaskList()">Refresh</button>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 350px 1fr;">
+          <!-- Task List Panel -->
+          <div class="card" style="max-height: calc(100vh - 220px); display: flex; flex-direction: column;">
+            <div class="card-header">
+              <span class="card-title">Tasks</span>
+              <span style="color: var(--text-tertiary); font-size: 12px;" id="task-count">0 tasks</span>
+            </div>
+            <div class="card-body" id="task-list" style="padding: 0; flex: 1; overflow-y: auto;">
+              <div class="empty-state">Loading tasks...</div>
+            </div>
+            <div class="card-footer" id="task-pagination" style="display: none; padding: 8px 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <button class="btn btn-sm" id="task-prev-btn" onclick="loadTaskPage(-1)" disabled>Prev</button>
+              <span style="font-size: 12px; color: var(--text-secondary);" id="task-page-info">Page 1</span>
+              <button class="btn btn-sm" id="task-next-btn" onclick="loadTaskPage(1)">Next</button>
+            </div>
+          </div>
+
+          <!-- Artifact Viewer Panel -->
+          <div>
+            <!-- Artifact List for Selected Task -->
+            <div class="card" id="task-artifacts-card" style="display: none;">
+              <div class="card-header">
+                <span class="card-title">Artifacts for <span id="selected-task-id">-</span></span>
+                <span style="color: var(--text-tertiary); font-size: 12px;" id="artifact-count">0 artifacts</span>
+              </div>
+              <div class="card-body">
+                <div class="artifacts-grid" id="task-artifacts-grid"></div>
+              </div>
+            </div>
+
+            <!-- Artifact Viewer -->
+            <div class="card" id="artifact-viewer-card" style="display: none;">
+              <div class="card-header">
+                <span class="card-title" id="viewer-artifact-name">Artifact</span>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn" onclick="downloadCurrentArtifact()">Download</button>
+                  <button class="btn" onclick="closeArtifactViewer()">Close</button>
+                </div>
+              </div>
+              <div class="card-body" id="artifact-viewer-content">
+                <div class="empty-state">Select an artifact to view</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1335,7 +1495,8 @@ function loadPage(page) {
     algorithms: loadProcessors,
     health: loadHealth,
     storage: loadStorage,
-    pipelines: loadPipelines
+    pipelines: loadPipelines,
+    'artifacts-browser': loadArtifactsBrowser
   };
   if (loaders[page]) loaders[page]();
 }
@@ -1801,6 +1962,314 @@ function formatBytes(b) {
 }
 
 document.getElementById('chart-timerange')?.addEventListener('change', loadChart);
+
+// ============================================================================
+// Artifacts Browser
+// ============================================================================
+
+let currentArtifact = { bucket: null, key: null };
+let taskPagination = { page: 0, pageSize: 25, totalTasks: 0, hasMore: false };
+
+async function loadArtifactsBrowser() {
+  await loadProcessorFilter();
+  await loadTaskList();
+}
+
+async function loadProcessorFilter() {
+  const select = document.getElementById('artifact-processor-filter');
+  try {
+    const data = await query('/api/processors');
+    if (data?.processors) {
+      select.innerHTML = '<option value="">All Processors</option>';
+      data.processors.forEach(p => {
+        select.innerHTML += `<option value="${p.name}">${p.name} (${p.task_count} tasks)</option>`;
+      });
+    }
+  } catch (e) {
+    console.error('Failed to load processors:', e);
+  }
+}
+
+async function loadTaskList(resetPage = true) {
+  if (resetPage) taskPagination.page = 0;
+
+  const processor = document.getElementById('artifact-processor-filter').value;
+  const params = new URLSearchParams();
+  if (processor) params.append('processor', processor);
+  // Request one more than pageSize to detect if there are more pages
+  params.append('limit', String(taskPagination.pageSize + 1));
+  params.append('offset', String(taskPagination.page * taskPagination.pageSize));
+
+  const taskList = document.getElementById('task-list');
+  taskList.innerHTML = '<div class="empty-state">Loading tasks...</div>';
+
+  try {
+    const data = await query(`/api/tasks?${params}`);
+    let tasks = data?.tasks || [];
+
+    // Check if there are more pages
+    taskPagination.hasMore = tasks.length > taskPagination.pageSize;
+    if (taskPagination.hasMore) {
+      tasks = tasks.slice(0, taskPagination.pageSize); // Remove the extra item
+    }
+
+    taskPagination.totalTasks = data?.count || tasks.length;
+    updateTaskPagination(tasks.length);
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = '<div class="empty-state">No tasks found</div>';
+      return;
+    }
+
+    taskList.innerHTML = tasks.map(t => `
+      <div class="task-item" onclick="selectTask('${t.task_id}', this)" data-task-id="${t.task_id}">
+        <div class="task-item-header">
+          <span class="task-item-id">${t.task_id.substring(0, 12)}...</span>
+          <span class="badge badge-green">${t.status}</span>
+        </div>
+        <div class="task-item-processor">${t.processor_name || 'unknown'} ${t.processor_version ? 'v' + t.processor_version : ''}</div>
+        <div class="task-item-meta">
+          <span>${t.artifacts?.length || 0} artifacts</span>
+          <span>${formatTimestamp(t.timestamp)}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load tasks:', e);
+    taskList.innerHTML = '<div class="empty-state">Failed to load tasks</div>';
+  }
+}
+
+function updateTaskPagination(displayedCount) {
+  const pagination = document.getElementById('task-pagination');
+  const pageInfo = document.getElementById('task-page-info');
+  const prevBtn = document.getElementById('task-prev-btn');
+  const nextBtn = document.getElementById('task-next-btn');
+
+  // Show pagination only if there's more than one page of content
+  const showPagination = taskPagination.page > 0 || taskPagination.hasMore;
+  pagination.style.display = showPagination ? 'flex' : 'none';
+
+  // Update page info
+  const start = taskPagination.page * taskPagination.pageSize + 1;
+  const end = start + displayedCount - 1;
+  pageInfo.textContent = `${start}-${end}`;
+  document.getElementById('task-count').textContent = taskPagination.hasMore ? `${end}+ tasks` : `${end} tasks`;
+
+  // Update button states
+  prevBtn.disabled = taskPagination.page === 0;
+  nextBtn.disabled = !taskPagination.hasMore;
+}
+
+function loadTaskPage(direction) {
+  taskPagination.page += direction;
+  if (taskPagination.page < 0) taskPagination.page = 0;
+  loadTaskList(false);
+}
+
+async function selectTask(taskId, element) {
+  // Update selection UI
+  document.querySelectorAll('.task-item').forEach(el => el.classList.remove('selected'));
+  if (element) element.classList.add('selected');
+
+  document.getElementById('selected-task-id').textContent = taskId.substring(0, 16) + '...';
+  document.getElementById('task-artifacts-card').style.display = 'block';
+
+  const grid = document.getElementById('task-artifacts-grid');
+  grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Loading artifacts...</div>';
+
+  try {
+    const data = await query(`/api/tasks/${taskId}/artifacts`);
+    const artifacts = data?.artifacts || [];
+    document.getElementById('artifact-count').textContent = `${artifacts.length} artifacts`;
+
+    if (artifacts.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No artifacts</div>';
+      return;
+    }
+
+    grid.innerHTML = artifacts.map(a => {
+      const icon = getArtifactIcon(a.mime);
+      return `
+        <div class="artifact-card" onclick="viewArtifactWithViewer('${a.bucket}', '${a.key}', '${a.name}')">
+          <div style="font-size: 20px; margin-bottom: 8px;">${icon}</div>
+          <div class="artifact-name">${a.name}</div>
+          <div class="artifact-meta">${formatBytes(a.size)}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('Failed to load task artifacts:', e);
+    grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Failed to load artifacts</div>';
+  }
+}
+
+function getArtifactIcon(mime) {
+  const iconColor = 'var(--text-secondary)';
+  if (mime?.startsWith('image/')) {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <path d="M21 15l-5-5L5 21"/>
+    </svg>`;
+  }
+  if (mime === 'application/json') {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/>
+      <path d="M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/>
+    </svg>`;
+  }
+  if (mime === 'application/x-npz') {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <rect x="3" y="12" width="4" height="9"/>
+      <rect x="10" y="8" width="4" height="13"/>
+      <rect x="17" y="4" width="4" height="17"/>
+    </svg>`;
+  }
+  return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>`;
+}
+
+async function viewArtifactWithViewer(bucket, key, name) {
+  currentArtifact = { bucket, key };
+  document.getElementById('viewer-artifact-name').textContent = name;
+  document.getElementById('artifact-viewer-card').style.display = 'block';
+
+  const content = document.getElementById('artifact-viewer-content');
+  content.innerHTML = '<div class="empty-state">Loading...</div>';
+
+  try {
+    const data = await query(`/api/artifacts/view/${bucket}/${key}`);
+
+    if (data?.error) {
+      content.innerHTML = `<div class="empty-state">Error: ${data.error}</div>`;
+      return;
+    }
+
+    switch (data.render_type) {
+      case 'plotly':
+        renderPlotlyViewer(content, data.data);
+        break;
+      case 'image':
+        renderImageViewer(content, data.data);
+        break;
+      case 'json':
+        renderJSONViewer(content, data.data);
+        break;
+      case 'stats':
+        renderStatsViewer(content, data.data);
+        break;
+      default:
+        content.innerHTML = `<div class="empty-state">Unsupported viewer type: ${data.render_type}</div>`;
+    }
+  } catch (e) {
+    console.error('Failed to view artifact:', e);
+    content.innerHTML = '<div class="empty-state">Failed to load artifact</div>';
+  }
+}
+
+function renderPlotlyViewer(container, plotlyConfig) {
+  container.innerHTML = '<div id="plotly-viewer" style="height: 400px;"></div>';
+  const layout = {
+    ...PLOTLY_LAYOUT,
+    ...plotlyConfig.layout,
+    height: 400
+  };
+  Plotly.newPlot('plotly-viewer', plotlyConfig.data, layout, { responsive: true, displayModeBar: true });
+}
+
+function renderImageViewer(container, imageData) {
+  container.innerHTML = `
+    <div class="image-viewer">
+      <img src="${imageData.data_uri}" alt="Artifact image" />
+      <div style="margin-top: 12px; color: var(--text-tertiary); font-size: 12px;">
+        ${imageData.width ? `${imageData.width}×${imageData.height}px • ` : ''}${formatBytes(imageData.size_bytes)}
+      </div>
+    </div>
+  `;
+}
+
+function renderJSONViewer(container, jsonData) {
+  const formatted = syntaxHighlightJSON(JSON.stringify(jsonData, null, 2));
+  container.innerHTML = `
+    <div class="json-viewer">
+      <pre>${formatted}</pre>
+    </div>
+  `;
+}
+
+function renderStatsViewer(container, statsData) {
+  const stats = ['count', 'mean', 'median', 'min', 'max', 'std'];
+  let html = '<div class="stats-list">';
+  stats.forEach(key => {
+    if (statsData[key] !== undefined) {
+      const val = typeof statsData[key] === 'number' ? statsData[key].toFixed(4) : statsData[key];
+      html += `
+        <div class="stats-item">
+          <span class="stats-label">${key}</span>
+          <span class="stats-value">${val}</span>
+        </div>
+      `;
+    }
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function syntaxHighlightJSON(json) {
+  return json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      let cls = 'json-number';
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'json-key' : 'json-string';
+      } else if (/true|false/.test(match)) {
+        cls = 'json-boolean';
+      } else if (/null/.test(match)) {
+        cls = 'json-null';
+      }
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+function closeArtifactViewer() {
+  document.getElementById('artifact-viewer-card').style.display = 'none';
+  currentArtifact = { bucket: null, key: null };
+}
+
+async function downloadCurrentArtifact() {
+  if (!currentArtifact.bucket || !currentArtifact.key) return;
+
+  const url = `${CONFIG.apiUrl}/api/artifact/${currentArtifact.bucket}/${currentArtifact.key}?raw=true`;
+  const filename = currentArtifact.key.split('/').pop();
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return '-';
+  try {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now - date;
+
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return '-';
+  }
+}
 </script>
 </body>
 </html>

@@ -1,44 +1,28 @@
 # src/evaluation/pipeline.py
-from collections.abc import Callable
+"""Pipeline configuration for metric aggregation.
+
+This module provides the mapping between AggregationType and analyzer factories.
+Uses the AnalyzerRegistry for extensible analyzer management.
+"""
 
 from src.domain.evaluation import AggregationType
-from src.evaluation.analyzers import (
-    ContourAnalyzer,
-    CounterAnalyzer,
-    CovEllipseAnalyzer,
-    HistogramAnalyzer,
-    OutliersAnalyzer,
-    RateAnalyzer,
-    SummaryAnalyzer,
+from src.evaluation.analyzer_registry import (
+    AnalyzerFactory,
+    AnalyzerRegistry,
+    get_default_registry,
 )
-from src.evaluation.analyzers.base import Analyzer
 
-AnalyzerFactory = Callable[[], Analyzer]
+# Export AnalyzerFactory type for external use
+__all__ = [
+    "ANALYSIS_PIPELINE",
+    "AnalysisKind",
+    "AnalyzerFactory",
+    "AnalyzerRegistry",
+    "get_default_registry",
+]
 
-ANALYSIS_PIPELINE: dict[AggregationType, list[AnalyzerFactory]] = {
-    AggregationType.STATS: [
-        SummaryAnalyzer,
-    ],
-    AggregationType.HISTOGRAM: [
-        HistogramAnalyzer,
-    ],
-    AggregationType.OUTLIERS: [
-        OutliersAnalyzer,
-    ],
-    AggregationType.TALLY: [
-        CounterAnalyzer,
-    ],
-    AggregationType.RATE: [
-        RateAnalyzer,
-    ],
-    AggregationType.SCATTER_ELLIPSE: [
-        CovEllipseAnalyzer,
-    ],
-    AggregationType.DENSITY_MAP: [
-        ContourAnalyzer,
-    ],
-}
-
+# Backwards-compatible dict format using the registry
+ANALYSIS_PIPELINE = get_default_registry().to_pipeline_dict()
 
 # Backwards compatibility alias (deprecated)
 AnalysisKind = AggregationType

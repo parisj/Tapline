@@ -295,6 +295,8 @@ class KafkaWorkerPool:
                     list(result.artifacts),
                     job.task_id,
                     source_id,
+                    processor_name,
+                    processor_version,
                 )
 
             # Publish RESULT_PRODUCED
@@ -414,6 +416,8 @@ class KafkaWorkerPool:
         artifacts: list[Any],
         task_id: str,
         source_id: str,
+        processor_name: str,
+        processor_version: str,
     ) -> list[str]:
         """Store artifacts to MinIO in parallel.
 
@@ -421,6 +425,8 @@ class KafkaWorkerPool:
             artifacts: List of Artifact objects to store
             task_id: Job ID for metadata
             source_id: Source ID for event publishing
+            processor_name: Processor name for metadata
+            processor_version: Processor version for metadata
 
         Returns:
             List of content hashes for stored artifacts
@@ -436,7 +442,9 @@ class KafkaWorkerPool:
 
         # If no parallel workers configured, use sequential storage
         if self._artifact_upload_workers == 0:
-            return self._store_artifacts_sequential(to_store, task_id, source_id)
+            return self._store_artifacts_sequential(
+                to_store, task_id, source_id, processor_name, processor_version,
+            )
 
         artifact_refs: list[str] = []
         with ThreadPoolExecutor(max_workers=self._artifact_upload_workers) as executor:
@@ -448,6 +456,8 @@ class KafkaWorkerPool:
                     data,
                     task_id,
                     source_id,
+                    processor_name,
+                    processor_version,
                 )
                 futures[future] = artifact
 
@@ -472,12 +482,16 @@ class KafkaWorkerPool:
         to_store: list[tuple[Any, bytes]],
         task_id: str,
         source_id: str,
+        processor_name: str,
+        processor_version: str,
     ) -> list[str]:
         """Store artifacts sequentially (fallback when parallel disabled)."""
         artifact_refs: list[str] = []
         for artifact, data in to_store:
             try:
-                content_hash = self._store_single_artifact(artifact, data, task_id, source_id)
+                content_hash = self._store_single_artifact(
+                    artifact, data, task_id, source_id, processor_name, processor_version,
+                )
                 if content_hash:
                     artifact_refs.append(content_hash)
             except Exception as e:
@@ -495,6 +509,8 @@ class KafkaWorkerPool:
         data: bytes,
         task_id: str,
         source_id: str,
+        processor_name: str,
+        processor_version: str,
     ) -> str | None:
         """Store a single artifact to MinIO and publish event.
 
@@ -506,7 +522,12 @@ class KafkaWorkerPool:
             data=data,
             bucket=self._storage.buckets["artifacts"],
             mime=artifact.mime,
-            metadata={"task_id": task_id, "name": artifact.name},
+            metadata={
+                "task_id": task_id,
+                "name": artifact.name,
+                "processor_name": processor_name,
+                "processor_version": processor_version,
+            },
         )
 
         # Publish ARTIFACT_STORED event

@@ -35,6 +35,7 @@ from src.visualization.discovery import DiscoveryService
 from src.visualization.readers import MinioArtifactReader
 from src.visualization.services import ArtifactComputer, PrometheusService
 from src.visualization.services.prometheus_service import JaegerService
+from src.visualization.viewers import ViewerRegistry, get_default_viewer_registry
 
 # Type alias for Flask route responses (single Response or Response with status code)
 FlaskResponse = Response | tuple[Response, int]
@@ -232,11 +233,12 @@ reader: MinioArtifactReader | None = None
 prometheus_service: PrometheusService | None = None
 jaeger_service: JaegerService | None = None
 artifact_computer: ArtifactComputer | None = None
+viewer_registry: ViewerRegistry | None = None
 
 
 def init_services() -> None:
     """Initialize MinIO and discovery services."""
-    global storage, discovery, reader, prometheus_service, jaeger_service, artifact_computer
+    global storage, discovery, reader, prometheus_service, jaeger_service, artifact_computer, viewer_registry
 
     try:
         runtime_cfg = load_runtime_config(CONFIG_ROOT / "pipeline.toml")
@@ -249,6 +251,7 @@ def init_services() -> None:
         prometheus_service = PrometheusService(PROMETHEUS_URL)
         jaeger_service = JaegerService()
         artifact_computer = ArtifactComputer()
+        viewer_registry = get_default_viewer_registry()
 
         logger.info("API server services initialized successfully")
     except Exception:
@@ -1013,6 +1016,206 @@ def get_artifact(bucket: str, key: str) -> FlaskResponse:
         )
     except Exception as e:
         logger.exception("Failed to get artifact")
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Task & Artifact Viewer Endpoints
+# =============================================================================
+
+
+@app.route("/api/tasks", methods=["GET"])
+def list_tasks() -> FlaskResponse:
+    """List recent tasks with their artifacts.
+
+    Query parameters:
+        processor: Filter by processor name
+        limit: Maximum number of tasks to return (default 50, max 200)
+        offset: Number of tasks to skip for pagination (default 0)
+    """
+    if discovery is None:
+        return jsonify({"error": "Discovery service not initialized"}), 503
+
+    try:
+        processor_name = request.args.get("processor")
+
+        # Validate and bound limit parameter
+        try:
+            limit = min(int(request.args.get("limit", 50)), 200)
+            if limit <= 0:
+                limit = 50
+        except ValueError:
+            limit = 50
+
+        # Validate offset parameter
+        try:
+            offset = max(int(request.args.get("offset", 0)), 0)
+        except ValueError:
+            offset = 0
+
+        tasks = discovery.list_recent_tasks(
+            processor_name=processor_name,
+            limit=limit,
+            offset=offset,
+        )
+
+        return jsonify(
+            {
+                "tasks": tasks,
+                "count": len(tasks),
+            },
+        )
+    except Exception as e:
+        logger.exception("Failed to list tasks")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tasks/<task_id>/artifacts", methods=["GET"])
+def list_task_artifacts(task_id: str) -> FlaskResponse:
+    """List all artifacts for a specific task."""
+    if discovery is None:
+        return jsonify({"error": "Discovery service not initialized"}), 503
+
+    # Security: validate task_id format (alphanumeric with dashes/underscores)
+    if not re.match(r"^[a-zA-Z0-9_-]{1,64}$", task_id):
+        return jsonify({"error": "Invalid task ID format"}), 400
+
+    try:
+        artifacts = discovery.list_task_artifacts(task_id)
+
+        return jsonify(
+            {
+                "task_id": task_id,
+                "artifacts": artifacts,
+                "count": len(artifacts),
+            },
+        )
+    except Exception as e:
+        logger.exception("Failed to list task artifacts")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/artifacts/view/<bucket>/<path:key>", methods=["GET"])
+def view_artifact(bucket: str, key: str) -> FlaskResponse:
+    """View an artifact using the appropriate viewer.
+
+    Returns viewer-ready data (Plotly config, base64 image, JSON, etc.)
+    based on the artifact type and aggregation mask.
+
+    Query parameters:
+        aggregation_mask: Optional aggregation mask for specialized viewing
+    """
+    if storage is None or viewer_registry is None:
+        return jsonify({"error": "Services not initialized"}), 503
+
+    # Security: validate bucket name against allowlist
+    if bucket not in ALLOWED_BUCKETS:
+        return jsonify({"error": "Invalid bucket"}), 400
+
+    # Security: validate key doesn't contain path traversal
+    if ".." in key or key.startswith("/"):
+        return jsonify({"error": "Invalid key"}), 400
+
+    try:
+        # Get artifact data
+        data = storage.retrieve_by_key(bucket, key)
+        if data is None:
+            return jsonify({"error": "Artifact not found"}), 404
+
+        # Get object metadata from MinIO (for task_id, name, processor info, content_type)
+        metadata: dict[str, Any] = {"key": key, "bucket": bucket}
+        try:
+            stat = storage._client.stat_object(bucket, key)
+            obj_metadata = stat.metadata or {}
+            # Extract user metadata (stored with x-amz-meta- prefix)
+            metadata["task_id"] = obj_metadata.get("x-amz-meta-task_id", "")
+            metadata["artifact_name"] = obj_metadata.get("x-amz-meta-name", key.split("/")[-1])
+            metadata["processor_name"] = obj_metadata.get("x-amz-meta-processor_name", "")
+            metadata["processor_version"] = obj_metadata.get("x-amz-meta-processor_version", "")
+            stored_mime = stat.content_type
+        except Exception:
+            stored_mime = None
+
+        # Determine MIME type: prefer stored content_type, fall back to extension
+        if stored_mime and stored_mime != "application/octet-stream":
+            mime = stored_mime
+        else:
+            # Try to guess from artifact name if available
+            name_for_mime = metadata.get("artifact_name", key)
+            ext = name_for_mime.rsplit(".", 1)[-1].lower() if "." in name_for_mime else ""
+            mime_map = {
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "gif": "image/gif",
+                "json": "application/json",
+                "npz": "application/x-npz",
+            }
+            mime = mime_map.get(ext, "application/octet-stream")
+
+        # Get aggregation mask from query param or try to infer
+        try:
+            aggregation_mask = int(request.args.get("aggregation_mask", 0))
+        except ValueError:
+            aggregation_mask = 0
+
+        # Use viewer registry to render the artifact
+        result = viewer_registry.view(
+            data=data,
+            mime=mime,
+            aggregation_mask=aggregation_mask,
+            metadata=metadata,
+        )
+
+        return jsonify(
+            {
+                "viewer_type": result.viewer_type,
+                "render_type": result.render_type,
+                "data": result.data,
+                "metadata": result.metadata,
+                "error": result.error,
+            },
+        )
+    except Exception as e:
+        logger.exception("Failed to view artifact")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/processors", methods=["GET"])
+def list_processors() -> FlaskResponse:
+    """List all processors that have produced artifacts.
+
+    Returns unique processor names from the artifacts bucket.
+    """
+    if discovery is None:
+        return jsonify({"error": "Discovery service not initialized"}), 503
+
+    try:
+        # Get all tasks and extract unique processor names
+        tasks = discovery.list_recent_tasks(limit=1000)
+        processors: dict[str, dict[str, Any]] = {}
+
+        for task in tasks:
+            proc_name = task.get("processor_name", "")
+            proc_version = task.get("processor_version", "")
+            key = f"{proc_name}|{proc_version}"
+
+            if key not in processors:
+                processors[key] = {
+                    "name": proc_name,
+                    "version": proc_version,
+                    "task_count": 0,
+                }
+            processors[key]["task_count"] += 1
+
+        return jsonify(
+            {
+                "processors": list(processors.values()),
+                "count": len(processors),
+            },
+        )
+    except Exception as e:
+        logger.exception("Failed to list processors")
         return jsonify({"error": str(e)}), 500
 
 

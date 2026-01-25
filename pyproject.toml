@@ -81,6 +81,9 @@ ignore = [
     "F841",    # Unused variables OK in tests
     "PT022",   # Yield in fixtures
     "S310",    # URL open audit (test URLs)
+    "PLC0415", # Local imports OK in tests (for test isolation)
+    "PLR1714", # Multiple comparisons OK in tests
+    "NPY002",  # Legacy random OK in tests
 ]
 "benchmarks/**/*.py" = [
     "T201",    # Print statements allowed in benchmarks
@@ -93,10 +96,14 @@ ignore = [
 ]
 # Lazy imports for algorithm registry
 "src/algorithms/registry.py" = ["PLC0415", "UP037"]
+# Lazy imports for analyzer registry
+"src/evaluation/analyzer_registry.py" = ["PLC0415", "ANN401"]
 # Base classes and protocols have unused args by design
 "src/algorithms/base.py" = ["ARG002"]
 "src/audit/chain.py" = ["ARG002"]
 "src/evaluation/analyzers/*.py" = ["ARG002"]
+# Viewer protocol implementations have unused args by design
+"src/visualization/viewers/*.py" = ["ARG002", "PLC0415", "ANN401"]
 # Conditional imports for optional dependencies
 "src/streaming/producer.py" = ["PLC0415", "ANN401", "E402", "ARG002"]
 "src/streaming/consumer.py" = ["ARG002"]
