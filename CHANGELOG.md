@@ -73,5 +73,3 @@ here rather than silently ignored.
 - Hash chain content hash is keyless and therefore replayable by an attacker with storage write access (security M-3)
 - Dashboard binds to `0.0.0.0` with no authentication; tighten before exposing beyond loopback (security H-4)
 - Several dashboard `innerHTML` call sites still need defensive escaping (frontend C-1)
-
-See `.omc/reports/` for the full evaluation reports.
