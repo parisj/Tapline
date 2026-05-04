@@ -444,7 +444,11 @@ class KafkaWorkerPool:
         # If no parallel workers configured, use sequential storage
         if self._artifact_upload_workers == 0:
             return self._store_artifacts_sequential(
-                to_store, task_id, source_id, processor_name, processor_version,
+                to_store,
+                task_id,
+                source_id,
+                processor_name,
+                processor_version,
             )
 
         artifact_refs: list[str] = []
@@ -491,7 +495,12 @@ class KafkaWorkerPool:
         for artifact, data in to_store:
             try:
                 content_hash = self._store_single_artifact(
-                    artifact, data, task_id, source_id, processor_name, processor_version,
+                    artifact,
+                    data,
+                    task_id,
+                    source_id,
+                    processor_name,
+                    processor_version,
                 )
                 if content_hash:
                     artifact_refs.append(content_hash)

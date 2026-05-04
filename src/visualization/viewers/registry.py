@@ -82,12 +82,13 @@ class ViewerRegistry:
                 data=None,
                 error=f"No viewer found for mime={mime}, mask={aggregation_mask}",
             )
-        return viewer.view(
+        result: ViewerResult = viewer.view(
             data=data,
             mime=mime,
             aggregation_mask=aggregation_mask,
             metadata=metadata,
         )
+        return result
 
     @property
     def viewer_types(self) -> list[str]:

@@ -464,7 +464,7 @@ def _fetch_metric_values(
     )
 
     if values_data.get("values"):
-        raw_values = values_data["values"]
+        raw_values: list[Any] = values_data["values"]
         if metric.aggregation_mask == 0 and values_data.get("aggregation_mask"):
             response["aggregation_mask"] = values_data["aggregation_mask"]
             response["aggregation_types"] = list(mask_to_kind_names(values_data["aggregation_mask"]))

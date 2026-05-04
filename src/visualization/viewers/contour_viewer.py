@@ -60,11 +60,7 @@ class ContourViewer:
             grid_list = grid.tolist()
 
             # Calculate axis values from edges or use indices
-            x_vals = (
-                x_edges.tolist()
-                if x_edges is not None
-                else list(range(len(grid_list[0]) if grid_list else 0))
-            )
+            x_vals = x_edges.tolist() if x_edges is not None else list(range(len(grid_list[0]) if grid_list else 0))
             y_vals = y_edges.tolist() if y_edges is not None else list(range(len(grid_list)))
 
             plotly_config = {

@@ -81,7 +81,8 @@ class ImageViewer:
             from PIL import Image
 
             img = Image.open(io.BytesIO(data))
-            return img.size
+            width, height = img.size
+            return (width, height)
         except ImportError:
             return None
         except Exception:
