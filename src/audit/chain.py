@@ -1,4 +1,4 @@
-"""Hash chain implementation for GxP-compliant audit trails.
+"""Hash chain implementation for tamper-evident audit trails.
 
 This module provides:
 - Per-partition hash chain tracking for event ordering

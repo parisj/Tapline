@@ -1,6 +1,6 @@
-"""Audit trail module for GxP compliance.
+"""Audit trail module providing tamper-evident event logging.
 
-Provides hash chain tracking and verification for tamper-evident event logging.
+Hash chain tracking and verification for end-to-end auditability.
 """
 
 from src.audit.chain import (
