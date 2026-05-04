@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" style="background:#f6f7f9;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" style="background:#0A0F14;">
   <defs>
     <!-- Accent -->
     <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#4f46e5"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+      <stop offset="0%" stop-color="#00D4AA"/>
+      <stop offset="100%" stop-color="#0066FF"/>
     </linearGradient>
 
     <!-- Arrow -->
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#374151"/>
+      <path d="M0,0 L0,6 L9,3 z" fill="#8A9BA8"/>
     </marker>
 
     <marker id="arrowMuted" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#9ca3af"/>
+      <path d="M0,0 L0,6 L9,3 z" fill="#6B7D8E"/>
     </marker>
   </defs>
 
@@ -30,57 +30,60 @@
 
   <!-- CONTROL PLANE -->
   <g>
-    <text x="50" y="105" font-size="14" font-weight="bold" fill="#374151"
+    <text x="50" y="105" font-size="14" font-weight="bold" fill="#FFFFFF"
           font-family="Inter, Arial, sans-serif">
       Control Plane
     </text>
 
-    <rect x="50" y="120" width="300" height="90" rx="12" fill="#fff"
-          stroke="#d1d5db" stroke-width="1.5"/>
+    <rect x="50" y="120" width="300" height="90" rx="12" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
     <text x="200" y="150" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       Configuration (TOML)
     </text>
-    <text x="200" y="170" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="200" y="170" text-anchor="middle" font-size="11" fill="#8A9BA8">
       pipeline · routes · kafka · minio · flink
     </text>
 
-    <rect x="380" y="120" width="300" height="90" rx="12" fill="#fff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="530" y="150" text-anchor="middle" font-size="14" font-weight="bold">
+    <rect x="380" y="120" width="300" height="90" rx="12" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="530" y="150" text-anchor="middle" font-size="14" font-weight="bold"
+          fill="#FFFFFF">
       Algorithm Registry
     </text>
-    <text x="530" y="170" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="530" y="170" text-anchor="middle" font-size="11" fill="#8A9BA8">
       (name, version) → factory
     </text>
 
-    <rect x="710" y="120" width="300" height="90" rx="12" fill="#fff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="860" y="150" text-anchor="middle" font-size="14" font-weight="bold">
+    <rect x="710" y="120" width="300" height="90" rx="12" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="860" y="150" text-anchor="middle" font-size="14" font-weight="bold"
+          fill="#FFFFFF">
       Dispatcher
     </text>
-    <text x="860" y="170" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="860" y="170" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Directory → Algorithm plan
     </text>
 
-    <rect x="1040" y="120" width="510" height="90" rx="12" fill="#fff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="1295" y="150" text-anchor="middle" font-size="14" font-weight="bold">
+    <rect x="1040" y="120" width="510" height="90" rx="12" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="1295" y="150" text-anchor="middle" font-size="14" font-weight="bold"
+          fill="#FFFFFF">
       Audit & Query Layer
     </text>
-    <text x="1295" y="170" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1295" y="170" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Event hash chain · Read-only consumers · Dashboards
     </text>
   </g>
 
   <!-- DATA PLANE -->
   <g>
-    <text x="50" y="255" font-size="14" font-weight="bold" fill="#374151">
+    <text x="50" y="255" font-size="14" font-weight="bold" fill="#FFFFFF">
       Data Plane (Streaming)
     </text>
 
     <!-- Boxes -->
-    <g fill="#ffffff" stroke="#d1d5db" stroke-width="1.5">
+    <g fill="#141B22" stroke="#2A3744" stroke-width="1.5">
       <rect x="50"  y="270" width="220" height="90" rx="14"/>
       <rect x="300" y="270" width="240" height="90" rx="14"/>
       <rect x="570" y="260" width="260" height="110" rx="16"/>
@@ -90,108 +93,108 @@
     </g>
 
     <!-- Labels -->
-    <text x="160" y="300" text-anchor="middle" font-size="14" font-weight="bold">Ingest</text>
-    <text x="160" y="320" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="160" y="300" text-anchor="middle" font-size="14" font-weight="bold" fill="#FFFFFF">Ingest</text>
+    <text x="160" y="320" text-anchor="middle" font-size="11" fill="#8A9BA8">
       kafka_observer
     </text>
 
-    <text x="420" y="300" text-anchor="middle" font-size="14" font-weight="bold">Kafka</text>
-    <text x="420" y="320" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="420" y="300" text-anchor="middle" font-size="14" font-weight="bold" fill="#FFFFFF">Kafka</text>
+    <text x="420" y="320" text-anchor="middle" font-size="11" fill="#8A9BA8">
       jobs · results · metrics · audit-log
     </text>
 
-    <text x="700" y="295" text-anchor="middle" font-size="15" font-weight="bold">
+    <text x="700" y="295" text-anchor="middle" font-size="15" font-weight="bold" fill="#FFFFFF">
       Worker Pool
     </text>
-    <text x="700" y="317" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="700" y="317" text-anchor="middle" font-size="11" fill="#8A9BA8">
       kafka consumers · offload strategies
     </text>
 
-    <text x="970" y="300" text-anchor="middle" font-size="14" font-weight="bold">
+    <text x="970" y="300" text-anchor="middle" font-size="14" font-weight="bold" fill="#FFFFFF">
       Algorithm.run()
     </text>
-    <text x="970" y="320" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="970" y="320" text-anchor="middle" font-size="11" fill="#8A9BA8">
       emit MetricValue
     </text>
 
-    <text x="1240" y="300" text-anchor="middle" font-size="14" font-weight="bold">
+    <text x="1240" y="300" text-anchor="middle" font-size="14" font-weight="bold" fill="#FFFFFF">
       MinIO
     </text>
-    <text x="1240" y="320" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1240" y="320" text-anchor="middle" font-size="11" fill="#8A9BA8">
       inputs · artifacts
     </text>
 
-    <text x="1475" y="300" text-anchor="middle" font-size="14" font-weight="bold">
+    <text x="1475" y="300" text-anchor="middle" font-size="14" font-weight="bold" fill="#FFFFFF">
       Flink
     </text>
-    <text x="1475" y="320" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1475" y="320" text-anchor="middle" font-size="11" fill="#8A9BA8">
       windowed aggregation
     </text>
 
     <!-- Arrows -->
-    <path d="M270 315 L300 315" stroke="#374151" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-    <path d="M540 315 L570 315" stroke="#374151" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-    <path d="M830 315 L860 315" stroke="#374151" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-    <path d="M1080 315 L1110 315" stroke="#374151" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
-    <path d="M1370 315 L1400 315" stroke="#374151" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M270 315 L300 315" stroke="#8A9BA8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M540 315 L570 315" stroke="#8A9BA8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M830 315 L860 315" stroke="#8A9BA8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M1080 315 L1110 315" stroke="#8A9BA8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M1370 315 L1400 315" stroke="#8A9BA8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
   </g>
 
   <!-- AGGREGATION -->
   <g>
-    <rect x="400" y="430" width="350" height="130" rx="18" fill="#ffffff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="575" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+    <rect x="400" y="430" width="350" height="130" rx="18" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="575" y="465" text-anchor="middle" font-size="16" font-weight="bold" fill="#FFFFFF">
       Flink SQL Aggregation
     </text>
-    <text x="575" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="575" y="490" text-anchor="middle" font-size="11" fill="#8A9BA8">
       1-min tumbling windows · count/sum/avg/min/max
     </text>
-    <text x="575" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="575" y="510" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Grouped by: algo_name, algo_version, metric_name
     </text>
 
-    <rect x="800" y="430" width="280" height="130" rx="18" fill="#ffffff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="940" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+    <rect x="800" y="430" width="280" height="130" rx="18" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="940" y="465" text-anchor="middle" font-size="16" font-weight="bold" fill="#FFFFFF">
       Aggregate Sink
     </text>
-    <text x="940" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="940" y="490" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Kafka → MinIO consumer
     </text>
-    <text x="940" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="940" y="510" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Separate process for parallelism
     </text>
 
-    <rect x="1130" y="430" width="420" height="130" rx="18" fill="#ffffff"
-          stroke="#d1d5db" stroke-width="1.5"/>
-    <text x="1340" y="465" text-anchor="middle" font-size="16" font-weight="bold">
+    <rect x="1130" y="430" width="420" height="130" rx="18" fill="#141B22"
+          stroke="#2A3744" stroke-width="1.5"/>
+    <text x="1340" y="465" text-anchor="middle" font-size="16" font-weight="bold" fill="#FFFFFF">
       Aggregates (MinIO)
     </text>
-    <text x="1340" y="490" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1340" y="490" text-anchor="middle" font-size="11" fill="#8A9BA8">
       JSON summaries + NPZ artifacts
     </text>
-    <text x="1340" y="510" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1340" y="510" text-anchor="middle" font-size="11" fill="#8A9BA8">
       content-addressed · immutable
     </text>
 
     <!-- Arrows: Flink -> Kafka -> Aggregate Sink -> MinIO -->
-    <path d="M1475 370 L1475 430" stroke="#374151" stroke-width="2.5"
+    <path d="M1475 370 L1475 430" stroke="#8A9BA8" stroke-width="2.5"
           fill="none" marker-end="url(#arrow)"/>
-    <path d="M750 495 L800 495" stroke="#374151" stroke-width="2.5"
+    <path d="M750 495 L800 495" stroke="#8A9BA8" stroke-width="2.5"
           fill="none" marker-end="url(#arrow)"/>
-    <path d="M1080 495 L1130 495" stroke="#374151" stroke-width="2.5"
+    <path d="M1080 495 L1130 495" stroke="#8A9BA8" stroke-width="2.5"
           fill="none" marker-end="url(#arrow)"/>
   </g>
 
   <!-- OBSERVABILITY PLANE -->
   <g>
-    <text x="50" y="610" font-size="14" font-weight="bold" fill="#374151"
+    <text x="50" y="610" font-size="14" font-weight="bold" fill="#FFFFFF"
           font-family="Inter, Arial, sans-serif">
       Observability Plane
     </text>
 
     <!-- Boxes -->
-    <g fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5">
+    <g fill="#1A1A0F" stroke="#f59e0b" stroke-width="1.5">
       <rect x="50" y="625" width="280" height="100" rx="14"/>
       <rect x="360" y="625" width="280" height="100" rx="14"/>
       <rect x="670" y="625" width="280" height="100" rx="14"/>
@@ -200,46 +203,46 @@
 
     <!-- Labels -->
     <text x="190" y="660" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       OpenTelemetry
     </text>
-    <text x="190" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="190" y="682" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Tracing · Metrics · Correlation IDs
     </text>
-    <text x="190" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+    <text x="190" y="700" text-anchor="middle" font-size="10" fill="#6B7D8E">
       src/observability/
     </text>
 
     <text x="500" y="660" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       Jaeger
     </text>
-    <text x="500" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="500" y="682" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Distributed tracing · OTLP
     </text>
-    <text x="500" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+    <text x="500" y="700" text-anchor="middle" font-size="10" fill="#6B7D8E">
       localhost:16686
     </text>
 
     <text x="810" y="660" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       Prometheus
     </text>
-    <text x="810" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="810" y="682" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Metrics collection · PromQL
     </text>
-    <text x="810" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+    <text x="810" y="700" text-anchor="middle" font-size="10" fill="#6B7D8E">
       localhost:9091
     </text>
 
     <text x="1120" y="660" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       Grafana
     </text>
-    <text x="1120" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1120" y="682" text-anchor="middle" font-size="11" fill="#8A9BA8">
       Dashboards · Alerting
     </text>
-    <text x="1120" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+    <text x="1120" y="700" text-anchor="middle" font-size="10" fill="#6B7D8E">
       localhost:3000
     </text>
 
@@ -249,64 +252,64 @@
     <path d="M950 675 L980 675" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#arrowMuted)"/>
 
     <!-- Vertical arrows from data plane to observability -->
-    <path d="M700 370 L700 400 L190 400 L190 625" stroke="#9ca3af" stroke-width="1.5"
+    <path d="M700 370 L700 400 L190 400 L190 625" stroke="#6B7D8E" stroke-width="1.5"
           stroke-dasharray="5,3" fill="none" marker-end="url(#arrowMuted)"/>
-    <text x="320" y="415" font-size="9" fill="#9ca3af">traces + metrics</text>
+    <text x="320" y="415" font-size="9" fill="#6B7D8E">traces + metrics</text>
   </g>
 
   <!-- KAFKA TOPICS detail -->
   <g>
-    <rect x="50" y="780" width="1200" height="70" rx="12" fill="#ffffff"
-          stroke="#d1d5db" stroke-width="1"/>
-    <text x="70" y="805" font-size="12" font-weight="bold" fill="#374151">
+    <rect x="50" y="780" width="1200" height="70" rx="12" fill="#141B22"
+          stroke="#2A3744" stroke-width="1"/>
+    <text x="70" y="805" font-size="12" font-weight="bold" fill="#FFFFFF">
       Kafka Topics:
     </text>
-    <text x="180" y="805" font-size="11" fill="#6b7280">
+    <text x="180" y="805" font-size="11" fill="#8A9BA8">
       tapline.tasks · tapline.results · tapline.metrics · tapline.audit · tapline.aggregates
     </text>
-    <text x="70" y="830" font-size="12" font-weight="bold" fill="#374151">
+    <text x="70" y="830" font-size="12" font-weight="bold" fill="#FFFFFF">
       MinIO Buckets:
     </text>
-    <text x="180" y="830" font-size="11" fill="#6b7280">
+    <text x="180" y="830" font-size="11" fill="#8A9BA8">
       artifacts (algo outputs) · inputs (source files) · aggregates (Flink results)
     </text>
   </g>
 
   <!-- VISUALIZATION PLANE -->
   <g>
-    <text x="1290" y="610" font-size="14" font-weight="bold" fill="#374151"
+    <text x="1290" y="610" font-size="14" font-weight="bold" fill="#FFFFFF"
           font-family="Inter, Arial, sans-serif">
       Visualization
     </text>
 
-    <rect x="1290" y="625" width="260" height="100" rx="14" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="1.5"/>
+    <rect x="1290" y="625" width="260" height="100" rx="14" fill="#0D1F1A" stroke="#00D4AA" stroke-width="1.5"/>
     <text x="1420" y="660" text-anchor="middle" font-size="14" font-weight="bold"
-          font-family="Inter, Arial, sans-serif">
+          fill="#FFFFFF" font-family="Inter, Arial, sans-serif">
       Flask Dashboard
     </text>
-    <text x="1420" y="682" text-anchor="middle" font-size="11" fill="#6b7280">
+    <text x="1420" y="682" text-anchor="middle" font-size="11" fill="#8A9BA8">
       KPIs · Time-series · Data Explorer
     </text>
-    <text x="1420" y="700" text-anchor="middle" font-size="10" fill="#9ca3af">
+    <text x="1420" y="700" text-anchor="middle" font-size="10" fill="#6B7D8E">
       localhost:5007
     </text>
 
     <!-- Arrow from MinIO/Prometheus to Dashboard -->
-    <path d="M1340 560 L1340 625" stroke="#0ea5e9" stroke-width="1.5"
+    <path d="M1340 560 L1340 625" stroke="#00D4AA" stroke-width="1.5"
           stroke-dasharray="5,3" fill="none" marker-end="url(#arrowMuted)"/>
-    <text x="1350" y="593" font-size="9" fill="#0ea5e9">reads aggregates</text>
+    <text x="1350" y="593" font-size="9" fill="#00D4AA">reads aggregates</text>
   </g>
 
   <!-- Legend -->
   <g>
-    <rect x="1300" y="780" width="250" height="85" rx="8" fill="#f9fafb"
-          stroke="#e5e7eb" stroke-width="1"/>
-    <text x="1320" y="805" font-size="11" font-weight="bold" fill="#374151">Legend</text>
-    <rect x="1320" y="815" width="16" height="10" fill="#ffffff" stroke="#d1d5db"/>
-    <text x="1345" y="824" font-size="10" fill="#6b7280">Data/Control</text>
-    <rect x="1420" y="815" width="16" height="10" fill="#fef3c7" stroke="#f59e0b"/>
-    <text x="1445" y="824" font-size="10" fill="#6b7280">Observability</text>
-    <rect x="1320" y="835" width="16" height="10" fill="#e0f2fe" stroke="#0ea5e9"/>
-    <text x="1345" y="844" font-size="10" fill="#6b7280">Visualization</text>
+    <rect x="1300" y="780" width="250" height="85" rx="8" fill="#141B22"
+          stroke="#2A3744" stroke-width="1"/>
+    <text x="1320" y="805" font-size="11" font-weight="bold" fill="#FFFFFF">Legend</text>
+    <rect x="1320" y="815" width="16" height="10" fill="#141B22" stroke="#2A3744"/>
+    <text x="1345" y="824" font-size="10" fill="#8A9BA8">Data/Control</text>
+    <rect x="1420" y="815" width="16" height="10" fill="#1A1A0F" stroke="#f59e0b"/>
+    <text x="1445" y="824" font-size="10" fill="#8A9BA8">Observability</text>
+    <rect x="1320" y="835" width="16" height="10" fill="#0D1F1A" stroke="#00D4AA"/>
+    <text x="1345" y="844" font-size="10" fill="#8A9BA8">Visualization</text>
   </g>
 </svg>

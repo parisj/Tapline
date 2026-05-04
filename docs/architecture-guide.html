@@ -3,20 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/Inter/Inter-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/Inter/Inter-Medium.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/Inter/Inter-SemiBold.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('../assets/fonts/Inter/Inter-Bold.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2'); }
+    </style>
     <title>Tapline Architecture Guide</title>
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary: #7c3aed;
-            --accent: #06b6d4;
+            --primary: #00D4AA;
+            --primary-dark: #00B894;
+            --secondary: #0066FF;
+            --accent: #00D4AA;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --dark: #1e293b;
-            --light: #f8fafc;
-            --gray: #64748b;
-            --border: #e2e8f0;
+            --dark: #0A0F14;
+            --light: #1C2530;
+            --gray: #6B7D8E;
+            --border: #2A3744;
+            --bg-primary: #0A0F14;
+            --bg-secondary: #141B22;
+            --bg-elevated: #1C2530;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8A9BA8;
+            --text-muted: #6B7D8E;
         }
 
         * {
@@ -26,10 +40,10 @@
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             line-height: 1.7;
-            color: var(--dark);
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            color: var(--text-primary);
+            background: var(--bg-primary);
             min-height: 100vh;
         }
 
@@ -41,13 +55,13 @@
 
         /* Header */
         header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
             color: white;
             padding: 3rem 2rem;
             text-align: center;
             border-radius: 1rem;
             margin-bottom: 2rem;
-            box-shadow: 0 10px 40px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 212, 170, 0.3);
         }
 
         header h1 {
@@ -72,11 +86,12 @@
 
         /* Navigation */
         nav {
-            background: white;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 1rem;
             padding: 1.5rem;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             position: sticky;
             top: 1rem;
             z-index: 100;
@@ -100,8 +115,8 @@
         nav a {
             display: inline-block;
             padding: 0.5rem 1rem;
-            background: var(--light);
-            color: var(--dark);
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
             text-decoration: none;
             border-radius: 0.5rem;
             font-size: 0.9rem;
@@ -110,17 +125,18 @@
 
         nav a:hover {
             background: var(--primary);
-            color: white;
+            color: var(--bg-primary);
             transform: translateY(-2px);
         }
 
         /* Sections */
         section {
-            background: white;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 1rem;
             padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
         section h2 {
@@ -137,7 +153,7 @@
         section h2 .icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
             border-radius: 0.5rem;
             display: flex;
             align-items: center;
@@ -147,42 +163,43 @@
         }
 
         section h3 {
-            color: var(--dark);
+            color: var(--text-primary);
             font-size: 1.25rem;
             margin: 1.5rem 0 1rem;
         }
 
         section h4 {
-            color: var(--gray);
+            color: var(--text-muted);
             font-size: 1rem;
             margin: 1.25rem 0 0.75rem;
         }
 
         p {
             margin-bottom: 1rem;
-            color: #475569;
+            color: var(--text-secondary);
         }
 
         /* Code blocks */
         pre {
-            background: #1e293b;
+            background: var(--bg-primary);
             color: #e2e8f0;
             padding: 1.5rem;
             border-radius: 0.75rem;
             overflow-x: auto;
             margin: 1rem 0;
-            font-family: 'Fira Code', 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
             font-size: 0.875rem;
             line-height: 1.6;
+            border: 1px solid var(--border);
         }
 
         code {
-            font-family: 'Fira Code', 'Consolas', monospace;
-            background: #f1f5f9;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            background: var(--bg-elevated);
             padding: 0.2rem 0.5rem;
             border-radius: 0.25rem;
             font-size: 0.875rem;
-            color: var(--secondary);
+            color: var(--primary);
         }
 
         pre code {
@@ -212,7 +229,7 @@
         }
 
         th {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
             color: white;
             font-weight: 600;
             text-transform: uppercase;
@@ -229,17 +246,17 @@
         }
 
         tr:hover {
-            background: #f8fafc;
+            background: var(--bg-elevated);
         }
 
         /* Diagrams */
         .diagram {
-            background: linear-gradient(135deg, #f0f9ff 0%, #ede9fe 100%);
+            background: var(--bg-primary);
             border: 2px solid var(--border);
             border-radius: 1rem;
             padding: 2rem;
             margin: 1.5rem 0;
-            font-family: 'Fira Code', monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 0.85rem;
             overflow-x: auto;
         }
@@ -248,7 +265,7 @@
             font-weight: 600;
             color: var(--primary);
             margin-bottom: 1rem;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
         }
 
         /* Flow diagrams */
@@ -262,7 +279,7 @@
         }
 
         .flow-box {
-            background: white;
+            background: var(--bg-elevated);
             border: 2px solid var(--primary);
             border-radius: 0.5rem;
             padding: 0.75rem 1.25rem;
@@ -274,7 +291,7 @@
 
         .flow-box.highlight {
             background: var(--primary);
-            color: white;
+            color: var(--bg-primary);
         }
 
         .flow-arrow {
@@ -291,7 +308,7 @@
         }
 
         .card {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: 1rem;
             padding: 1.5rem;
@@ -300,7 +317,8 @@
 
         .card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.1);
         }
 
         .card h4 {
@@ -326,11 +344,11 @@
             text-transform: uppercase;
         }
 
-        .badge-primary { background: #dbeafe; color: var(--primary); }
-        .badge-success { background: #d1fae5; color: var(--success); }
-        .badge-warning { background: #fef3c7; color: var(--warning); }
-        .badge-danger { background: #fee2e2; color: var(--danger); }
-        .badge-purple { background: #ede9fe; color: var(--secondary); }
+        .badge-primary { background: rgba(0, 212, 170, 0.15); color: var(--primary); }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .badge-purple { background: rgba(0, 102, 255, 0.15); color: var(--secondary); }
 
         /* Callouts */
         .callout {
@@ -341,22 +359,22 @@
         }
 
         .callout-info {
-            background: #eff6ff;
+            background: rgba(0, 212, 170, 0.08);
             border-color: var(--primary);
         }
 
         .callout-success {
-            background: #f0fdf4;
+            background: rgba(16, 185, 129, 0.08);
             border-color: var(--success);
         }
 
         .callout-warning {
-            background: #fffbeb;
+            background: rgba(245, 158, 11, 0.08);
             border-color: var(--warning);
         }
 
         .callout-danger {
-            background: #fef2f2;
+            background: rgba(239, 68, 68, 0.08);
             border-color: var(--danger);
         }
 
@@ -381,7 +399,7 @@
 
         li {
             margin-bottom: 0.5rem;
-            color: #475569;
+            color: var(--text-secondary);
         }
 
         /* Hash chain visualization */
@@ -400,7 +418,7 @@
 
         .chain-line {
             width: 3px;
-            background: linear-gradient(180deg, var(--primary) 0%, var(--secondary) 100%);
+            background: linear-gradient(180deg, #00D4AA 0%, #0066FF 100%);
             margin-left: 1.5rem;
             position: relative;
         }
@@ -414,13 +432,13 @@
             border-radius: 50%;
             left: -6.5px;
             top: 1.5rem;
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 3px solid var(--bg-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
 
         .chain-content {
             flex: 1;
-            background: white;
+            background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: 0.75rem;
             padding: 1rem 1.5rem;
@@ -433,10 +451,10 @@
         }
 
         .chain-hash {
-            font-family: 'Fira Code', monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 0.75rem;
-            color: var(--gray);
-            background: #f1f5f9;
+            color: var(--text-muted);
+            background: var(--bg-primary);
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
             display: inline-block;
@@ -445,7 +463,7 @@
 
         /* Architecture diagram */
         .arch-diagram {
-            background: white;
+            background: var(--bg-primary);
             border: 2px solid var(--border);
             border-radius: 1rem;
             padding: 2rem;
@@ -462,23 +480,23 @@
         }
 
         .arch-box {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            background: linear-gradient(135deg, #00D4AA 0%, #00B894 100%);
             color: white;
             padding: 1rem 1.5rem;
             border-radius: 0.5rem;
             text-align: center;
             min-width: 140px;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
         }
 
         .arch-box.secondary {
-            background: linear-gradient(135deg, var(--secondary) 0%, #6d28d9 100%);
-            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+            background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
         }
 
         .arch-box.accent {
-            background: linear-gradient(135deg, var(--accent) 0%, #0891b2 100%);
-            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+            background: linear-gradient(135deg, var(--accent) 0%, #00B894 100%);
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
         }
 
         .arch-box.success {
@@ -514,9 +532,9 @@
             align-items: flex-start;
             gap: 1rem;
             padding: 1rem;
-            background: #f0fdf4;
+            background: rgba(16, 185, 129, 0.08);
             border-radius: 0.75rem;
-            border: 1px solid #bbf7d0;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
         .security-icon {
@@ -585,6 +603,18 @@
                 transform: rotate(90deg);
             }
         }
+
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -616,7 +646,7 @@
         <section id="overview">
             <h2><span class="icon">&#128640;</span> System Overview</h2>
 
-            <p>Tapline is a configuration-driven evaluation pipeline designed for continuous ingestion, processing, and time-windowed analysis of data. It provides a robust, tamper-evident audit trail suitable for GxP compliance environments.</p>
+            <p>Tapline is a configuration-driven evaluation pipeline for continuous ingestion, processing, and time-windowed analysis of data. It provides a robust, tamper-evident audit trail with cryptographically linked event records.</p>
 
             <h3>Core Pipeline Flow</h3>
             <div class="flow">
@@ -725,7 +755,7 @@
             <h3>Data Flow Architecture</h3>
             <div class="diagram">
                 <div class="diagram-title">Complete Data Flow</div>
-<pre style="background: transparent; color: var(--dark); margin: 0; padding: 0;">
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                              FILE SYSTEM                                      │
 │    /data/path0/image.png    /data/path1/video.mp4    /data/path2/doc.pdf    │
@@ -745,7 +775,7 @@
 │                              KAFKA TOPICS                                     │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────┐ │
 │  │ tapline.tasks  │  │ tapline.metrics│  │ tapline.results│  │ tapline.   │ │
-│  │ (Tasks)        │  │ (Measurements) │  │ (Artifacts)    │  │ audit(GxP) │ │
+│  │ (Tasks)        │  │ (Measurements) │  │ (Artifacts)    │  │ audit      │ │
 │  └────────────────┘  └────────────────┘  └────────────────┘  └────────────┘ │
 └─────────────────────────────────────┬────────────────────────────────────────┘
                                       │
@@ -781,7 +811,7 @@
 
             <div class="diagram">
                 <div class="diagram-title">Request Flow</div>
-<pre style="background: transparent; color: var(--dark); margin: 0; padding: 0;">
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              BROWSER (Client)                                │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
@@ -936,8 +966,8 @@
                     <p>Events drive the pipeline: file discovery triggers TASK_CREATED, which workers consume to start processing, emitting metrics and completing tasks.</p>
                 </div>
                 <div class="card">
-                    <h4>&#128203; Audit Trail (GxP)</h4>
-                    <p>Every event is dual-written to both operational topics and an immutable audit-log topic for compliance.</p>
+                    <h4>&#128203; Audit Trail</h4>
+                    <p>Every event is dual-written to both operational topics and an immutable audit-log topic for tamper-evident replay.</p>
                 </div>
                 <div class="card">
                     <h4>&#128202; Aggregation Trigger</h4>
@@ -990,7 +1020,7 @@ new_event = EventEnvelope.create(
                         <h5>Event 1: TASK_CREATED (Genesis)</h5>
                         <p>File: /data/image.png</p>
                         <span class="chain-hash">content_hash: abc123...def</span>
-                        <span class="chain-hash" style="background: #fee2e2; color: var(--danger);">prev_hash: null</span>
+                        <span class="chain-hash" style="background: rgba(239, 68, 68, 0.15); color: var(--danger);">prev_hash: null</span>
                     </div>
                 </div>
                 <div class="chain-event">
@@ -999,7 +1029,7 @@ new_event = EventEnvelope.create(
                         <h5>Event 2: TASK_STARTED</h5>
                         <p>Processor: analysis_probe v1.0.0</p>
                         <span class="chain-hash">content_hash: 789xyz...uvw</span>
-                        <span class="chain-hash" style="background: #d1fae5; color: var(--success);">prev_hash: abc123...def &#10003;</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: abc123...def &#10003;</span>
                     </div>
                 </div>
                 <div class="chain-event">
@@ -1008,7 +1038,7 @@ new_event = EventEnvelope.create(
                         <h5>Event 3: METRIC_EMITTED</h5>
                         <p>Metric: accuracy = 0.95</p>
                         <span class="chain-hash">content_hash: qrs456...mno</span>
-                        <span class="chain-hash" style="background: #d1fae5; color: var(--success);">prev_hash: 789xyz...uvw &#10003;</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: 789xyz...uvw &#10003;</span>
                     </div>
                 </div>
                 <div class="chain-event">
@@ -1017,7 +1047,7 @@ new_event = EventEnvelope.create(
                         <h5>Event 4: TASK_COMPLETED</h5>
                         <p>Duration: 150ms</p>
                         <span class="chain-hash">content_hash: jkl012...ghi</span>
-                        <span class="chain-hash" style="background: #d1fae5; color: var(--success);">prev_hash: qrs456...mno &#10003;</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: qrs456...mno &#10003;</span>
                     </div>
                 </div>
             </div>
@@ -1113,7 +1143,7 @@ result = verify_event_chain(events)
 
             <div class="diagram">
                 <div class="diagram-title">Tumbling Window Aggregation</div>
-<pre style="background: transparent; color: var(--dark); margin: 0; padding: 0;">
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
 Timeline: ──────────────────────────────────────────────────────────────────────
           │    Window 1     │    Window 2     │    Window 3     │
           │   10:00-10:01   │   10:01-10:02   │   10:02-10:03   │
@@ -1150,7 +1180,7 @@ Output:   │ count=5         │ count=3         │ count=7         │
             <h3>Relationship to Events &amp; Hash Chain</h3>
             <div class="diagram">
                 <div class="diagram-title">Complete Data Flow</div>
-<pre style="background: transparent; color: var(--dark); margin: 0; padding: 0;">
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        PROCESSOR EXECUTION                                   │
 │                                                                              │
@@ -1326,7 +1356,7 @@ sasl_password = <span class="code-string">""</span>             <span class="cod
 
             <div class="callout callout-danger">
                 <div class="callout-title">&#9888; Security Scanning Commands</div>
-                <pre style="background: #1e293b; margin-top: 0.5rem;"><code>pixi run security-audit   <span class="code-comment"># pip-audit dependency scan</span>
+                <pre style="background: var(--bg-primary); margin-top: 0.5rem;"><code>pixi run security-audit   <span class="code-comment"># pip-audit dependency scan</span>
 pixi run bandit-check     <span class="code-comment"># Code security analysis</span>
 pixi run precommit-run    <span class="code-comment"># All pre-commit hooks</span></code></pre>
             </div>
@@ -1505,7 +1535,7 @@ docker-compose down</code></pre>
         <!-- Footer -->
         <footer>
             <p>Tapline Architecture Guide | Generated for project documentation</p>
-            <p>For more details, see <a href="../CLAUDE.md">CLAUDE.md</a> and <a href="../README.md">README.md</a></p>
+            <p>For more details, see <a href="../README.md">README.md</a> and the rest of the docs in this directory.</p>
         </footer>
     </div>
 </body>

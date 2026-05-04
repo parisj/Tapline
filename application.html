@@ -3,23 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/fonts/Inter/Inter-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/fonts/Inter/Inter-Medium.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('assets/fonts/Inter/Inter-SemiBold.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('assets/fonts/Inter/Inter-Bold.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('assets/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2'); }
+    </style>
     <title>Tapline Architecture Overview</title>
     <style>
         :root {
-            --bg-primary: #111827;
-            --bg-secondary: #1f2937;
-            --bg-tertiary: #374151;
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-            --text-muted: #6b7280;
-            --border-color: #4b5563;
-            --accent: #60a5fa;
+            --bg-primary: #0A0F14;
+            --bg-secondary: #141B22;
+            --bg-tertiary: #1C2530;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8A9BA8;
+            --text-muted: #6B7D8E;
+            --border-color: #2A3744;
+            --accent: #00D4AA;
             --color-ingest: #3b82f6;
             --color-kafka: #8b5cf6;
             --color-processing: #10b981;
             --color-aggregation: #ec4899;
             --color-storage: #f59e0b;
-            --color-visualization: #6b7280;
+            --color-visualization: #8A9BA8;
         }
 
         * {
@@ -29,7 +37,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
@@ -142,7 +150,7 @@
         }
 
         .topic-name {
-            font-family: 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
             font-size: 0.85rem;
             color: var(--accent);
             margin-bottom: 0.4rem;
@@ -165,7 +173,7 @@
             padding: 0.15rem 0.35rem;
             background: var(--bg-tertiary);
             border-radius: 3px;
-            font-family: 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
             color: var(--text-secondary);
         }
 
@@ -263,7 +271,7 @@
         }
 
         .model-card h4 {
-            font-family: 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
             font-size: 0.9rem;
             color: var(--accent);
             margin-bottom: 0.5rem;
@@ -276,7 +284,7 @@
         }
 
         .model-fields code {
-            font-family: 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
             color: var(--text-primary);
             background: var(--bg-tertiary);
             padding: 0.1rem 0.25rem;
@@ -313,7 +321,7 @@
         }
 
         .port-badge {
-            font-family: 'Consolas', monospace;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
             font-size: 0.7rem;
             padding: 0.15rem 0.3rem;
             background: var(--bg-primary);
@@ -335,6 +343,18 @@
             .container { padding: 1rem; }
             h1 { font-size: 1.5rem; }
         }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -350,7 +370,7 @@
                 <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto; max-width: 820px; display: block; margin: 0 auto;">
                     <defs>
                         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                            <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+                            <polygon points="0 0, 8 3, 0 6" fill="#8A9BA8"/>
                         </marker>
                         <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                             <polygon points="0 0, 8 3, 0 6" fill="#10b981"/>
@@ -362,71 +382,71 @@
                             <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
                         </marker>
                         <marker id="arrow-dashed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                            <polygon points="0 0, 8 3, 0 6" fill="#4b5563"/>
+                            <polygon points="0 0, 8 3, 0 6" fill="#2A3744"/>
                         </marker>
                     </defs>
 
                     <!-- Background -->
-                    <rect width="820" height="240" fill="#1f2937"/>
+                    <rect width="820" height="240" fill="#141B22"/>
 
                     <!-- ============ COMPONENTS ============ -->
 
                     <!-- Ingest -->
-                    <rect x="30" y="30" width="90" height="50" rx="6" fill="#1f2937" stroke="#3b82f6" stroke-width="2"/>
-                    <text x="75" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Ingest</text>
-                    <text x="75" y="66" text-anchor="middle" fill="#9ca3af" font-size="8">Observer</text>
+                    <rect x="30" y="30" width="90" height="50" rx="6" fill="#141B22" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="75" y="52" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Ingest</text>
+                    <text x="75" y="66" text-anchor="middle" fill="#8A9BA8" font-size="8">Observer</text>
                     <!-- Observed tag -->
                     <rect x="100" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
-                    <circle cx="109" cy="37" r="3" fill="#1f2937"/>
+                    <circle cx="109" cy="37" r="3" fill="#141B22"/>
 
                     <!-- Kafka -->
-                    <rect x="170" y="30" width="90" height="50" rx="6" fill="#1f2937" stroke="#8b5cf6" stroke-width="2"/>
-                    <text x="215" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Kafka</text>
+                    <rect x="170" y="30" width="90" height="50" rx="6" fill="#141B22" stroke="#8b5cf6" stroke-width="2"/>
+                    <text x="215" y="52" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Kafka</text>
                     <text x="215" y="66" text-anchor="middle" fill="#a78bfa" font-size="8">Event Hub</text>
                     <!-- Observed tag -->
                     <rect x="240" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
-                    <circle cx="249" cy="37" r="3" fill="#1f2937"/>
+                    <circle cx="249" cy="37" r="3" fill="#141B22"/>
 
                     <!-- Processing -->
-                    <rect x="310" y="30" width="100" height="50" rx="6" fill="#1f2937" stroke="#10b981" stroke-width="2"/>
-                    <text x="360" y="52" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Processing</text>
-                    <text x="360" y="66" text-anchor="middle" fill="#9ca3af" font-size="8">Workers</text>
+                    <rect x="310" y="30" width="100" height="50" rx="6" fill="#141B22" stroke="#10b981" stroke-width="2"/>
+                    <text x="360" y="52" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Processing</text>
+                    <text x="360" y="66" text-anchor="middle" fill="#8A9BA8" font-size="8">Workers</text>
                     <!-- Observed tag -->
                     <rect x="390" y="32" width="18" height="10" rx="2" fill="#ef4444"/>
-                    <circle cx="399" cy="37" r="3" fill="#1f2937"/>
+                    <circle cx="399" cy="37" r="3" fill="#141B22"/>
 
                     <!-- Python Aggregation -->
-                    <rect x="310" y="110" width="100" height="50" rx="6" fill="#1f2937" stroke="#ec4899" stroke-width="2"/>
-                    <text x="360" y="132" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Python Agg</text>
-                    <text x="360" y="146" text-anchor="middle" fill="#9ca3af" font-size="8">Aggregation</text>
+                    <rect x="310" y="110" width="100" height="50" rx="6" fill="#141B22" stroke="#ec4899" stroke-width="2"/>
+                    <text x="360" y="132" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Python Agg</text>
+                    <text x="360" y="146" text-anchor="middle" fill="#8A9BA8" font-size="8">Aggregation</text>
                     <!-- Observed tag -->
                     <rect x="390" y="112" width="18" height="10" rx="2" fill="#ef4444"/>
-                    <circle cx="399" cy="117" r="3" fill="#1f2937"/>
+                    <circle cx="399" cy="117" r="3" fill="#141B22"/>
 
                     <!-- MinIO -->
-                    <rect x="470" y="70" width="90" height="50" rx="6" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="515" y="92" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">MinIO</text>
-                    <text x="515" y="106" text-anchor="middle" fill="#9ca3af" font-size="8">Storage</text>
+                    <rect x="470" y="70" width="90" height="50" rx="6" fill="#141B22" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="515" y="92" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">MinIO</text>
+                    <text x="515" y="106" text-anchor="middle" fill="#8A9BA8" font-size="8">Storage</text>
 
                     <!-- Aggregate Sink -->
-                    <rect x="470" y="145" width="90" height="50" rx="6" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
-                    <text x="515" y="167" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Agg Sink</text>
-                    <text x="515" y="181" text-anchor="middle" fill="#9ca3af" font-size="8">Kafka→MinIO</text>
+                    <rect x="470" y="145" width="90" height="50" rx="6" fill="#141B22" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="515" y="167" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Agg Sink</text>
+                    <text x="515" y="181" text-anchor="middle" fill="#8A9BA8" font-size="8">Kafka→MinIO</text>
 
                     <!-- Visualization -->
-                    <rect x="620" y="50" width="100" height="70" rx="6" fill="#1f2937" stroke="#60a5fa" stroke-width="2"/>
-                    <text x="670" y="72" text-anchor="middle" fill="#f9fafb" font-size="10" font-weight="600">Dashboard</text>
-                    <text x="670" y="86" text-anchor="middle" fill="#9ca3af" font-size="8">Flask :5007</text>
-                    <text x="670" y="100" text-anchor="middle" fill="#60a5fa" font-size="7">KPIs + Charts</text>
-                    <text x="670" y="112" text-anchor="middle" fill="#60a5fa" font-size="7">Metrics Explorer</text>
+                    <rect x="620" y="50" width="100" height="70" rx="6" fill="#141B22" stroke="#00D4AA" stroke-width="2"/>
+                    <text x="670" y="72" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="600">Dashboard</text>
+                    <text x="670" y="86" text-anchor="middle" fill="#8A9BA8" font-size="8">Flask :5007</text>
+                    <text x="670" y="100" text-anchor="middle" fill="#00D4AA" font-size="7">KPIs + Charts</text>
+                    <text x="670" y="112" text-anchor="middle" fill="#00D4AA" font-size="7">Metrics Explorer</text>
 
                     <!-- ============ ARROWS ============ -->
 
                     <!-- 1. Ingest -> Kafka -->
-                    <line x1="120" y1="55" x2="165" y2="55" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+                    <line x1="120" y1="55" x2="165" y2="55" stroke="#8A9BA8" stroke-width="2" marker-end="url(#arrow)"/>
 
                     <!-- 2. Kafka -> Processing -->
-                    <line x1="260" y1="55" x2="305" y2="55" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+                    <line x1="260" y1="55" x2="305" y2="55" stroke="#8A9BA8" stroke-width="2" marker-end="url(#arrow)"/>
 
                     <!-- 3. Processing -> Kafka (metrics) -->
                     <path d="M 330 80 L 330 90 L 240 90 L 240 85" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
@@ -444,7 +464,7 @@
                     <line x1="410" y1="125" x2="465" y2="110" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
 
                     <!-- 8. MinIO -> Visualization -->
-                    <line x1="560" y1="95" x2="615" y2="95" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)"/>
+                    <line x1="560" y1="95" x2="615" y2="95" stroke="#00D4AA" stroke-width="1.5" marker-end="url(#arrow)"/>
 
                     <!-- 9. Flink -> Kafka (aggregates) -->
                     <path d="M 360 160 L 360 170 L 190 170 L 190 85" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-pink)"/>
@@ -461,17 +481,17 @@
                     <text x="438" y="68" text-anchor="middle" fill="#f59e0b" font-size="7">artifacts</text>
 
                     <!-- ============ LEGEND ============ -->
-                    <rect x="30" y="185" width="560" height="40" rx="4" fill="rgba(75, 85, 99, 0.15)" stroke="#4b5563" stroke-width="1"/>
-                    <text x="50" y="205" fill="#f9fafb" font-size="9" font-weight="500">Legend:</text>
+                    <rect x="30" y="185" width="560" height="40" rx="4" fill="rgba(42, 55, 68, 0.15)" stroke="#2A3744" stroke-width="1"/>
+                    <text x="50" y="205" fill="#FFFFFF" font-size="9" font-weight="500">Legend:</text>
 
                     <!-- Observed indicator in legend -->
                     <rect x="110" y="198" width="18" height="10" rx="2" fill="#ef4444"/>
-                    <circle cx="119" cy="203" r="3" fill="#1f2937"/>
-                    <text x="135" y="207" fill="#9ca3af" font-size="8">Observed (traces + metrics via OpenTelemetry)</text>
+                    <circle cx="119" cy="203" r="3" fill="#141B22"/>
+                    <text x="135" y="207" fill="#8A9BA8" font-size="8">Observed (traces + metrics via OpenTelemetry)</text>
 
                     <!-- Dashboard indicator in legend -->
-                    <rect x="360" y="197" width="20" height="12" rx="2" fill="none" stroke="#60a5fa" stroke-width="1"/>
-                    <text x="388" y="207" fill="#9ca3af" font-size="8">Visualization</text>
+                    <rect x="360" y="197" width="20" height="12" rx="2" fill="none" stroke="#00D4AA" stroke-width="1"/>
+                    <text x="388" y="207" fill="#8A9BA8" font-size="8">Visualization</text>
 
                 </svg>
             </div>
@@ -857,7 +877,7 @@
 
         <section>
             <h2>Audit Trail &amp; Hash Chain</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1rem;">GxP-compliant tamper-evident event linking using SHA-256 cryptographic hash chains.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Tamper-evident event linking using SHA-256 cryptographic hash chains.</p>
             <div class="component-grid">
                 <div class="component-card">
                     <h3>How It Works</h3>
