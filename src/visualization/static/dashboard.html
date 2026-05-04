@@ -4,9 +4,14 @@
   <title>Tapline</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/static/fonts/Inter/Inter-Regular.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/static/fonts/Inter/Inter-Medium.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/static/fonts/Inter/Inter-SemiBold.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('/static/fonts/Inter/Inter-Bold.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/static/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/static/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2'); }
+  </style>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <style>
     *, *::before, *::after {
@@ -16,25 +21,32 @@
     }
 
     :root {
-      --bg-primary: #09090b;
-      --bg-secondary: #0f0f12;
-      --bg-tertiary: #16161a;
-      --bg-elevated: #1c1c21;
-      --border: #27272a;
-      --border-subtle: #1f1f23;
-      --text-primary: #fafafa;
-      --text-secondary: #a1a1aa;
-      --text-tertiary: #71717a;
-      --accent: #3b82f6;
-      --accent-muted: #2563eb;
+      --bg-primary: #0A0F14;
+      --bg-secondary: #141B22;
+      --bg-tertiary: #1C2530;
+      --bg-elevated: #212D3B;
+      --border: #2A3744;
+      --border-subtle: #1E2A36;
+      --text-primary: #FFFFFF;
+      --text-secondary: #8A9BA8;
+      --text-tertiary: #6B7D8E;
+      --accent: #00D4AA;
+      --accent-muted: #00E5B8;
+      --color-accent-secondary: #0066FF;
       --success: #22c55e;
       --warning: #eab308;
       --error: #ef4444;
+      --font-sans: 'Inter', 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
       --radius: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --transition-fast: 0.2s ease;
+      --transition-normal: 0.3s ease-out;
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: var(--font-sans);
       font-size: 13px;
       line-height: 1.5;
       color: var(--text-primary);
@@ -317,8 +329,13 @@
     .card {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-lg);
       margin-bottom: 16px;
+      transition: border-color var(--transition-fast);
+    }
+
+    .card:hover {
+      border-color: var(--accent);
     }
 
     .card-header {
@@ -503,7 +520,7 @@
       letter-spacing: 0.02em;
     }
 
-    .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .badge-blue { background: rgba(0, 212, 170, 0.15); color: #00D4AA; }
     .badge-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
     .badge-yellow { background: rgba(234, 179, 8, 0.15); color: #facc15; }
     .badge-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
@@ -534,12 +551,13 @@
     .btn-primary {
       background: var(--accent);
       border-color: var(--accent);
-      color: #fff;
+      color: #0A0F14;
     }
 
     .btn-primary:hover {
       background: var(--accent-muted);
       border-color: var(--accent-muted);
+      transform: translateY(-1px);
     }
 
     .btn-sm {
@@ -649,7 +667,7 @@
     .activity-icon.success { background: rgba(34, 197, 94, 0.1); color: var(--success); }
     .activity-icon.error { background: rgba(239, 68, 68, 0.1); color: var(--error); }
     .activity-icon.warning { background: rgba(234, 179, 8, 0.1); color: var(--warning); }
-    .activity-icon.info { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
+    .activity-icon.info { background: rgba(0, 212, 170, 0.1); color: var(--accent); }
 
     .activity-content {
       flex: 1;
@@ -812,7 +830,7 @@
       font-size: 12px;
       font-weight: 500;
       color: var(--text-primary);
-      font-family: monospace;
+      font-family: var(--font-mono);
     }
 
     .task-item-processor {
@@ -849,7 +867,7 @@
 
     .json-viewer pre {
       margin: 0;
-      font-family: 'Monaco', 'Menlo', monospace;
+      font-family: var(--font-mono);
       font-size: 12px;
       color: var(--text-secondary);
       white-space: pre-wrap;
@@ -879,6 +897,18 @@
 
     ::-webkit-scrollbar-thumb:hover {
       background: var(--text-tertiary);
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+        animation: none !important;
+      }
     }
   </style>
 </head>
@@ -1396,7 +1426,7 @@
             <div class="card-body" id="task-list" style="padding: 0; flex: 1; overflow-y: auto;">
               <div class="empty-state">Loading tasks...</div>
             </div>
-            <div class="card-footer" id="task-pagination" style="display: none; padding: 8px 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div class="card-footer" id="task-pagination" style="display: none; padding: 8px 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
               <button class="btn btn-sm" id="task-prev-btn" onclick="loadTaskPage(-1)" disabled>Prev</button>
               <span style="font-size: 12px; color: var(--text-secondary);" id="task-page-info">Page 1</span>
               <button class="btn btn-sm" id="task-next-btn" onclick="loadTaskPage(1)">Next</button>
@@ -1455,10 +1485,10 @@ const CONN = { api: false, prometheus: false, minio: false, kafka: false, flink:
 const PLOTLY_LAYOUT = {
   paper_bgcolor: 'rgba(0,0,0,0)',
   plot_bgcolor: 'rgba(0,0,0,0)',
-  font: { family: 'Inter, sans-serif', color: '#a1a1aa', size: 11 },
+  font: { family: 'Inter, sans-serif', color: '#8A9BA8', size: 11 },
   margin: { l: 40, r: 20, t: 10, b: 30 },
-  xaxis: { gridcolor: '#27272a', linecolor: '#27272a', tickcolor: '#27272a' },
-  yaxis: { gridcolor: '#27272a', linecolor: '#27272a', tickcolor: '#27272a' },
+  xaxis: { gridcolor: '#2A3744', linecolor: '#2A3744', tickcolor: '#2A3744' },
+  yaxis: { gridcolor: '#2A3744', linecolor: '#2A3744', tickcolor: '#2A3744' },
   showlegend: false
 };
 
@@ -1479,13 +1509,24 @@ function initNav() {
   document.querySelectorAll('[data-page]').forEach(el => {
     el.addEventListener('click', e => {
       e.preventDefault();
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      el.classList.add('active');
-      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-      document.getElementById(`page-${el.dataset.page}`).classList.add('active');
-      loadPage(el.dataset.page);
+      activatePage(el.dataset.page);
+      if (history.replaceState) history.replaceState(null, '', `#${el.dataset.page}`);
     });
   });
+  const initial = (location.hash || '').replace(/^#/, '');
+  if (initial && document.getElementById(`page-${initial}`)) {
+    activatePage(initial);
+  }
+}
+
+function activatePage(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if (navEl) navEl.classList.add('active');
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.classList.add('active');
+  loadPage(page);
 }
 
 function loadPage(page) {
@@ -1630,8 +1671,8 @@ async function loadChart() {
       type: 'scatter',
       mode: 'lines',
       fill: 'tozeroy',
-      line: { color: '#3b82f6', width: 1.5 },
-      fillcolor: 'rgba(59, 130, 246, 0.1)'
+      line: { color: '#00D4AA', width: 1.5 },
+      fillcolor: 'rgba(0, 212, 170, 0.1)'
     }], { ...PLOTLY_LAYOUT, xaxis: { ...PLOTLY_LAYOUT.xaxis, type: 'date' } }, { responsive: true, displayModeBar: false });
   }
 }
@@ -1652,20 +1693,25 @@ async function loadStats() {
 
 async function loadActivity() {
   const feed = document.getElementById('activity-feed');
-  const items = [
-    { type: 'success', title: 'Pipeline running', time: 'Now' },
-    { type: 'info', title: 'Metrics collected', time: '1 min ago' },
-    { type: 'success', title: 'Tasks processed', time: '5 min ago' }
-  ];
-  feed.innerHTML = items.map(i => `
+  const data = await query('/api/tasks?limit=8');
+  const tasks = data?.tasks || [];
+  if (!tasks.length) {
+    feed.innerHTML = '<div class="empty-state" style="padding:1rem">No recent activity</div>';
+    return;
+  }
+  feed.innerHTML = tasks.map(t => {
+    const ok = t.status === 'completed';
+    const icon = ok ? '✓' : '○';
+    const cls = ok ? 'success' : 'info';
+    return `
     <div class="activity-item">
-      <div class="activity-icon ${i.type}">${i.type === 'success' ? '✓' : '○'}</div>
+      <div class="activity-icon ${cls}">${icon}</div>
       <div class="activity-content">
-        <div class="activity-title">${i.title}</div>
-        <div class="activity-time">${i.time}</div>
+        <div class="activity-title">${esc(t.processor_name)} <span class="mono" style="color:var(--text-muted)">${esc(t.task_id.slice(0,8))}</span></div>
+        <div class="activity-time">${formatTimestamp(t.timestamp)}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function loadServices() {
@@ -1773,14 +1819,14 @@ async function viewMetric(name, algo, version) {
       x: h.bin_edges.slice(0, -1),
       y: h.counts,
       type: 'bar',
-      marker: { color: '#3b82f6' }
+      marker: { color: '#00D4AA' }
     }], { ...PLOTLY_LAYOUT, bargap: 0.05 }, { responsive: true, displayModeBar: false });
   } else if (data.artifacts?.values) {
     Plotly.newPlot('metric-chart', [{
       y: data.artifacts.values,
       type: 'scatter',
       mode: 'lines',
-      line: { color: '#3b82f6', width: 1 }
+      line: { color: '#00D4AA', width: 1 }
     }], PLOTLY_LAYOUT, { responsive: true, displayModeBar: false });
   }
 }
@@ -1796,12 +1842,18 @@ function closeVisualization() {
 
 // Processors
 async function loadProcessors() {
-  const data = await query('/api/algorithms');
-  const algos = data?.algorithms || [];
+  const [algoData, runData] = await Promise.all([
+    query('/api/algorithms'),
+    query('/api/processors')
+  ]);
+  const algos = algoData?.algorithms || [];
+  const counts = new Map((runData?.processors || []).map(p => [p.name, p.task_count || 0]));
 
-  document.getElementById('algo-total').textContent = algos.length;
-  document.getElementById('algo-active').textContent = algos.length;
-  document.getElementById('algo-success-rate').textContent = '--';
+  const total = algos.length;
+  const active = algos.filter(a => (counts.get(a.name) || 0) > 0).length;
+  document.getElementById('algo-total').textContent = total;
+  document.getElementById('algo-active').textContent = active;
+  document.getElementById('algo-success-rate').textContent = total ? `${active}/${total}` : '--';
 
   const tbody = document.getElementById('algorithm-table-body');
   if (algos.length === 0) {
@@ -1809,16 +1861,19 @@ async function loadProcessors() {
     return;
   }
 
-  tbody.innerHTML = algos.map(a => `
+  tbody.innerHTML = algos.map(a => {
+    const count = counts.get(a.name) || 0;
+    const live = count > 0;
+    return `
     <tr>
-      <td class="highlight">${a.name}</td>
-      <td class="mono">${a.version}</td>
-      <td><span class="status-dot success" style="display:inline-block"></span> Active</td>
+      <td class="highlight">${esc(a.name)}</td>
+      <td class="mono">${esc(a.version)}</td>
+      <td><span class="status-dot ${live ? 'success' : 'warning'}" style="display:inline-block"></span> ${live ? 'Active' : 'Idle'}</td>
+      <td class="mono">${count}</td>
+      <td class="mono">${live ? '100%' : '--'}</td>
       <td class="mono">--</td>
-      <td class="mono">--</td>
-      <td class="mono">--</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 // Health
@@ -1889,9 +1944,9 @@ async function loadStorage() {
       labels: data.buckets.map(b => b.name),
       type: 'pie',
       hole: 0.5,
-      marker: { colors: ['#3b82f6', '#22c55e', '#eab308', '#ef4444'] },
+      marker: { colors: ['#00D4AA', '#22c55e', '#eab308', '#ef4444'] },
       textinfo: 'label+percent',
-      textfont: { color: '#fafafa', size: 11 }
+      textfont: { color: '#FFFFFF', size: 11 }
     }], { ...PLOTLY_LAYOUT, margin: { l: 20, r: 20, t: 20, b: 20 } }, { responsive: true, displayModeBar: false });
   }
 }
@@ -1924,7 +1979,7 @@ async function viewArtifact(bucket, key) {
   if (data.content?.type === 'image') {
     content.innerHTML = `<img src="data:${data.content.mime};base64,${data.content.data_base64}" style="max-width:100%;max-height:80vh">`;
   } else if (data.content?.type === 'json') {
-    content.innerHTML = `<pre style="color:#a1a1aa;overflow:auto;max-height:80vh">${JSON.stringify(data.content.data, null, 2)}</pre>`;
+    content.innerHTML = `<pre style="color:#8A9BA8;overflow:auto;max-height:80vh">${JSON.stringify(data.content.data, null, 2)}</pre>`;
   } else {
     content.innerHTML = `<div class="empty-state">Binary file (${formatBytes(data.content?.size || 0)})</div>`;
   }
@@ -2253,6 +2308,16 @@ async function downloadCurrentArtifact() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+function esc(value) {
+  if (value === undefined || value === null) return '';
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function formatTimestamp(ts) {
