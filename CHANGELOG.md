@@ -59,7 +59,7 @@ Initial public release under the **PolyForm Noncommercial 1.0.0** license.
 ### Documentation
 
 - Self-contained `README.md` with screenshots and quick-start
-- `docs/` directory with development, contributing, and architecture references
+- `docs/` directory holding `architecture.md`, `architecture-guide.html`, `development.md`, and `contributing.md`
 - Local Inter + JetBrains Mono fonts (no CDN dependency)
 
 ### Known limitations

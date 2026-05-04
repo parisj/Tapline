@@ -233,8 +233,8 @@ class EventProducer:
     ) -> None:
         """Publish event to operational topic and audit log.
 
-        This dual-write ensures GxP compliance by maintaining an
-        immutable audit trail separate from operational data.
+        This dual-write produces a tamper-evident audit trail by
+        maintaining an immutable audit log separate from operational data.
 
         Args:
             topic: Operational topic name

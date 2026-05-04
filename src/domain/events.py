@@ -56,7 +56,7 @@ class EventEnvelope:
     Hash Chain:
         Each event's content_hash is computed from its payload.
         The prev_hash links to the previous event in the same partition,
-        creating a tamper-evident chain for GxP compliance.
+        creating a tamper-evident chain for end-to-end audit replay.
     """
 
     event_id: str

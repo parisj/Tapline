@@ -191,14 +191,6 @@ beyond loopback.
 |---|---|
 | Architecture overview | [docs/architecture.md](docs/architecture.md) |
 | Architecture guide (HTML) | [docs/architecture-guide.html](docs/architecture-guide.html) |
-| Configuration reference | [docs/configuration.md](docs/configuration.md) |
-| Extending the framework | [docs/extending.md](docs/extending.md) |
-| Infrastructure | [docs/infrastructure.md](docs/infrastructure.md) |
-| Dashboard internals | [docs/dashboard.md](docs/dashboard.md) |
-| Testing | [docs/testing.md](docs/testing.md) |
-| Code standards | [docs/code_standards.md](docs/code_standards.md) |
-| Security | [docs/security.md](docs/security.md) |
-| Refactoring guide | [docs/refactoring.md](docs/refactoring.md) |
 | Development setup | [docs/development.md](docs/development.md) |
 | Contributing | [docs/contributing.md](docs/contributing.md) |
 | Release history | [CHANGELOG.md](CHANGELOG.md) |
