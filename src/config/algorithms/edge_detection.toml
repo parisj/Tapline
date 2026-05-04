@@ -1,0 +1,23 @@
+# Edge Detection Configuration
+# Algorithm: edge_detection v1.0.0
+#
+# Supports: Canny, Sobel, Laplacian edge detection
+# Returns: edge_density, edge_count, dominant_orientation
+
+[detector]
+# Edge detection method: "canny" (default), "sobel", "laplacian"
+method = "canny"
+
+# Canny edge detector thresholds
+# Lower threshold: edges with gradient below this are discarded
+# Upper threshold: edges with gradient above this are kept
+canny_threshold1 = 100
+canny_threshold2 = 200
+
+# Sobel kernel size (must be odd: 1, 3, 5, 7)
+sobel_ksize = 3
+
+[algorithm]
+# Minimum edge density to pass (0-1 scale)
+# 0.01 = at least 1% of pixels should be edges
+min_edge_density = 0.01

@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Tapline (module)",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "src.app.main",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "envFile": "${workspaceFolder}/.env",
+        "justMyCode": true
+      }
+    ]
+  }

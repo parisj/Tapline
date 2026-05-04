@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Tapline</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/static/fonts/Inter/Inter-Regular.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/static/fonts/Inter/Inter-Medium.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/static/fonts/Inter/Inter-SemiBold.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('/static/fonts/Inter/Inter-Bold.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/static/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2'); }
+    @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/static/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2'); }
+  </style>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #0A0F14;
+      --bg-secondary: #141B22;
+      --bg-tertiary: #1C2530;
+      --bg-elevated: #212D3B;
+      --border: #2A3744;
+      --border-subtle: #1E2A36;
+      --text-primary: #FFFFFF;
+      --text-secondary: #8A9BA8;
+      --text-tertiary: #6B7D8E;
+      --accent: #00D4AA;
+      --accent-muted: #00E5B8;
+      --color-accent-secondary: #0066FF;
+      --success: #22c55e;
+      --warning: #eab308;
+      --error: #ef4444;
+      --font-sans: 'Inter', 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+      --radius: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --transition-fast: 0.2s ease;
+      --transition-normal: 0.3s ease-out;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      background: var(--text-primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mark svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--bg-primary);
+    }
+
+    .logo-text {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .nav {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .nav-group {
+      margin-bottom: 20px;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 12px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-size: 13px;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .nav-item svg {
+      width: 16px;
+      height: 16px;
+      opacity: 0.7;
+    }
+
+    .nav-item.active svg {
+      opacity: 1;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .status-card {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-dot.success { background: var(--success); }
+    .status-dot.warning { background: var(--warning); }
+    .status-dot.error { background: var(--error); }
+    .status-dot.offline { background: var(--text-tertiary); }
+
+    /* Main */
+    .main {
+      flex: 1;
+      margin-left: 240px;
+      padding: 24px 32px;
+    }
+
+    /* Page header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .page-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .clock {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .toggle-switch {
+      width: 28px;
+      height: 16px;
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(12px);
+    }
+
+    /* Metric cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      margin-top: 6px;
+      color: var(--text-tertiary);
+    }
+
+    .metric-trend.up { color: var(--success); }
+    .metric-trend.down { color: var(--error); }
+
+    .metric-trend svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 16px;
+      transition: border-color var(--transition-fast);
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* Grid layout */
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      grid-template-columns: 2fr 1fr;
+    }
+
+    .grid-equal {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* Chart */
+    .chart-container {
+      height: 280px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+    }
+
+    /* Tables */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table td {
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .table .mono {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .table .highlight {
+      color: var(--text-primary);
+    }
+
+    /* Stats list */
+    .stats-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stats-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .stats-item:last-child {
+      border-bottom: none;
+    }
+
+    .stats-label {
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .stats-value {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Progress bars */
+    .progress-item {
+      margin-bottom: 14px;
+    }
+
+    .progress-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .progress-label {
+      color: var(--text-tertiary);
+    }
+
+    .progress-value {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--bg-elevated);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* Health grid */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+    }
+
+    .health-name {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .health-status {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 500;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-blue { background: rgba(0, 212, 170, 0.15); color: #00D4AA; }
+    .badge-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .badge-yellow { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+    .badge-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .badge-gray { background: rgba(161, 161, 170, 0.15); color: #a1a1aa; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border-color: var(--text-tertiary);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0A0F14;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-muted);
+      border-color: var(--accent-muted);
+      transform: translateY(-1px);
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Form controls */
+    .select {
+      padding: 6px 10px;
+      font-size: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .input {
+      padding: 8px 12px;
+      font-size: 13px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      width: 100%;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .filter-group .select {
+      width: 100%;
+    }
+
+    /* Page sections */
+    .page-section {
+      display: none;
+    }
+
+    .page-section.active {
+      display: block;
+    }
+
+    /* Activity */
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .activity-icon.success { background: rgba(34, 197, 94, 0.1); color: var(--success); }
+    .activity-icon.error { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+    .activity-icon.warning { background: rgba(234, 179, 8, 0.1); color: var(--warning); }
+    .activity-icon.info { background: rgba(0, 212, 170, 0.1); color: var(--accent); }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-title {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .activity-time {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    /* Visualization panel */
+    .viz-panel {
+      display: none;
+    }
+
+    .viz-panel.active {
+      display: block;
+      margin-top: 16px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-tertiary);
+    }
+
+    .empty-state-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* Artifacts grid */
+    .artifacts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .artifact-card {
+      padding: 14px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .artifact-card:hover {
+      background: var(--bg-elevated);
+    }
+
+    .artifact-name {
+      font-size: 12px;
+      color: var(--text-primary);
+      word-break: break-all;
+      margin-bottom: 6px;
+    }
+
+    .artifact-meta {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 28px;
+      height: 28px;
+      background: var(--bg-tertiary);
+      border: none;
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .health-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 16px; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .health-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Task list items */
+    .task-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .task-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .task-item.selected {
+      background: var(--bg-tertiary);
+      border-left: 2px solid var(--accent);
+    }
+
+    .task-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .task-item-id {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .task-item-processor {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .task-item-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    /* Image viewer */
+    .image-viewer {
+      text-align: center;
+    }
+
+    .image-viewer img {
+      max-width: 100%;
+      max-height: 60vh;
+      border-radius: var(--radius);
+    }
+
+    /* JSON viewer */
+    .json-viewer {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow: auto;
+      max-height: 60vh;
+    }
+
+    .json-viewer pre {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .json-key { color: #9cdcfe; }
+    .json-string { color: #ce9178; }
+    .json-number { color: #b5cea8; }
+    .json-boolean { color: #569cd6; }
+    .json-null { color: #569cd6; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-mark">
+            <svg viewBox="0 0 24 24"><path d="M12 2C9.5 2 7.5 4 7.5 6.5V8H6C4.9 8 4 8.9 4 10v2c0 1.1.9 2 2 2h.5v1c0 1.4 1.1 2.5 2.5 2.5h1v4H8v2h8v-2h-2v-4h1c1.4 0 2.5-1.1 2.5-2.5v-1h.5c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2h-1.5V6.5C16.5 4 14.5 2 12 2zm0 2c1.4 0 2.5 1.1 2.5 2.5V8h-5V6.5C9.5 5.1 10.6 4 12 4z"/></svg>
+          </div>
+          <span class="logo-text">Tapline</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav-group">
+          <div class="nav-label">Overview</div>
+          <a class="nav-item active" data-page="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </a>
+          <a class="nav-item" data-page="metrics">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Metrics
+          </a>
+          <a class="nav-item" data-page="algorithms">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            Processors
+          </a>
+          <a class="nav-item" data-page="artifacts-browser">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Artifacts
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-label">System</div>
+          <a class="nav-item" data-page="health">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Health
+          </a>
+          <a class="nav-item" data-page="storage">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Storage
+          </a>
+          <a class="nav-item" data-page="pipelines">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v6c0 1.66 1.34 3 3 3h3"/><path d="M18 15V9c0-1.66-1.34-3-3-3h-3"/></svg>
+            Pipelines
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-label">External</div>
+          <a class="nav-item" href="http://localhost:3000" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Grafana
+          </a>
+          <a class="nav-item" href="http://localhost:16686" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Jaeger
+          </a>
+          <a class="nav-item" href="http://localhost:9001" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            MinIO
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-card">
+          <div class="status-row">
+            <span class="status-label">System</span>
+            <div class="status-indicator">
+              <span class="status-dot success" id="system-status-dot"></span>
+              <span id="system-status-text">Operational</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+      <!-- Dashboard -->
+      <section id="page-dashboard" class="page-section active">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-description">Pipeline monitoring overview</p>
+          </div>
+          <div class="header-actions">
+            <div class="toggle" onclick="toggleAutoRefresh()">
+              <span>Auto-refresh</span>
+              <div class="toggle-switch active" id="auto-refresh-toggle"></div>
+            </div>
+            <span class="clock" id="clock">--:--:--</span>
+          </div>
+        </header>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total Tasks</div>
+            <div class="metric-value" id="kpi-jobs">0</div>
+            <div class="metric-trend up" id="kpi-jobs-trend">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+              +0%
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Throughput</div>
+            <div class="metric-value" id="kpi-throughput">0/s</div>
+            <div class="metric-trend" id="kpi-throughput-trend">stable</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Avg Latency</div>
+            <div class="metric-value" id="kpi-latency">0ms</div>
+            <div class="metric-trend" id="kpi-latency-trend">stable</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Error Rate</div>
+            <div class="metric-value" id="kpi-errors">0.0%</div>
+            <div class="metric-trend" id="kpi-errors-trend">stable</div>
+          </div>
+        </div>
+
+        <div class="grid grid-2">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Throughput</span>
+                <select class="select" id="chart-timerange">
+                  <option value="1h">Last hour</option>
+                  <option value="6h">Last 6 hours</option>
+                  <option value="24h">Last 24 hours</option>
+                </select>
+              </div>
+              <div class="card-body">
+                <div id="throughput-chart" class="chart-container"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Resources</span>
+              </div>
+              <div class="card-body">
+                <div class="progress-item">
+                  <div class="progress-header">
+                    <span class="progress-label">CPU</span>
+                    <span class="progress-value" id="cpu-usage">0%</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="cpu-bar" style="width: 0%"></div>
+                  </div>
+                </div>
+                <div class="progress-item">
+                  <div class="progress-header">
+                    <span class="progress-label">Memory</span>
+                    <span class="progress-value" id="memory-usage">0 MB</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="memory-bar" style="width: 0%"></div>
+                  </div>
+                </div>
+                <div class="progress-item">
+                  <div class="progress-header">
+                    <span class="progress-label">Disk I/O</span>
+                    <span class="progress-value" id="disk-usage">0 MB/s</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="disk-bar" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Quick Stats</span>
+              </div>
+              <div class="card-body">
+                <div class="stats-list">
+                  <div class="stats-item">
+                    <span class="stats-label">Active Workers</span>
+                    <span class="stats-value" id="stat-workers">--</span>
+                  </div>
+                  <div class="stats-item">
+                    <span class="stats-label">Queue Depth</span>
+                    <span class="stats-value" id="stat-queue">--</span>
+                  </div>
+                  <div class="stats-item">
+                    <span class="stats-label">Processors</span>
+                    <span class="stats-value" id="stat-algos">--</span>
+                  </div>
+                  <div class="stats-item">
+                    <span class="stats-label">Sources</span>
+                    <span class="stats-value" id="stat-sources">--</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-equal">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Activity</span>
+            </div>
+            <div class="card-body" id="activity-feed"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Service Status</span>
+            </div>
+            <div class="card-body">
+              <div class="health-grid" id="service-status-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Metrics -->
+      <section id="page-metrics" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Metrics</h1>
+            <p class="page-description">Explore pipeline metrics</p>
+          </div>
+        </header>
+
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">Processor</label>
+            <select class="select" id="filter-algorithm">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Version</label>
+            <select class="select" id="filter-version">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Type</label>
+            <select class="select" id="filter-metric-type">
+              <option value="">All</option>
+              <option value="STATS">Stats</option>
+              <option value="HISTOGRAM">Histogram</option>
+              <option value="TALLY">Tally</option>
+              <option value="RATE">Rate</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+            <button class="btn" onclick="resetFilters()">Reset</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Available Metrics</span>
+            <span style="color: var(--text-tertiary); font-size: 12px;" id="metrics-count">0 metrics</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Processor</th>
+                <th>Version</th>
+                <th>Type</th>
+                <th>Count</th>
+                <th>Avg</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card viz-panel" id="metric-visualization-card">
+          <div class="card-header">
+            <span class="card-title" id="selected-metric-title">Metric</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select class="select" id="viz-time-range" onchange="updateVisualizationTimeRange()">
+                <option value="">All time</option>
+                <option value="30" selected>Last 30 min</option>
+                <option value="60">Last 1 hour</option>
+                <option value="360">Last 6 hours</option>
+              </select>
+              <button class="btn" onclick="closeVisualization()">Close</button>
+            </div>
+          </div>
+          <div class="card-body" id="viz-content">
+            <div class="grid grid-2">
+              <div id="metric-chart" class="chart-container"></div>
+              <div>
+                <div class="stats-list" id="metric-stats"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Processors -->
+      <section id="page-algorithms" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Processors</h1>
+            <p class="page-description">Registered processors</p>
+          </div>
+        </header>
+
+        <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="metric-card">
+            <div class="metric-label">Total</div>
+            <div class="metric-value" id="algo-total">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Active</div>
+            <div class="metric-value" id="algo-active">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Success Rate</div>
+            <div class="metric-value" id="algo-success-rate">--%</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Registry</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Tasks</th>
+                <th>Success Rate</th>
+                <th>Avg Duration</th>
+              </tr>
+            </thead>
+            <tbody id="algorithm-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Health -->
+      <section id="page-health" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Health</h1>
+            <p class="page-description">System health status</p>
+          </div>
+          <div class="status-indicator">
+            <span class="status-dot success" id="overall-health-dot"></span>
+            <span id="overall-health-text">All systems operational</span>
+          </div>
+        </header>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Services</span>
+          </div>
+          <div class="card-body">
+            <div class="health-grid" id="health-grid"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-equal">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Kafka Topics</span>
+            </div>
+            <div class="card-body">
+              <div class="stats-list" id="kafka-topics-table"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Audit Chain</span>
+            </div>
+            <div class="card-body" id="audit-chain-status">
+              <div class="health-item">
+                <span class="status-dot warning"></span>
+                <div>
+                  <div class="health-name">Chain Integrity</div>
+                  <div class="health-status">Verifying...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Storage -->
+      <section id="page-storage" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Storage</h1>
+            <p class="page-description">MinIO object storage</p>
+          </div>
+        </header>
+
+        <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="metric-card">
+            <div class="metric-label">Total Size</div>
+            <div class="metric-value" id="storage-total">0 MB</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Artifacts</div>
+            <div class="metric-value" id="storage-artifacts">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Aggregates</div>
+            <div class="metric-value" id="storage-aggregates">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Metric Values</div>
+            <div class="metric-value" id="storage-metric-values">0</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Bucket Usage</span>
+          </div>
+          <div class="card-body">
+            <div id="storage-chart" class="chart-container"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Artifacts</span>
+            <div style="display: flex; gap: 8px;">
+              <select id="artifact-bucket-select" class="select">
+                <option value="artifacts">artifacts</option>
+                <option value="aggregates">aggregates</option>
+              </select>
+              <button class="btn" onclick="loadArtifacts()">Refresh</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="artifacts-grid" class="artifacts-grid">
+              <div class="empty-state" style="grid-column: 1 / -1;">
+                <div>Select a bucket and click Refresh</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pipelines -->
+      <section id="page-pipelines" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Pipelines</h1>
+            <p class="page-description">Configured routes</p>
+          </div>
+        </header>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Routes</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Path</th>
+                <th>Processor</th>
+                <th>Version</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="routes-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Artifacts Browser -->
+      <section id="page-artifacts-browser" class="page-section">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Artifacts</h1>
+            <p class="page-description">Browse task outputs and reports</p>
+          </div>
+        </header>
+
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">Processor</label>
+            <select class="select" id="artifact-processor-filter">
+              <option value="">All Processors</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="loadTaskList()">Refresh</button>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 350px 1fr;">
+          <!-- Task List Panel -->
+          <div class="card" style="max-height: calc(100vh - 220px); display: flex; flex-direction: column;">
+            <div class="card-header">
+              <span class="card-title">Tasks</span>
+              <span style="color: var(--text-tertiary); font-size: 12px;" id="task-count">0 tasks</span>
+            </div>
+            <div class="card-body" id="task-list" style="padding: 0; flex: 1; overflow-y: auto;">
+              <div class="empty-state">Loading tasks...</div>
+            </div>
+            <div class="card-footer" id="task-pagination" style="display: none; padding: 8px 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <button class="btn btn-sm" id="task-prev-btn" onclick="loadTaskPage(-1)" disabled>Prev</button>
+              <span style="font-size: 12px; color: var(--text-secondary);" id="task-page-info">Page 1</span>
+              <button class="btn btn-sm" id="task-next-btn" onclick="loadTaskPage(1)">Next</button>
+            </div>
+          </div>
+
+          <!-- Artifact Viewer Panel -->
+          <div>
+            <!-- Artifact List for Selected Task -->
+            <div class="card" id="task-artifacts-card" style="display: none;">
+              <div class="card-header">
+                <span class="card-title">Artifacts for <span id="selected-task-id">-</span></span>
+                <span style="color: var(--text-tertiary); font-size: 12px;" id="artifact-count">0 artifacts</span>
+              </div>
+              <div class="card-body">
+                <div class="artifacts-grid" id="task-artifacts-grid"></div>
+              </div>
+            </div>
+
+            <!-- Artifact Viewer -->
+            <div class="card" id="artifact-viewer-card" style="display: none;">
+              <div class="card-header">
+                <span class="card-title" id="viewer-artifact-name">Artifact</span>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn" onclick="downloadCurrentArtifact()">Download</button>
+                  <button class="btn" onclick="closeArtifactViewer()">Close</button>
+                </div>
+              </div>
+              <div class="card-body" id="artifact-viewer-content">
+                <div class="empty-state">Select an artifact to view</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="artifact-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeArtifactModal()">×</button>
+      <div class="modal-body" id="artifact-modal-content"></div>
+    </div>
+  </div>
+
+<script>
+const CONFIG = {
+  apiUrl: '',
+  refreshInterval: 30000,
+  autoRefresh: true
+};
+
+const CONN = { api: false, prometheus: false, minio: false, kafka: false, flink: false };
+
+const PLOTLY_LAYOUT = {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: 'rgba(0,0,0,0)',
+  font: { family: 'Inter, sans-serif', color: '#8A9BA8', size: 11 },
+  margin: { l: 40, r: 20, t: 10, b: 30 },
+  xaxis: { gridcolor: '#2A3744', linecolor: '#2A3744', tickcolor: '#2A3744' },
+  yaxis: { gridcolor: '#2A3744', linecolor: '#2A3744', tickcolor: '#2A3744' },
+  showlegend: false
+};
+
+let refreshTimer = null;
+let currentMetric = { name: null, algo: null, version: null };
+
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+  updateClock();
+  setInterval(updateClock, 1000);
+  checkConnections().then(() => {
+    loadDashboard();
+    startRefresh();
+  });
+});
+
+function initNav() {
+  document.querySelectorAll('[data-page]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      activatePage(el.dataset.page);
+      if (history.replaceState) history.replaceState(null, '', `#${el.dataset.page}`);
+    });
+  });
+  const initial = (location.hash || '').replace(/^#/, '');
+  if (initial && document.getElementById(`page-${initial}`)) {
+    activatePage(initial);
+  }
+}
+
+function activatePage(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if (navEl) navEl.classList.add('active');
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.classList.add('active');
+  loadPage(page);
+}
+
+function loadPage(page) {
+  const loaders = {
+    dashboard: loadDashboard,
+    metrics: loadMetrics,
+    algorithms: loadProcessors,
+    health: loadHealth,
+    storage: loadStorage,
+    pipelines: loadPipelines,
+    'artifacts-browser': loadArtifactsBrowser
+  };
+  if (loaders[page]) loaders[page]();
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+}
+
+function toggleAutoRefresh() {
+  CONFIG.autoRefresh = !CONFIG.autoRefresh;
+  document.getElementById('auto-refresh-toggle').classList.toggle('active', CONFIG.autoRefresh);
+  CONFIG.autoRefresh ? startRefresh() : stopRefresh();
+}
+
+function startRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (CONFIG.autoRefresh) {
+    refreshTimer = setInterval(() => {
+      const active = document.querySelector('.page-section.active');
+      if (active) loadPage(active.id.replace('page-', ''));
+    }, CONFIG.refreshInterval);
+  }
+}
+
+function stopRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+async function checkConnections() {
+  try {
+    const r = await fetch(`${CONFIG.apiUrl}/api/health`);
+    if (r.ok) {
+      const d = await r.json();
+      CONN.api = true;
+      CONN.minio = d.minio === true;
+    }
+  } catch { CONN.api = false; CONN.minio = false; }
+
+  try {
+    const r = await fetch(`${CONFIG.apiUrl}/api/prometheus/healthy`);
+    const d = await r.json();
+    CONN.prometheus = d.healthy === true;
+  } catch { CONN.prometheus = false; }
+
+  CONN.kafka = CONN.prometheus;
+
+  try {
+    const r = await fetch('http://localhost:8081/overview');
+    CONN.flink = r.ok;
+  } catch { CONN.flink = false; }
+
+  updateSystemStatus();
+}
+
+function updateSystemStatus() {
+  const all = CONN.api && CONN.prometheus && CONN.minio;
+  const some = CONN.api || CONN.prometheus || CONN.minio;
+  const dot = document.getElementById('system-status-dot');
+  const text = document.getElementById('system-status-text');
+
+  if (all) {
+    dot.className = 'status-dot success';
+    text.textContent = 'Operational';
+  } else if (some) {
+    dot.className = 'status-dot warning';
+    text.textContent = 'Degraded';
+  } else {
+    dot.className = 'status-dot error';
+    text.textContent = 'Offline';
+  }
+}
+
+async function query(endpoint) {
+  try {
+    const r = await fetch(`${CONFIG.apiUrl}${endpoint}`, { cache: 'no-store' });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+async function promQuery(q) {
+  const d = await query(`/api/prometheus/query?query=${encodeURIComponent(q)}`);
+  if (d?.status === 'success' && d.data?.result?.length > 0) {
+    return parseFloat(d.data.result[0].value[1]) || 0;
+  }
+  return 0;
+}
+
+async function promRange(q, start, end, step) {
+  const d = await query(`/api/prometheus/query_range?query=${encodeURIComponent(q)}&start=${start}&end=${end}&step=${step}`);
+  if (d?.status === 'success' && d.data?.result?.length > 0) {
+    return d.data.result[0].values;
+  }
+  return [];
+}
+
+// Dashboard
+async function loadDashboard() {
+  await Promise.all([loadKPIs(), loadChart(), loadStats(), loadActivity(), loadServices()]);
+}
+
+async function loadKPIs() {
+  const jobs = await promQuery('sum(tapline_tasks_created_total) or sum(tapline_jobs_created_total) or vector(0)');
+  document.getElementById('kpi-jobs').textContent = Math.round(jobs).toLocaleString();
+
+  const rate = await promQuery('sum(rate(tapline_tasks_created_total[5m])) or sum(rate(tapline_jobs_created_total[5m])) or vector(0)');
+  document.getElementById('kpi-throughput').textContent = rate.toFixed(2) + '/s';
+
+  const latency = await promQuery('avg(tapline_task_duration_seconds) * 1000 or avg(tapline_job_duration_seconds) * 1000 or vector(0)');
+  document.getElementById('kpi-latency').textContent = Math.round(latency) + 'ms';
+
+  const errRate = await promQuery('sum(tapline_tasks_failed_total) / sum(tapline_tasks_created_total) * 100 or vector(0)');
+  document.getElementById('kpi-errors').textContent = errRate.toFixed(2) + '%';
+}
+
+async function loadChart() {
+  const range = document.getElementById('chart-timerange')?.value || '1h';
+  const dur = range === '24h' ? 86400 : range === '6h' ? 21600 : 3600;
+  const now = Math.floor(Date.now() / 1000);
+  const step = Math.max(60, Math.floor(dur / 100));
+
+  const vals = await promRange(
+    'sum(rate(tapline_tasks_created_total[5m])) or sum(rate(tapline_jobs_created_total[5m])) or vector(0)',
+    now - dur, now, step
+  );
+
+  if (vals.length > 0) {
+    Plotly.newPlot('throughput-chart', [{
+      x: vals.map(v => new Date(v[0] * 1000)),
+      y: vals.map(v => parseFloat(v[1]) || 0),
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tozeroy',
+      line: { color: '#00D4AA', width: 1.5 },
+      fillcolor: 'rgba(0, 212, 170, 0.1)'
+    }], { ...PLOTLY_LAYOUT, xaxis: { ...PLOTLY_LAYOUT.xaxis, type: 'date' } }, { responsive: true, displayModeBar: false });
+  }
+}
+
+async function loadStats() {
+  const workers = await promQuery('tapline_worker_pool_size or vector(0)');
+  document.getElementById('stat-workers').textContent = Math.round(workers);
+
+  const queue = await promQuery('tapline_queue_depth or vector(0)');
+  document.getElementById('stat-queue').textContent = Math.round(queue);
+
+  const algos = await query('/api/algorithms');
+  document.getElementById('stat-algos').textContent = algos?.algorithms?.length || 0;
+
+  const dirs = await query('/api/directories');
+  document.getElementById('stat-sources').textContent = dirs?.directories?.length || 0;
+}
+
+async function loadActivity() {
+  const feed = document.getElementById('activity-feed');
+  const data = await query('/api/tasks?limit=8');
+  const tasks = data?.tasks || [];
+  if (!tasks.length) {
+    feed.innerHTML = '<div class="empty-state" style="padding:1rem">No recent activity</div>';
+    return;
+  }
+  feed.innerHTML = tasks.map(t => {
+    const ok = t.status === 'completed';
+    const icon = ok ? '✓' : '○';
+    const cls = ok ? 'success' : 'info';
+    return `
+    <div class="activity-item">
+      <div class="activity-icon ${cls}">${icon}</div>
+      <div class="activity-content">
+        <div class="activity-title">${esc(t.processor_name)} <span class="mono" style="color:var(--text-muted)">${esc(t.task_id.slice(0,8))}</span></div>
+        <div class="activity-time">${formatTimestamp(t.timestamp)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadServices() {
+  const grid = document.getElementById('service-status-grid');
+  const services = [
+    { name: 'API', ok: CONN.api },
+    { name: 'Prometheus', ok: CONN.prometheus },
+    { name: 'MinIO', ok: CONN.minio },
+    { name: 'Kafka', ok: CONN.kafka },
+    { name: 'Flink', ok: CONN.flink }
+  ];
+  grid.innerHTML = services.map(s => `
+    <div class="health-item">
+      <span class="status-dot ${s.ok ? 'success' : 'offline'}"></span>
+      <div>
+        <div class="health-name">${s.name}</div>
+        <div class="health-status">${s.ok ? 'Online' : 'Offline'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Metrics
+async function loadMetrics() {
+  const algos = await query('/api/algorithms');
+  const select = document.getElementById('filter-algorithm');
+  select.innerHTML = '<option value="">All</option>';
+  if (algos?.algorithms) {
+    [...new Set(algos.algorithms.map(a => a.name))].forEach(n => {
+      select.innerHTML += `<option value="${n}">${n}</option>`;
+    });
+  }
+  await applyFilters();
+}
+
+async function applyFilters() {
+  const algo = document.getElementById('filter-algorithm').value;
+  const version = document.getElementById('filter-version').value;
+  const params = new URLSearchParams();
+  if (algo) params.append('algorithm', algo);
+  if (version) params.append('version', version);
+  params.append('refresh', 'true');
+
+  const data = await query(`/api/metrics?${params}`);
+  const metrics = data?.metrics || [];
+  document.getElementById('metrics-count').textContent = `${metrics.length} metrics`;
+
+  const tbody = document.getElementById('metrics-table-body');
+  if (metrics.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No metrics found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = metrics.map(m => {
+    const types = (m.aggregation_types || []).slice(0, 2);
+    const badges = types.map(t => {
+      const cls = { STATS: 'blue', HISTOGRAM: 'yellow', TALLY: 'green', RATE: 'red' }[t] || 'gray';
+      return `<span class="badge badge-${cls}">${t}</span>`;
+    }).join(' ');
+
+    return `<tr>
+      <td class="highlight">${m.metric_name}</td>
+      <td>${m.processor_name || '-'}</td>
+      <td class="mono">${m.processor_version || '-'}</td>
+      <td>${badges}</td>
+      <td class="mono">${m.count?.toLocaleString() || '-'}</td>
+      <td class="mono">${m.avg?.toFixed(4) || '-'}</td>
+      <td><button class="btn" onclick="viewMetric('${m.metric_name}','${m.processor_name}','${m.processor_version}')">View</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function resetFilters() {
+  document.getElementById('filter-algorithm').value = '';
+  document.getElementById('filter-version').value = '';
+  document.getElementById('filter-metric-type').value = '';
+  applyFilters();
+}
+
+async function viewMetric(name, algo, version) {
+  currentMetric = { name, algo, version };
+  document.getElementById('selected-metric-title').textContent = name;
+  document.getElementById('metric-visualization-card').classList.add('active');
+
+  const timeRange = document.getElementById('viz-time-range').value;
+  const params = new URLSearchParams();
+  if (algo) params.append('algorithm', algo);
+  if (version) params.append('version', version);
+  if (timeRange) params.append('time_range', timeRange);
+
+  const data = await query(`/api/metrics/${encodeURIComponent(name)}/data?${params}`);
+  if (!data) return;
+
+  const stats = document.getElementById('metric-stats');
+  stats.innerHTML = ['count', 'sum', 'avg', 'min', 'max', 'std', 'median', 'p95', 'p99'].map(k => `
+    <div class="stats-item">
+      <span class="stats-label">${k}</span>
+      <span class="stats-value">${data[k] != null ? (typeof data[k] === 'number' ? data[k].toFixed(4) : data[k]) : '-'}</span>
+    </div>
+  `).join('');
+
+  if (data.artifacts?.histogram) {
+    const h = data.artifacts.histogram;
+    Plotly.newPlot('metric-chart', [{
+      x: h.bin_edges.slice(0, -1),
+      y: h.counts,
+      type: 'bar',
+      marker: { color: '#00D4AA' }
+    }], { ...PLOTLY_LAYOUT, bargap: 0.05 }, { responsive: true, displayModeBar: false });
+  } else if (data.artifacts?.values) {
+    Plotly.newPlot('metric-chart', [{
+      y: data.artifacts.values,
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: '#00D4AA', width: 1 }
+    }], PLOTLY_LAYOUT, { responsive: true, displayModeBar: false });
+  }
+}
+
+function updateVisualizationTimeRange() {
+  if (currentMetric.name) viewMetric(currentMetric.name, currentMetric.algo, currentMetric.version);
+}
+
+function closeVisualization() {
+  document.getElementById('metric-visualization-card').classList.remove('active');
+  currentMetric = { name: null, algo: null, version: null };
+}
+
+// Processors
+async function loadProcessors() {
+  const [algoData, runData] = await Promise.all([
+    query('/api/algorithms'),
+    query('/api/processors')
+  ]);
+  const algos = algoData?.algorithms || [];
+  const counts = new Map((runData?.processors || []).map(p => [p.name, p.task_count || 0]));
+
+  const total = algos.length;
+  const active = algos.filter(a => (counts.get(a.name) || 0) > 0).length;
+  document.getElementById('algo-total').textContent = total;
+  document.getElementById('algo-active').textContent = active;
+  document.getElementById('algo-success-rate').textContent = total ? `${active}/${total}` : '--';
+
+  const tbody = document.getElementById('algorithm-table-body');
+  if (algos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No processors</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = algos.map(a => {
+    const count = counts.get(a.name) || 0;
+    const live = count > 0;
+    return `
+    <tr>
+      <td class="highlight">${esc(a.name)}</td>
+      <td class="mono">${esc(a.version)}</td>
+      <td><span class="status-dot ${live ? 'success' : 'warning'}" style="display:inline-block"></span> ${live ? 'Active' : 'Idle'}</td>
+      <td class="mono">${count}</td>
+      <td class="mono">${live ? '100%' : '--'}</td>
+      <td class="mono">--</td>
+    </tr>`;
+  }).join('');
+}
+
+// Health
+async function loadHealth() {
+  const grid = document.getElementById('health-grid');
+  const services = [
+    { name: 'API Server', ok: CONN.api },
+    { name: 'Prometheus', ok: CONN.prometheus },
+    { name: 'MinIO', ok: CONN.minio },
+    { name: 'Kafka', ok: CONN.kafka },
+    { name: 'Flink', ok: CONN.flink }
+  ];
+
+  grid.innerHTML = services.map(s => `
+    <div class="health-item">
+      <span class="status-dot ${s.ok ? 'success' : 'offline'}"></span>
+      <div>
+        <div class="health-name">${s.name}</div>
+        <div class="health-status">${s.ok ? 'Operational' : 'Offline'}</div>
+      </div>
+    </div>
+  `).join('');
+
+  try {
+    const kafka = await query('/api/kafka/health');
+    const topics = document.getElementById('kafka-topics-table');
+    if (kafka?.topics) {
+      topics.innerHTML = kafka.topics.slice(0, 8).map(t => `
+        <div class="stats-item">
+          <span class="stats-label">${t}</span>
+          <span class="status-dot success"></span>
+        </div>
+      `).join('');
+    }
+  } catch {}
+
+  try {
+    const audit = await query('/api/audit/verify');
+    const el = document.getElementById('audit-chain-status');
+    const cls = audit?.status === 'valid' ? 'success' : audit?.status === 'no_events' ? 'warning' : 'error';
+    el.innerHTML = `
+      <div class="health-item">
+        <span class="status-dot ${cls}"></span>
+        <div>
+          <div class="health-name">Chain Integrity</div>
+          <div class="health-status">${audit?.message || 'Unknown'}</div>
+        </div>
+      </div>
+    `;
+  } catch {}
+}
+
+// Storage
+async function loadStorage() {
+  const data = await query('/api/buckets');
+  if (data?.buckets) {
+    let total = 0;
+    data.buckets.forEach(b => {
+      total += b.total_size_mb || 0;
+      if (b.name === 'artifacts') document.getElementById('storage-artifacts').textContent = b.object_count;
+      if (b.name === 'aggregates') document.getElementById('storage-aggregates').textContent = b.object_count;
+      if (b.name === 'metric-values') document.getElementById('storage-metric-values').textContent = b.object_count;
+    });
+    document.getElementById('storage-total').textContent = total.toFixed(1) + ' MB';
+
+    Plotly.newPlot('storage-chart', [{
+      values: data.buckets.map(b => b.total_size_mb || 0.01),
+      labels: data.buckets.map(b => b.name),
+      type: 'pie',
+      hole: 0.5,
+      marker: { colors: ['#00D4AA', '#22c55e', '#eab308', '#ef4444'] },
+      textinfo: 'label+percent',
+      textfont: { color: '#FFFFFF', size: 11 }
+    }], { ...PLOTLY_LAYOUT, margin: { l: 20, r: 20, t: 20, b: 20 } }, { responsive: true, displayModeBar: false });
+  }
+}
+
+async function loadArtifacts() {
+  const bucket = document.getElementById('artifact-bucket-select').value;
+  const grid = document.getElementById('artifacts-grid');
+  grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Loading...</div>';
+
+  const data = await query(`/api/artifacts?bucket=${bucket}&limit=50`);
+  if (data?.objects?.length > 0) {
+    grid.innerHTML = data.objects.map(o => `
+      <div class="artifact-card" onclick="viewArtifact('${bucket}','${o.key}')">
+        <div class="artifact-name">${o.key.split('/').pop()}</div>
+        <div class="artifact-meta">${formatBytes(o.size)}</div>
+      </div>
+    `).join('');
+  } else {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No artifacts</div>';
+  }
+}
+
+async function viewArtifact(bucket, key) {
+  const data = await query(`/api/artifact/${bucket}/${key}`);
+  if (!data) return;
+
+  const modal = document.getElementById('artifact-modal');
+  const content = document.getElementById('artifact-modal-content');
+
+  if (data.content?.type === 'image') {
+    content.innerHTML = `<img src="data:${data.content.mime};base64,${data.content.data_base64}" style="max-width:100%;max-height:80vh">`;
+  } else if (data.content?.type === 'json') {
+    content.innerHTML = `<pre style="color:#8A9BA8;overflow:auto;max-height:80vh">${JSON.stringify(data.content.data, null, 2)}</pre>`;
+  } else {
+    content.innerHTML = `<div class="empty-state">Binary file (${formatBytes(data.content?.size || 0)})</div>`;
+  }
+  modal.classList.add('active');
+}
+
+function closeArtifactModal() {
+  document.getElementById('artifact-modal').classList.remove('active');
+}
+
+// Pipelines
+async function loadPipelines() {
+  const data = await query('/api/routes');
+  const tbody = document.getElementById('routes-table-body');
+
+  if (data?.routes?.length > 0) {
+    tbody.innerHTML = data.routes.map(r => `
+      <tr>
+        <td>${r.directory}</td>
+        <td class="mono">${r.path}</td>
+        <td class="highlight">${r.algorithm}</td>
+        <td class="mono">${r.version}</td>
+        <td><span class="status-dot success" style="display:inline-block"></span> Active</td>
+      </tr>
+    `).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No routes configured</td></tr>';
+  }
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+document.getElementById('chart-timerange')?.addEventListener('change', loadChart);
+
+// ============================================================================
+// Artifacts Browser
+// ============================================================================
+
+let currentArtifact = { bucket: null, key: null };
+let taskPagination = { page: 0, pageSize: 25, totalTasks: 0, hasMore: false };
+
+async function loadArtifactsBrowser() {
+  await loadProcessorFilter();
+  await loadTaskList();
+}
+
+async function loadProcessorFilter() {
+  const select = document.getElementById('artifact-processor-filter');
+  try {
+    const data = await query('/api/processors');
+    if (data?.processors) {
+      select.innerHTML = '<option value="">All Processors</option>';
+      data.processors.forEach(p => {
+        select.innerHTML += `<option value="${p.name}">${p.name} (${p.task_count} tasks)</option>`;
+      });
+    }
+  } catch (e) {
+    console.error('Failed to load processors:', e);
+  }
+}
+
+async function loadTaskList(resetPage = true) {
+  if (resetPage) taskPagination.page = 0;
+
+  const processor = document.getElementById('artifact-processor-filter').value;
+  const params = new URLSearchParams();
+  if (processor) params.append('processor', processor);
+  // Request one more than pageSize to detect if there are more pages
+  params.append('limit', String(taskPagination.pageSize + 1));
+  params.append('offset', String(taskPagination.page * taskPagination.pageSize));
+
+  const taskList = document.getElementById('task-list');
+  taskList.innerHTML = '<div class="empty-state">Loading tasks...</div>';
+
+  try {
+    const data = await query(`/api/tasks?${params}`);
+    let tasks = data?.tasks || [];
+
+    // Check if there are more pages
+    taskPagination.hasMore = tasks.length > taskPagination.pageSize;
+    if (taskPagination.hasMore) {
+      tasks = tasks.slice(0, taskPagination.pageSize); // Remove the extra item
+    }
+
+    taskPagination.totalTasks = data?.count || tasks.length;
+    updateTaskPagination(tasks.length);
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = '<div class="empty-state">No tasks found</div>';
+      return;
+    }
+
+    taskList.innerHTML = tasks.map(t => `
+      <div class="task-item" onclick="selectTask('${t.task_id}', this)" data-task-id="${t.task_id}">
+        <div class="task-item-header">
+          <span class="task-item-id">${t.task_id.substring(0, 12)}...</span>
+          <span class="badge badge-green">${t.status}</span>
+        </div>
+        <div class="task-item-processor">${t.processor_name || 'unknown'} ${t.processor_version ? 'v' + t.processor_version : ''}</div>
+        <div class="task-item-meta">
+          <span>${t.artifacts?.length || 0} artifacts</span>
+          <span>${formatTimestamp(t.timestamp)}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load tasks:', e);
+    taskList.innerHTML = '<div class="empty-state">Failed to load tasks</div>';
+  }
+}
+
+function updateTaskPagination(displayedCount) {
+  const pagination = document.getElementById('task-pagination');
+  const pageInfo = document.getElementById('task-page-info');
+  const prevBtn = document.getElementById('task-prev-btn');
+  const nextBtn = document.getElementById('task-next-btn');
+
+  // Show pagination only if there's more than one page of content
+  const showPagination = taskPagination.page > 0 || taskPagination.hasMore;
+  pagination.style.display = showPagination ? 'flex' : 'none';
+
+  // Update page info
+  const start = taskPagination.page * taskPagination.pageSize + 1;
+  const end = start + displayedCount - 1;
+  pageInfo.textContent = `${start}-${end}`;
+  document.getElementById('task-count').textContent = taskPagination.hasMore ? `${end}+ tasks` : `${end} tasks`;
+
+  // Update button states
+  prevBtn.disabled = taskPagination.page === 0;
+  nextBtn.disabled = !taskPagination.hasMore;
+}
+
+function loadTaskPage(direction) {
+  taskPagination.page += direction;
+  if (taskPagination.page < 0) taskPagination.page = 0;
+  loadTaskList(false);
+}
+
+async function selectTask(taskId, element) {
+  // Update selection UI
+  document.querySelectorAll('.task-item').forEach(el => el.classList.remove('selected'));
+  if (element) element.classList.add('selected');
+
+  document.getElementById('selected-task-id').textContent = taskId.substring(0, 16) + '...';
+  document.getElementById('task-artifacts-card').style.display = 'block';
+
+  const grid = document.getElementById('task-artifacts-grid');
+  grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Loading artifacts...</div>';
+
+  try {
+    const data = await query(`/api/tasks/${taskId}/artifacts`);
+    const artifacts = data?.artifacts || [];
+    document.getElementById('artifact-count').textContent = `${artifacts.length} artifacts`;
+
+    if (artifacts.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No artifacts</div>';
+      return;
+    }
+
+    grid.innerHTML = artifacts.map(a => {
+      const icon = getArtifactIcon(a.mime);
+      return `
+        <div class="artifact-card" onclick="viewArtifactWithViewer('${a.bucket}', '${a.key}', '${a.name}')">
+          <div style="font-size: 20px; margin-bottom: 8px;">${icon}</div>
+          <div class="artifact-name">${a.name}</div>
+          <div class="artifact-meta">${formatBytes(a.size)}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('Failed to load task artifacts:', e);
+    grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Failed to load artifacts</div>';
+  }
+}
+
+function getArtifactIcon(mime) {
+  const iconColor = 'var(--text-secondary)';
+  if (mime?.startsWith('image/')) {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <path d="M21 15l-5-5L5 21"/>
+    </svg>`;
+  }
+  if (mime === 'application/json') {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/>
+      <path d="M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/>
+    </svg>`;
+  }
+  if (mime === 'application/x-npz') {
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <rect x="3" y="12" width="4" height="9"/>
+      <rect x="10" y="8" width="4" height="13"/>
+      <rect x="17" y="4" width="4" height="17"/>
+    </svg>`;
+  }
+  return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>`;
+}
+
+async function viewArtifactWithViewer(bucket, key, name) {
+  currentArtifact = { bucket, key };
+  document.getElementById('viewer-artifact-name').textContent = name;
+  document.getElementById('artifact-viewer-card').style.display = 'block';
+
+  const content = document.getElementById('artifact-viewer-content');
+  content.innerHTML = '<div class="empty-state">Loading...</div>';
+
+  try {
+    const data = await query(`/api/artifacts/view/${bucket}/${key}`);
+
+    if (data?.error) {
+      content.innerHTML = `<div class="empty-state">Error: ${data.error}</div>`;
+      return;
+    }
+
+    switch (data.render_type) {
+      case 'plotly':
+        renderPlotlyViewer(content, data.data);
+        break;
+      case 'image':
+        renderImageViewer(content, data.data);
+        break;
+      case 'json':
+        renderJSONViewer(content, data.data);
+        break;
+      case 'stats':
+        renderStatsViewer(content, data.data);
+        break;
+      default:
+        content.innerHTML = `<div class="empty-state">Unsupported viewer type: ${data.render_type}</div>`;
+    }
+  } catch (e) {
+    console.error('Failed to view artifact:', e);
+    content.innerHTML = '<div class="empty-state">Failed to load artifact</div>';
+  }
+}
+
+function renderPlotlyViewer(container, plotlyConfig) {
+  container.innerHTML = '<div id="plotly-viewer" style="height: 400px;"></div>';
+  const layout = {
+    ...PLOTLY_LAYOUT,
+    ...plotlyConfig.layout,
+    height: 400
+  };
+  Plotly.newPlot('plotly-viewer', plotlyConfig.data, layout, { responsive: true, displayModeBar: true });
+}
+
+function renderImageViewer(container, imageData) {
+  container.innerHTML = `
+    <div class="image-viewer">
+      <img src="${imageData.data_uri}" alt="Artifact image" />
+      <div style="margin-top: 12px; color: var(--text-tertiary); font-size: 12px;">
+        ${imageData.width ? `${imageData.width}×${imageData.height}px • ` : ''}${formatBytes(imageData.size_bytes)}
+      </div>
+    </div>
+  `;
+}
+
+function renderJSONViewer(container, jsonData) {
+  const formatted = syntaxHighlightJSON(JSON.stringify(jsonData, null, 2));
+  container.innerHTML = `
+    <div class="json-viewer">
+      <pre>${formatted}</pre>
+    </div>
+  `;
+}
+
+function renderStatsViewer(container, statsData) {
+  const stats = ['count', 'mean', 'median', 'min', 'max', 'std'];
+  let html = '<div class="stats-list">';
+  stats.forEach(key => {
+    if (statsData[key] !== undefined) {
+      const val = typeof statsData[key] === 'number' ? statsData[key].toFixed(4) : statsData[key];
+      html += `
+        <div class="stats-item">
+          <span class="stats-label">${key}</span>
+          <span class="stats-value">${val}</span>
+        </div>
+      `;
+    }
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function syntaxHighlightJSON(json) {
+  return json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      let cls = 'json-number';
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'json-key' : 'json-string';
+      } else if (/true|false/.test(match)) {
+        cls = 'json-boolean';
+      } else if (/null/.test(match)) {
+        cls = 'json-null';
+      }
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+function closeArtifactViewer() {
+  document.getElementById('artifact-viewer-card').style.display = 'none';
+  currentArtifact = { bucket: null, key: null };
+}
+
+async function downloadCurrentArtifact() {
+  if (!currentArtifact.bucket || !currentArtifact.key) return;
+
+  const url = `${CONFIG.apiUrl}/api/artifact/${currentArtifact.bucket}/${currentArtifact.key}?raw=true`;
+  const filename = currentArtifact.key.split('/').pop();
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function esc(value) {
+  if (value === undefined || value === null) return '';
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return '-';
+  try {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now - date;
+
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return '-';
+  }
+}
+</script>
+</body>
+</html>

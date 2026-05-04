@@ -1,0 +1,22 @@
+# Contour Analysis Configuration
+# Algorithm: contour_analysis v1.0.0
+#
+# Detects shapes/contours in images
+# Returns: contour_count, largest_contour_area, total_contour_area, avg_circularity
+
+[detector]
+# Minimum contour area in pixels (filters small noise)
+min_contour_area = 100
+
+# Maximum contour area in pixels (filters overly large regions)
+max_contour_area = 10000000
+
+# Threshold method: "otsu" (adaptive), "adaptive", "simple"
+threshold_method = "otsu"
+
+# Fixed threshold value (only used if method = "simple")
+threshold_value = 127
+
+[algorithm]
+# Minimum number of contours to pass
+min_contour_count = 1

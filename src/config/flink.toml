@@ -1,0 +1,47 @@
+# PyFlink configuration for Tapline stream processing
+
+[connection]
+jobmanager_address = "localhost:8081"
+rest_port = 8081
+
+[execution]
+parallelism = 4                 # Default parallelism
+max_parallelism = 128           # For rescaling
+buffer_timeout_ms = 100         # Latency vs throughput tradeoff
+
+[checkpointing]
+enabled = true
+interval_ms = 60000             # Checkpoint every 60s
+mode = "exactly_once"           # EXACTLY_ONCE or AT_LEAST_ONCE
+min_pause_ms = 5000             # Min pause between checkpoints
+timeout_ms = 600000             # 10 min checkpoint timeout
+max_concurrent = 1              # One checkpoint at a time
+unaligned = false               # Use aligned checkpoints
+
+[state]
+backend = "rocksdb"             # rocksdb or hashmap
+incremental = true              # Incremental RocksDB checkpoints
+ttl_ms = 86400000               # State TTL: 24 hours
+
+[windows]
+# Tumbling window for metrics aggregation
+tumbling_size_sec = 60
+
+# Sliding window configuration
+sliding_size_sec = 60
+sliding_step_sec = 10
+
+# Late event handling
+late_event_tolerance_sec = 30
+allowed_lateness_sec = 60
+
+[watermarks]
+# Bounded out-of-orderness watermark strategy
+max_out_of_orderness_sec = 10
+idle_timeout_sec = 60
+
+[kafka]
+# Kafka connector settings (override kafka.toml for Flink-specific)
+consumer_group = "tapline-flink"
+commit_on_checkpoints = true
+start_from_earliest = true

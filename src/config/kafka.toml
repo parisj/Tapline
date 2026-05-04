@@ -1,0 +1,70 @@
+# Kafka configuration for Tapline streaming architecture
+
+[broker]
+bootstrap_servers = "localhost:9092"
+client_id = "tapline"
+
+[producer]
+acks = "all"                    # Wait for all replicas
+retries = 3
+retry_backoff_ms = 100
+linger_ms = 5                   # Batch for 5ms before sending
+batch_size = 16384              # 16KB batch size
+compression_type = "lz4"        # Fast compression
+enable_idempotence = true       # Exactly-once semantics
+
+[consumer]
+group_id = "tapline-workers"
+auto_offset_reset = "earliest"  # Start from beginning if no offset
+enable_auto_commit = false      # Manual commit after processing
+session_timeout_ms = 30000
+heartbeat_interval_ms = 10000
+max_poll_interval_ms = 300000   # 5 min for slow jobs
+# Cooperative-sticky: during rebalance, workers keep their partitions and
+# only orphaned partitions get reassigned. Prevents stop-the-world rebalances.
+partition_assignment_strategy = "cooperative-sticky"
+# Note: max_poll_records is not supported by librdkafka (confluent-kafka)
+# Batch size is controlled via fetch.max.bytes instead
+# Connection timeouts
+socket_timeout_ms = 30000
+socket_connection_setup_timeout_ms = 10000
+
+[topics]
+# Job lifecycle events (partitioned by source_id for ordering)
+jobs = "tapline.tasks"
+jobs_partitions = 32
+
+# Algorithm results (partitioned by source_id)
+results = "tapline.results"
+results_partitions = 32
+
+# Metrics for Flink aggregation (partitioned by processor_name)
+metrics = "tapline.metrics"
+metrics_partitions = 32
+
+# Append-only audit log (single partition for total ordering)
+audit_log = "tapline.audit"
+audit_log_partitions = 1
+
+# Aggregation results from Flink
+aggregates = "tapline.aggregates"
+aggregates_partitions = 16
+
+[schema_registry]
+url = "http://localhost:8085"
+
+# Security settings (TLS/SASL)
+# Uncomment and configure for production deployments
+[security]
+# protocol options: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+protocol = "PLAINTEXT"
+# SSL settings (for SSL and SASL_SSL protocols)
+# ssl_ca_location = "/path/to/ca.pem"
+# ssl_certificate_location = "/path/to/client.pem"
+# ssl_key_location = "/path/to/client.key"
+# ssl_key_password = ""
+# SASL settings (for SASL_PLAINTEXT and SASL_SSL protocols)
+# sasl_mechanism options: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI, OAUTHBEARER
+# sasl_mechanism = "PLAIN"
+# sasl_username = ""
+# sasl_password = ""

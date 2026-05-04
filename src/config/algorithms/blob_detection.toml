@@ -1,0 +1,25 @@
+# Blob Detection Algorithm Configuration
+# Uses OpenCV's SimpleBlobDetector
+
+[detector]
+# Thresholding parameters
+min_threshold = 10
+max_threshold = 200
+threshold_step = 10
+
+# Area filter (blob size in pixels^2)
+min_area = 100
+max_area = 50000
+
+# Shape filters
+min_circularity = 0.1   # 0.0 to 1.0, 1.0 = perfect circle
+min_convexity = 0.5     # 0.0 to 1.0
+min_inertia_ratio = 0.1 # 0.0 to 1.0, elongation filter
+
+# Color filter
+filter_by_color = true
+blob_color = 0  # 0 = dark blobs, 255 = light blobs
+
+[algorithm]
+# Minimum blobs required for detection_passed = true
+min_blob_count = 1

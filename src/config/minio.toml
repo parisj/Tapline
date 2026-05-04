@@ -1,0 +1,44 @@
+# MinIO configuration for Tapline artifact storage
+
+[connection]
+# Connection settings - credentials should be set via environment variables:
+# MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+endpoint = "localhost:9000"     # Override with MINIO_ENDPOINT env var
+access_key = ""                 # Set via MINIO_ACCESS_KEY env var (required)
+secret_key = ""                 # Set via MINIO_SECRET_KEY env var (required)
+secure = false                  # Use HTTPS in production (set to true)
+region = "us-east-1"
+# Connection timeouts (in seconds)
+connect_timeout = 10.0
+read_timeout = 30.0
+
+[buckets]
+# Content-addressed artifact storage (algorithm outputs)
+artifacts = "artifacts"
+
+# Input file storage (optional, for audit trail)
+inputs = "inputs"
+
+# Aggregate artifacts from Flink (histograms, plots, etc.)
+aggregates = "aggregates"
+
+# Raw metric values for analysis computation (histograms, ellipses, etc.)
+metric_values = "metric-values"
+
+[storage]
+# Content-addressed path format: bucket/ab/cd/{full_hash}
+# Uses first 4 chars of hash for directory sharding
+path_prefix_length = 4
+
+# Maximum object size in bytes (100MB default)
+max_object_size = 104857600
+
+# Retry configuration
+max_retries = 3
+retry_delay_sec = 0.5
+
+[lifecycle]
+# Retention policy (0 = infinite)
+artifacts_retention_days = 0
+inputs_retention_days = 30
+aggregates_retention_days = 90

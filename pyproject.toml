@@ -1,0 +1,163 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Tapline"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Docstring style conflicts (D203/D211, D212/D213 are mutually exclusive)
+    "D203",    # Blank line before class (conflicts with D211)
+    "D213",    # Multi-line summary second line (conflicts with D212)
+    # Formatter conflict
+    "COM812",  # Missing trailing comma (conflicts with formatter)
+    # Docstrings - class/method/function level
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__
+    "D205",    # 1 blank line required between summary line and description
+    "D401",    # First line of docstring should be in imperative mood
+    # Testing
+    "S101",    # Use of assert detected
+    # Complexity (allow for complex API handlers and data processing)
+    "C901",    # Function is too complex
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments to function call
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic value used in comparison
+    # Exception handling style
+    "TRY300",  # Consider moving this statement to an else block
+    "TRY301",  # Abstract raise to an inner function
+    "TRY401",  # Redundant exception object included in logging
+    "BLE001",  # Do not catch blind exception
+    # Boolean arguments (common pattern in APIs)
+    "FBT001",  # Boolean-typed positional argument in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    # Global statements (used for lazy initialization)
+    "PLW0603", # Using the global statement
+    # Misc style preferences
+    "G004",    # Logging statement uses f-string
+    "S110",    # try-except-pass detected
+    "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "SLF001",  # Private member accessed
+    "PYI036",  # Star-args in __exit__ should be annotated with object
+    "N806",    # Variable in function should be lowercase
+    "ERA001",  # Commented-out code (false positives on section headers)
+    "TC003",   # Move stdlib import to type-checking block (style preference)
+    # Subprocess without shell=True
+    "S603",    # subprocess call without shell=True
+    "S108",    # Probable insecure usage of temp file
+    # DTZ - datetime without tzinfo (common in many codebases)
+    "DTZ001",  # datetime.datetime() called without tzinfo
+    "DTZ005",  # datetime.now() called without tz
+    "DTZ006",  # datetime.fromtimestamp() called without tz
+    "DTZ901",  # datetime.utcnow() is deprecated
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # Asserts allowed in tests
+    "D",       # Docstrings not required in tests
+    "PLR2004", # Magic values OK in tests
+    "ANN",     # Type annotations not required in tests
+    "ARG",     # Unused arguments OK in tests (fixtures)
+    "RUF043",  # Regex patterns OK in tests
+    "F401",    # Unused imports OK in tests
+    "F841",    # Unused variables OK in tests
+    "PT022",   # Yield in fixtures
+    "S310",    # URL open audit (test URLs)
+    "PLC0415", # Local imports OK in tests (for test isolation)
+    "PLR1714", # Multiple comparisons OK in tests
+    "NPY002",  # Legacy random OK in tests
+]
+"benchmarks/**/*.py" = [
+    "T201",    # Print statements allowed in benchmarks
+    "S324",    # SHA1 usage for fingerprinting (not security)
+    "PLR2004", # Magic values OK in benchmarks
+    "ANN",     # Type annotations not required in benchmarks
+]
+"src/algorithms/**/*.py" = [
+    "S324",    # SHA1 usage for fingerprinting (not security)
+]
+# Lazy imports for algorithm registry
+"src/algorithms/registry.py" = ["PLC0415", "UP037"]
+# Lazy imports for analyzer registry
+"src/evaluation/analyzer_registry.py" = ["PLC0415", "ANN401"]
+# Base classes and protocols have unused args by design
+"src/algorithms/base.py" = ["ARG002"]
+"src/audit/chain.py" = ["ARG002"]
+"src/evaluation/analyzers/*.py" = ["ARG002"]
+# Viewer protocol implementations have unused args by design
+"src/visualization/viewers/*.py" = ["ARG002", "PLC0415", "ANN401"]
+# Conditional imports for optional dependencies
+"src/streaming/producer.py" = ["PLC0415", "ANN401", "E402", "ARG002"]
+"src/streaming/consumer.py" = ["ARG002"]
+"src/flink/jobs/*.py" = ["ARG002", "ANN"]
+"src/observability/*.py" = ["ANN401", "PLC0415"]
+"src/query/state_reader.py" = ["ARG002"]
+"src/utils/logging.py" = ["PLC0415", "ANN401"]
+"src/workers/*.py" = ["PLC0415", "ANN401", "ARG005", "ARG002"]
+# App modules with conditional imports for optional features
+"src/app/*.py" = ["PLC0415"]
+# Visualization modules with conditional imports and complex data processing
+"src/visualization/*.py" = ["PLC0415"]
+"src/visualization/data/*.py" = ["PLC0415"]
+"tests/e2e/*.py" = ["PLC0415"]
+"tests/integration/*.py" = ["PLC0415"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = [
+    "tests/",
+    "benchmarks/",
+]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "benchmarks/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "error",
+    # Ignore resource warnings from temporary log files in tests
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    # Ignore deprecation warnings from third-party packages
+    "ignore::DeprecationWarning:confluent_kafka.*",
+    "ignore::DeprecationWarning:minio.*",
+]
+markers = [
+    "integration: marks tests as integration tests (require infrastructure)",
+    "e2e: marks tests as end-to-end tests (require full pipeline)",
+]

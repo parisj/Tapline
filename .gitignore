@@ -5,7 +5,6 @@ __pycache__/
 
 # C extensions
 *.so
-
 # Distribution / packaging
 .Python
 build/
@@ -36,6 +35,20 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# databases
+*.db
+docker-compose.yml
+
+#Test Paths
+paths_test/
+
+#Kgen
+kgen.*
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -54,6 +67,11 @@ cover/
 # Translations
 *.mo
 *.pot
+
+#claude
+CLAUDE.md
+.claude/
+.omc/
 
 # Django stuff:
 *.log
@@ -205,3 +223,4 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+yolov8n-seg.pt

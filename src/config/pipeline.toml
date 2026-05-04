@@ -1,0 +1,58 @@
+# ============================================================================
+# Pipeline runtime configuration
+# ============================================================================
+
+[ingest]
+queue_maxsize = 10000
+poll_interval_sec = 0.1
+allowed_image_exts = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".bmp",
+  ".tif",
+  ".tiff"
+]
+
+[readiness]
+stable_window_sec = 0.05
+max_wait_sec = 0.3
+
+[workers]
+# "auto" = cpu_count // auto_divisor, clamped by min_workers
+max_workers = "auto"
+auto_divisor = 2
+min_workers = 2
+# Commit offsets after this many messages (1 = per-message, default)
+commit_batch_size = 10
+# Number of I/O worker threads for file reads (0 = sync reads)
+io_workers = 4
+# Number of threads for parallel artifact uploads (0 = sequential)
+artifact_upload_workers = 4
+
+[evaluation]
+interval_sec = 10.0
+
+[gpu]
+# Enable GPU acceleration for supported algorithms
+enabled = true
+# Device ID to use (-1 = auto-select, 0 = first GPU, 1 = second GPU)
+device_id = 0
+# Fallback to CPU if GPU is unavailable
+fallback_to_cpu = true
+# Memory limit per worker in MB (0 = no limit)
+memory_limit_mb = 0
+
+# REAL filesystem paths
+# This is the single source of truth for directory_key → path
+# Paths are relative to project root
+[directories]
+path0 = "./paths_test/path0"
+path1 = "./paths_test/path1"
+path2 = "./paths_test/path2"
+path3 = "./paths_test/path3"
+path4 = "./paths_test/path4"
+path5 = "./paths_test/path5"
+path6 = "./paths_test/path6"
+path7 = "./paths_test/path7"
+#pathXX = "./input/pathXX"

@@ -1,0 +1,4 @@
+[algorithm]
+threshold = 0.4
+blur_kernel = 3
+use_canny = true

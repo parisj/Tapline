@@ -1,0 +1,25 @@
+# YOLO Segmentation Configuration
+# Algorithm: yolo_segmentation v1.0.0
+#
+# Instance segmentation using Ultralytics YOLO
+# Requires: pixi install --environment ml
+#
+# Returns: detection_count, class_counts, avg_confidence, coverage_ratio
+
+[model]
+# YOLO model name (downloads automatically if not cached)
+# Options: yolov8n-seg.pt (nano), yolov8s-seg.pt (small), yolov8m-seg.pt (medium)
+name = "yolov8n-seg.pt"
+
+# Confidence threshold for detections (0-1)
+confidence_threshold = 0.25
+
+# IoU threshold for NMS
+iou_threshold = 0.45
+
+# Device: "auto" (uses CUDA if available), "cpu", "cuda", "cuda:0", etc.
+device = "auto"
+
+[algorithm]
+# Minimum number of detections to pass
+min_detection_count = 1

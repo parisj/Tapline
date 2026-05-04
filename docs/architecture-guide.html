@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/Inter/Inter-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/Inter/Inter-Medium.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/Inter/Inter-SemiBold.woff2') format('woff2'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('../assets/fonts/Inter/Inter-Bold.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2'); }
+      @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2'); }
+    </style>
+    <title>Tapline Architecture Guide</title>
+    <style>
+        :root {
+            --primary: #00D4AA;
+            --primary-dark: #00B894;
+            --secondary: #0066FF;
+            --accent: #00D4AA;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0A0F14;
+            --light: #1C2530;
+            --gray: #6B7D8E;
+            --border: #2A3744;
+            --bg-primary: #0A0F14;
+            --bg-secondary: #141B22;
+            --bg-elevated: #1C2530;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8A9BA8;
+            --text-muted: #6B7D8E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Arial', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 212, 170, 0.3);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        header .version {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 1rem;
+            border-radius: 2rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        nav h3 {
+            color: var(--gray);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        nav a {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        nav a:hover {
+            background: var(--primary);
+            color: var(--bg-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Sections */
+        section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        section h2 {
+            color: var(--primary);
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        section h2 .icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        section h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+        }
+
+        section h4 {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin: 1.25rem 0 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Code blocks */
+        pre {
+            background: var(--bg-primary);
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            border: 1px solid var(--border);
+        }
+
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            background: var(--bg-elevated);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            color: var(--primary);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .code-comment { color: #6b7280; }
+        .code-keyword { color: #c084fc; }
+        .code-string { color: #86efac; }
+        .code-function { color: #60a5fa; }
+        .code-number { color: #fbbf24; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: linear-gradient(135deg, #00D4AA 0%, #0066FF 100%);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        th:first-child {
+            border-radius: 0.5rem 0 0 0;
+        }
+
+        th:last-child {
+            border-radius: 0 0.5rem 0 0;
+        }
+
+        tr:hover {
+            background: var(--bg-elevated);
+        }
+
+        /* Diagrams */
+        .diagram {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+
+        .diagram-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        /* Flow diagrams */
+        .flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .flow-box {
+            background: var(--bg-elevated);
+            border: 2px solid var(--primary);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .flow-box.highlight {
+            background: var(--primary);
+            color: var(--bg-primary);
+        }
+
+        .flow-arrow {
+            color: var(--gray);
+            font-size: 1.5rem;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.1);
+        }
+
+        .card h4 {
+            color: var(--primary);
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-primary { background: rgba(0, 212, 170, 0.15); color: var(--primary); }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .badge-purple { background: rgba(0, 102, 255, 0.15); color: var(--secondary); }
+
+        /* Callouts */
+        .callout {
+            padding: 1.25rem 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .callout-info {
+            background: rgba(0, 212, 170, 0.08);
+            border-color: var(--primary);
+        }
+
+        .callout-success {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: var(--success);
+        }
+
+        .callout-warning {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: var(--warning);
+        }
+
+        .callout-danger {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: var(--danger);
+        }
+
+        .callout-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .callout-info .callout-title { color: var(--primary); }
+        .callout-success .callout-title { color: var(--success); }
+        .callout-warning .callout-title { color: var(--warning); }
+        .callout-danger .callout-title { color: var(--danger); }
+
+        /* Lists */
+        ul, ol {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* Hash chain visualization */
+        .chain-viz {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 1.5rem 0;
+        }
+
+        .chain-event {
+            display: flex;
+            align-items: stretch;
+            gap: 1rem;
+        }
+
+        .chain-line {
+            width: 3px;
+            background: linear-gradient(180deg, #00D4AA 0%, #0066FF 100%);
+            margin-left: 1.5rem;
+            position: relative;
+        }
+
+        .chain-line::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            left: -6.5px;
+            top: 1.5rem;
+            border: 3px solid var(--bg-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+
+        .chain-content {
+            flex: 1;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .chain-content h5 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .chain-hash {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+        }
+
+        /* Architecture diagram */
+        .arch-diagram {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .arch-layer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .arch-box {
+            background: linear-gradient(135deg, #00D4AA 0%, #00B894 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            min-width: 140px;
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+        }
+
+        .arch-box.secondary {
+            background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
+        }
+
+        .arch-box.accent {
+            background: linear-gradient(135deg, var(--accent) 0%, #00B894 100%);
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+        }
+
+        .arch-box.success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .arch-box small {
+            display: block;
+            opacity: 0.8;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .arch-connector {
+            display: flex;
+            justify-content: center;
+            padding: 0.5rem;
+            color: var(--gray);
+            font-size: 1.5rem;
+        }
+
+        /* Security section */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .security-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.08);
+            border-radius: 0.75rem;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .security-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .security-text h5 {
+            color: var(--success);
+            margin-bottom: 0.25rem;
+        }
+
+        .security-text p {
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            header {
+                padding: 2rem 1rem;
+            }
+
+            header h1 {
+                font-size: 1.75rem;
+            }
+
+            section {
+                padding: 1.5rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
+
+            .flow {
+                flex-direction: column;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Tapline Architecture Guide</h1>
+            <p class="subtitle">Configuration-driven evaluation pipeline with tamper-evident audit trails</p>
+            <span class="version">Python 3.12 | Kafka | MinIO | Flask</span>
+        </header>
+
+        <!-- Navigation -->
+        <nav>
+            <h3>Quick Navigation</h3>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#architecture">System Architecture</a></li>
+                <li><a href="#flask-api">Flask API</a></li>
+                <li><a href="#events">Event System</a></li>
+                <li><a href="#hash-chain">Hash Chain</a></li>
+                <li><a href="#aggregation">Aggregation</a></li>
+                <li><a href="#security">Security</a></li>
+                <li><a href="#infrastructure">Infrastructure</a></li>
+                <li><a href="#commands">Commands</a></li>
+            </ul>
+        </nav>
+
+        <!-- Overview Section -->
+        <section id="overview">
+            <h2><span class="icon">&#128640;</span> System Overview</h2>
+
+            <p>Tapline is a configuration-driven evaluation pipeline for continuous ingestion, processing, and time-windowed analysis of data. It provides a robust, tamper-evident audit trail with cryptographically linked event records.</p>
+
+            <h3>Core Pipeline Flow</h3>
+            <div class="flow">
+                <div class="flow-box">File Ingest</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box highlight">Kafka Events</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box">Worker Pool</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box">Processor</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box highlight">MinIO Storage</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box">Aggregation</div>
+            </div>
+
+            <h3>Technology Stack</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Technology</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-primary">Language</span></td>
+                        <td>Python 3.12</td>
+                        <td>Core runtime (pinned for PyFlink compatibility)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-success">Streaming</span></td>
+                        <td>Apache Kafka</td>
+                        <td>Event backbone and message transport</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">Storage</span></td>
+                        <td>MinIO (S3-compatible)</td>
+                        <td>Content-addressed artifact storage</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">Dashboard</span></td>
+                        <td>Flask + Plotly.js</td>
+                        <td>REST API and visualization</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-danger">Tracing</span></td>
+                        <td>OpenTelemetry + Jaeger</td>
+                        <td>Distributed tracing and observability</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Architecture Section -->
+        <section id="architecture">
+            <h2><span class="icon">&#127959;</span> System Architecture</h2>
+
+            <p>The full pipeline spawns three separate processes for optimal performance and isolation:</p>
+
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box">
+                        <strong>Main Pipeline</strong>
+                        <small>main.py</small>
+                    </div>
+                    <div class="arch-box secondary">
+                        <strong>Aggregator</strong>
+                        <small>flink_aggregation.py</small>
+                    </div>
+                    <div class="arch-box accent">
+                        <strong>Metric Sink</strong>
+                        <small>aggregate_sink.py</small>
+                    </div>
+                </div>
+                <div class="arch-connector">&#8595;</div>
+                <div class="arch-layer">
+                    <div class="arch-box success">
+                        <strong>Kafka</strong>
+                        <small>Event Transport</small>
+                    </div>
+                    <div class="arch-box success">
+                        <strong>MinIO</strong>
+                        <small>Object Storage</small>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Why Separate Processes?</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <h4>&#128170; GIL Bypass</h4>
+                    <p>Python's Global Interpreter Lock limits parallelism. Separate processes enable true concurrent execution.</p>
+                </div>
+                <div class="card">
+                    <h4>&#128260; I/O Isolation</h4>
+                    <p>Kafka and MinIO operations are I/O-bound. Process isolation prevents blocking between components.</p>
+                </div>
+                <div class="card">
+                    <h4>&#128259; Independent Restart</h4>
+                    <p>Components can restart independently. The aggregate sink auto-recovers if it crashes.</p>
+                </div>
+            </div>
+
+            <h3>Data Flow Architecture</h3>
+            <div class="diagram">
+                <div class="diagram-title">Complete Data Flow</div>
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              FILE SYSTEM                                      │
+│    /data/path0/image.png    /data/path1/video.mp4    /data/path2/doc.pdf    │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         KAFKA OBSERVER (Ingestion)                            │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐   │
+│  │ File Watch  │→ │ Deduplication │→ │ File Hash   │→ │ TASK_CREATED     │   │
+│  │ (inotify)   │  │ Cache (LRU)   │  │ (SHA-256)   │  │ Event Published  │   │
+│  └─────────────┘  └──────────────┘  └─────────────┘  └──────────────────┘   │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              KAFKA TOPICS                                     │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────┐ │
+│  │ tapline.tasks  │  │ tapline.metrics│  │ tapline.results│  │ tapline.   │ │
+│  │ (Tasks)        │  │ (Measurements) │  │ (Artifacts)    │  │ audit      │ │
+│  └────────────────┘  └────────────────┘  └────────────────┘  └────────────┘ │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            WORKER POOL                                        │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐   │
+│  │ Consumer    │→ │ Dispatcher   │→ │ Processor   │→ │ Result Producer  │   │
+│  │ (Batch)     │  │ (Routing)    │  │ Execution   │  │ (Metrics/Artifacts)│  │
+│  └─────────────┘  └──────────────┘  └─────────────┘  └──────────────────┘   │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    ▼                                   ▼
+┌───────────────────────────────────┐  ┌───────────────────────────────────────┐
+│          AGGREGATION              │  │              MINIO STORAGE             │
+│  ┌─────────────────────────────┐  │  │  ┌─────────────────────────────────┐  │
+│  │ 60-second Tumbling Windows  │  │  │  │ Content-Addressed Artifacts     │  │
+│  │ count, mean, std, p95, p99  │  │  │  │ bucket/ab/cd/{full_hash}        │  │
+│  │ Grouped by algo + metric    │  │  │  │ Automatic Deduplication         │  │
+│  └─────────────────────────────┘  │  │  └─────────────────────────────────┘  │
+└───────────────────────────────────┘  └───────────────────────────────────────┘
+</pre>
+            </div>
+        </section>
+
+        <!-- Flask API Section -->
+        <section id="flask-api">
+            <h2><span class="icon">&#127760;</span> Flask API &amp; Dashboard</h2>
+
+            <h3>Client-Server Architecture</h3>
+            <p>The dashboard follows a classic client-server pattern where Flask serves both the frontend and API:</p>
+
+            <div class="diagram">
+                <div class="diagram-title">Request Flow</div>
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              BROWSER (Client)                                │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  1. GET http://localhost:5007/                                        │   │
+│  │     → Flask serves dashboard.html                                     │   │
+│  │                                                                       │   │
+│  │  2. JavaScript makes AJAX calls:                                      │   │
+│  │     → GET /api/health          (System health check)                  │   │
+│  │     → GET /api/metrics         (Available metrics list)              │   │
+│  │     → GET /api/metrics/{name}  (Metric time series data)             │   │
+│  │     → GET /api/aggregates      (Windowed aggregations)               │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────┬───────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FLASK SERVER (Port 5007)                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  Routes:                                                              │   │
+│  │  ├─ /              → Serves static/dashboard.html                    │   │
+│  │  ├─ /api/health    → Returns system status                           │   │
+│  │  ├─ /api/metrics   → Queries MinIO for metric names                  │   │
+│  │  └─ /api/...       → Other API endpoints                             │   │
+│  │                                                                       │   │
+│  │  Features:                                                            │   │
+│  │  • Rate limiting (10 req/sec, burst 50)                              │   │
+│  │  • Input validation (injection prevention)                           │   │
+│  │  • CORS handling (same-origin proxying)                              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────┬───────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           BACKEND SERVICES                                   │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│  │   MinIO     │    │ Prometheus  │    │   Kafka     │    │   Jaeger    │  │
+│  │  (Storage)  │    │  (Metrics)  │    │  (Events)   │    │  (Traces)   │  │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+</pre>
+            </div>
+
+            <h3>API Endpoints</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/health</code></td>
+                        <td><span class="badge badge-success">GET</span></td>
+                        <td>System health status and component availability</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/metrics</code></td>
+                        <td><span class="badge badge-success">GET</span></td>
+                        <td>List all available metric names from MinIO</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/metrics/{name}</code></td>
+                        <td><span class="badge badge-success">GET</span></td>
+                        <td>Time series data for a specific metric</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/aggregates</code></td>
+                        <td><span class="badge badge-success">GET</span></td>
+                        <td>Windowed aggregation results (count, mean, std, etc.)</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/processors</code></td>
+                        <td><span class="badge badge-success">GET</span></td>
+                        <td>Registered processors and their versions</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <div class="callout-title">&#128161; Why Proxy Through Flask?</div>
+                <p>All API requests go through Flask to avoid CORS (Cross-Origin Resource Sharing) issues. The browser only talks to one origin (Flask on port 5007), which then proxies requests to MinIO, Prometheus, and other services.</p>
+            </div>
+        </section>
+
+        <!-- Events Section -->
+        <section id="events">
+            <h2><span class="icon">&#128233;</span> Event System</h2>
+
+            <p>The event system is the backbone of Tapline. Every action in the pipeline produces an immutable, hash-linked event that forms part of the audit trail.</p>
+
+            <h3>EventEnvelope Structure</h3>
+            <pre><code><span class="code-keyword">@dataclass</span>(frozen=<span class="code-keyword">True</span>)  <span class="code-comment"># Immutable!</span>
+<span class="code-keyword">class</span> <span class="code-function">EventEnvelope</span>:
+    event_id: <span class="code-function">str</span>           <span class="code-comment"># UUID - unique identifier</span>
+    event_type: <span class="code-function">EventType</span>   <span class="code-comment"># TASK_CREATED, METRIC_EMITTED, etc.</span>
+    source_id: <span class="code-function">str</span>          <span class="code-comment"># Partition key (directory or algorithm)</span>
+    timestamp: <span class="code-function">datetime</span>     <span class="code-comment"># When event occurred (UTC)</span>
+    payload: <span class="code-function">dict</span>           <span class="code-comment"># Event-specific data</span>
+    content_hash: <span class="code-function">str</span>       <span class="code-comment"># SHA-256 of payload</span>
+    prev_hash: <span class="code-function">str</span> | <span class="code-keyword">None</span>   <span class="code-comment"># Link to previous event</span>
+    signature: <span class="code-function">str</span> | <span class="code-keyword">None</span>   <span class="code-comment"># For PKI (future)</span></code></pre>
+
+            <h3>Event Types</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event Type</th>
+                        <th>When Created</th>
+                        <th>Payload Contains</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-primary">TASK_CREATED</span></td>
+                        <td>File discovered by observer</td>
+                        <td>path, file_hash, fingerprint, directory_key</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">TASK_STARTED</span></td>
+                        <td>Worker picks up task</td>
+                        <td>processor_name, processor_version</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-success">TASK_COMPLETED</span></td>
+                        <td>Processing finished successfully</td>
+                        <td>duration_ms, result_count</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-danger">TASK_FAILED</span></td>
+                        <td>Processing encountered error</td>
+                        <td>error_message, traceback</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">METRIC_EMITTED</span></td>
+                        <td>Processor emits a measurement</td>
+                        <td>metric_name, value, aggregation_mask, meta</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-primary">RESULT_PRODUCED</span></td>
+                        <td>Artifact created and stored</td>
+                        <td>artifact_ref, content_type, size</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Event Usage Patterns</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <h4>&#9889; Operational Flow</h4>
+                    <p>Events drive the pipeline: file discovery triggers TASK_CREATED, which workers consume to start processing, emitting metrics and completing tasks.</p>
+                </div>
+                <div class="card">
+                    <h4>&#128203; Audit Trail</h4>
+                    <p>Every event is dual-written to both operational topics and an immutable audit-log topic for tamper-evident replay.</p>
+                </div>
+                <div class="card">
+                    <h4>&#128202; Aggregation Trigger</h4>
+                    <p>METRIC_EMITTED events feed the aggregation pipeline, which computes windowed statistics.</p>
+                </div>
+            </div>
+
+            <h3>Task Lifecycle</h3>
+            <div class="flow">
+                <div class="flow-box">TASK_CREATED</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box">TASK_STARTED</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box highlight">METRIC_EMITTED (N)</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-box">TASK_COMPLETED</div>
+            </div>
+        </section>
+
+        <!-- Hash Chain Section -->
+        <section id="hash-chain">
+            <h2><span class="icon">&#128279;</span> Hash Chain &amp; Tamper Detection</h2>
+
+            <p>The hash chain creates a cryptographically linked sequence of events. Any modification, deletion, or reordering of events breaks the chain, making tampering detectable.</p>
+
+            <h3>How Hashing Works</h3>
+
+            <h4>1. Content Hash</h4>
+            <p>Each event's payload is hashed using SHA-256 with canonical (sorted) JSON:</p>
+            <pre><code><span class="code-keyword">def</span> <span class="code-function">compute_content_hash</span>(payload: <span class="code-function">dict</span>) -> <span class="code-function">str</span>:
+    <span class="code-comment"># Canonical JSON ensures deterministic hashing</span>
+    canonical = json.dumps(payload, sort_keys=<span class="code-keyword">True</span>, default=<span class="code-function">str</span>)
+    <span class="code-keyword">return</span> hashlib.sha256(canonical.encode(<span class="code-string">"utf-8"</span>)).hexdigest()</code></pre>
+
+            <h4>2. Chain Linking</h4>
+            <p>Each event stores the previous event's hash, creating an unbroken chain:</p>
+            <pre><code><span class="code-comment"># Each new event links to the previous one</span>
+new_event = EventEnvelope.create(
+    event_type=EventType.TASK_STARTED,
+    source_id=<span class="code-string">"path0"</span>,
+    payload={...},
+    prev_hash=previous_event.content_hash  <span class="code-comment"># ← Chain link!</span>
+)</code></pre>
+
+            <h3>Chain Visualization</h3>
+            <div class="chain-viz">
+                <div class="chain-event">
+                    <div class="chain-line"></div>
+                    <div class="chain-content">
+                        <h5>Event 1: TASK_CREATED (Genesis)</h5>
+                        <p>File: /data/image.png</p>
+                        <span class="chain-hash">content_hash: abc123...def</span>
+                        <span class="chain-hash" style="background: rgba(239, 68, 68, 0.15); color: var(--danger);">prev_hash: null</span>
+                    </div>
+                </div>
+                <div class="chain-event">
+                    <div class="chain-line"></div>
+                    <div class="chain-content">
+                        <h5>Event 2: TASK_STARTED</h5>
+                        <p>Processor: analysis_probe v1.0.0</p>
+                        <span class="chain-hash">content_hash: 789xyz...uvw</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: abc123...def &#10003;</span>
+                    </div>
+                </div>
+                <div class="chain-event">
+                    <div class="chain-line"></div>
+                    <div class="chain-content">
+                        <h5>Event 3: METRIC_EMITTED</h5>
+                        <p>Metric: accuracy = 0.95</p>
+                        <span class="chain-hash">content_hash: qrs456...mno</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: 789xyz...uvw &#10003;</span>
+                    </div>
+                </div>
+                <div class="chain-event">
+                    <div class="chain-line"></div>
+                    <div class="chain-content">
+                        <h5>Event 4: TASK_COMPLETED</h5>
+                        <p>Duration: 150ms</p>
+                        <span class="chain-hash">content_hash: jkl012...ghi</span>
+                        <span class="chain-hash" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">prev_hash: qrs456...mno &#10003;</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3>File Incorporation</h3>
+            <p>When a file is discovered, its SHA-256 hash is computed and embedded in the TASK_CREATED event:</p>
+            <pre><code><span class="code-comment"># File content is hashed and included in event payload</span>
+file_hash = hashlib.sha256(file_content).hexdigest()
+
+payload = {
+    <span class="code-string">"task_id"</span>: job_id,
+    <span class="code-string">"path"</span>: <span class="code-string">"/data/image.png"</span>,
+    <span class="code-string">"file_hash"</span>: file_hash,  <span class="code-comment"># ← File bound to event</span>
+}
+<span class="code-comment"># This payload gets hashed → content_hash includes file_hash</span></code></pre>
+
+            <div class="callout callout-success">
+                <div class="callout-title">&#128274; Cryptographic Binding</div>
+                <p>The file's content hash is embedded in the event payload, which is then hashed to create the content_hash. This means changing even a single byte of the original file would require modifying the event, which would break the chain.</p>
+            </div>
+
+            <h3>Tamper Detection</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tampering Type</th>
+                        <th>How It's Detected</th>
+                        <th>Verification Output</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#9888; Payload modified</td>
+                        <td>Recomputed hash doesn't match stored content_hash</td>
+                        <td><code>Event N: content_hash mismatch</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#10060; Event removed</td>
+                        <td>Downstream prev_hash points to missing hash</td>
+                        <td><code>Event N: prev_hash mismatch</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#128260; Event reordered</td>
+                        <td>Chain linkage breaks at reorder point</td>
+                        <td><code>Event N: prev_hash mismatch</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#10133; Event inserted</td>
+                        <td>New event's prev_hash won't match expected</td>
+                        <td><code>Event N+1: prev_hash mismatch</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#128196; File replaced</td>
+                        <td>file_hash in payload won't match file content</td>
+                        <td><code>TASK_CREATED: file_hash mismatch</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Chain Verification</h3>
+            <pre><code><span class="code-keyword">from</span> audit.chain <span class="code-keyword">import</span> verify_event_chain
+
+<span class="code-comment"># Retrieve events and verify</span>
+events = consumer.get_events(source_id=<span class="code-string">"path0"</span>)
+result = verify_event_chain(events)
+
+<span class="code-keyword">if</span> result.valid:
+    <span class="code-function">print</span>(<span class="code-string">f"Chain valid - {result.event_count} events verified"</span>)
+<span class="code-keyword">else</span>:
+    <span class="code-function">print</span>(<span class="code-string">f"TAMPERING DETECTED!"</span>)
+    <span class="code-keyword">for</span> error <span class="code-keyword">in</span> result.errors:
+        <span class="code-function">print</span>(<span class="code-string">f"  - {error}"</span>)  <span class="code-comment"># Pinpoints exact event</span></code></pre>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">&#128273; What's Needed to Verify the Chain</div>
+                <ol>
+                    <li><strong>All events in order</strong> - Retrieved from Kafka audit-log topic</li>
+                    <li><strong>Original payloads</strong> - Stored in event messages</li>
+                    <li><strong>HashChainVerifier</strong> - Built into the system</li>
+                    <li><strong>Signature verification</strong> - When PKI is enabled (prepared but not yet active)</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Aggregation Section -->
+        <section id="aggregation">
+            <h2><span class="icon">&#128200;</span> Aggregation System</h2>
+
+            <p>The aggregation system computes windowed statistics from metric events. It processes METRIC_EMITTED events and produces summarized data for visualization and analysis.</p>
+
+            <h3>Tumbling Windows</h3>
+            <p>Metrics are aggregated in 60-second non-overlapping windows:</p>
+
+            <div class="diagram">
+                <div class="diagram-title">Tumbling Window Aggregation</div>
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
+Timeline: ──────────────────────────────────────────────────────────────────────
+          │    Window 1     │    Window 2     │    Window 3     │
+          │   10:00-10:01   │   10:01-10:02   │   10:02-10:03   │
+          │                 │                 │                 │
+Events:   │ ● ● ● ● ●       │ ● ● ●           │ ● ● ● ● ● ● ●   │
+          │                 │                 │                 │
+Output:   │ count=5         │ count=3         │ count=7         │
+          │ mean=0.94       │ mean=0.96       │ mean=0.93       │
+          │ std=0.02        │ std=0.01        │ std=0.03        │
+          └─────────────────┴─────────────────┴─────────────────┘
+</pre>
+            </div>
+
+            <h3>Aggregation Output</h3>
+            <pre><code>{
+    <span class="code-string">"algo_name"</span>: <span class="code-string">"analysis_probe"</span>,
+    <span class="code-string">"algo_version"</span>: <span class="code-string">"1.0.0"</span>,
+    <span class="code-string">"metric_name"</span>: <span class="code-string">"accuracy"</span>,
+    <span class="code-string">"window_start"</span>: <span class="code-string">"2025-01-24T10:00:00+00:00"</span>,
+    <span class="code-string">"window_end"</span>: <span class="code-string">"2025-01-24T10:01:00+00:00"</span>,
+    <span class="code-string">"summary"</span>: {
+        <span class="code-string">"count"</span>: <span class="code-number">100</span>,
+        <span class="code-string">"mean"</span>: <span class="code-number">0.95</span>,
+        <span class="code-string">"std"</span>: <span class="code-number">0.02</span>,
+        <span class="code-string">"min"</span>: <span class="code-number">0.88</span>,
+        <span class="code-string">"max"</span>: <span class="code-number">0.99</span>,
+        <span class="code-string">"median"</span>: <span class="code-number">0.95</span>,
+        <span class="code-string">"p95"</span>: <span class="code-number">0.98</span>,
+        <span class="code-string">"p99"</span>: <span class="code-number">0.99</span>
+    },
+    <span class="code-string">"values"</span>: [<span class="code-number">0.94</span>, <span class="code-number">0.95</span>, <span class="code-number">0.96</span>, ...]  <span class="code-comment">// Raw values preserved</span>
+}</code></pre>
+
+            <h3>Relationship to Events &amp; Hash Chain</h3>
+            <div class="diagram">
+                <div class="diagram-title">Complete Data Flow</div>
+<pre style="background: transparent; color: var(--text-primary); margin: 0; padding: 0;">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PROCESSOR EXECUTION                                   │
+│                                                                              │
+│     processor.run(task) → Measurement(name="accuracy", value=0.95)          │
+│                                                                              │
+└─────────────────────────────────────────┬───────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      EVENT ENVELOPE CREATED                                  │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  EventEnvelope(                                                        │  │
+│  │      event_type = METRIC_EMITTED                                       │  │
+│  │      source_id  = "analysis_probe"                                     │  │
+│  │      payload    = {metric_name, value, aggregation_mask}               │  │
+│  │      content_hash = SHA256(canonical_json(payload))                    │  │
+│  │      prev_hash    = previous_event.content_hash  ← CHAIN LINK         │  │
+│  │  )                                                                     │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────┬───────────────────────────────────┘
+                                          │
+                    ┌─────────────────────┼─────────────────────┐
+                    ▼                     ▼                     ▼
+          ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+          │ tapline.metrics │   │  tapline.audit  │   │  Chain Tracker  │
+          │   (Kafka)       │   │     (Kafka)     │   │   (Memory)      │
+          │  [Operational]  │   │  [Immutable]    │   │  [prev_hash]    │
+          └────────┬────────┘   └─────────────────┘   └─────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PYTHON AGGREGATOR                                    │
+│                                                                              │
+│   ┌────────────────────────────────────────────────────────────────────┐    │
+│   │  Group by: (algo_name, algo_version, metric_name)                  │    │
+│   │  Window:   60-second tumbling                                       │    │
+│   │  Compute:  count, sum, mean, std, min, max, median, p95, p99       │    │
+│   └────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────┬───────────────────────────────────┘
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MINIO STORAGE                                      │
+│                                                                              │
+│   Bucket: aggregates                                                         │
+│   Path:   aggregates/ab/cd/{content_hash}                                   │
+│           └── Content-addressed (deduplication)                             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+</pre>
+            </div>
+
+            <h3>AggregationType Flags</h3>
+            <p>Each measurement includes a bitmask specifying which aggregation types apply:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Flag</th>
+                        <th>Value</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>STATS</code></td>
+                        <td>1</td>
+                        <td>Compute mean, std, min, max, percentiles</td>
+                    </tr>
+                    <tr>
+                        <td><code>HISTOGRAM</code></td>
+                        <td>2</td>
+                        <td>Generate distribution histogram</td>
+                    </tr>
+                    <tr>
+                        <td><code>OUTLIERS</code></td>
+                        <td>4</td>
+                        <td>Detect outlier values (IQR method)</td>
+                    </tr>
+                    <tr>
+                        <td><code>TALLY</code></td>
+                        <td>8</td>
+                        <td>Simple counting (events per window)</td>
+                    </tr>
+                    <tr>
+                        <td><code>RATE</code></td>
+                        <td>16</td>
+                        <td>Compute rate of change over time</td>
+                    </tr>
+                    <tr>
+                        <td><code>SCATTER_ELLIPSE</code></td>
+                        <td>32</td>
+                        <td>2D scatter with confidence ellipse</td>
+                    </tr>
+                    <tr>
+                        <td><code>DENSITY_MAP</code></td>
+                        <td>64</td>
+                        <td>2D density visualization</td>
+                    </tr>
+                    <tr>
+                        <td><code>RAW</code></td>
+                        <td>128</td>
+                        <td>Preserve raw values (no aggregation)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Security Section -->
+        <section id="security">
+            <h2><span class="icon">&#128274;</span> Security Features</h2>
+
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="security-icon">&#128273;</div>
+                    <div class="security-text">
+                        <h5>SHA-256 Hashing</h5>
+                        <p>Industry-standard cryptographic hash (same as Git, Bitcoin)</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#128279;</div>
+                    <div class="security-text">
+                        <h5>Hash Chain Linking</h5>
+                        <p>Each event cryptographically linked to its predecessor</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#128451;</div>
+                    <div class="security-text">
+                        <h5>Immutable Events</h5>
+                        <p>Frozen dataclasses prevent in-memory modification</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#128203;</div>
+                    <div class="security-text">
+                        <h5>Dual-Write Audit</h5>
+                        <p>Events written to both operational and immutable audit topics</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#128196;</div>
+                    <div class="security-text">
+                        <h5>File Content Binding</h5>
+                        <p>Original file hash embedded in event chain</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#128272;</div>
+                    <div class="security-text">
+                        <h5>PKI Ready</h5>
+                        <p>Signature provider protocol prepared for certificate integration</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Kafka Security</h3>
+            <pre><code><span class="code-comment"># src/config/kafka.toml</span>
+[security]
+protocol = <span class="code-string">"SASL_SSL"</span>          <span class="code-comment"># Options: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL</span>
+ssl_ca_location = <span class="code-string">"/path/to/ca.crt"</span>
+sasl_mechanism = <span class="code-string">"SCRAM-SHA-256"</span>
+sasl_username = <span class="code-string">""</span>             <span class="code-comment"># Use environment variable</span>
+sasl_password = <span class="code-string">""</span>             <span class="code-comment"># Use environment variable</span></code></pre>
+
+            <h3>API Security</h3>
+            <ul>
+                <li><strong>Rate Limiting:</strong> Token bucket (10 req/sec per IP, burst 50)</li>
+                <li><strong>Input Validation:</strong> Strict patterns prevent injection attacks</li>
+                <li><strong>CORS:</strong> Same-origin proxying through Flask</li>
+            </ul>
+
+            <div class="callout callout-danger">
+                <div class="callout-title">&#9888; Security Scanning Commands</div>
+                <pre style="background: var(--bg-primary); margin-top: 0.5rem;"><code>pixi run security-audit   <span class="code-comment"># pip-audit dependency scan</span>
+pixi run bandit-check     <span class="code-comment"># Code security analysis</span>
+pixi run precommit-run    <span class="code-comment"># All pre-commit hooks</span></code></pre>
+            </div>
+        </section>
+
+        <!-- Infrastructure Section -->
+        <section id="infrastructure">
+            <h2><span class="icon">&#128187;</span> Infrastructure</h2>
+
+            <h3>Docker Services</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Port(s)</th>
+                        <th>Purpose</th>
+                        <th>URL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-success">Kafka</span></td>
+                        <td>9092, 9093</td>
+                        <td>Event streaming</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-success">Zookeeper</span></td>
+                        <td>2181</td>
+                        <td>Kafka coordination</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">MinIO</span></td>
+                        <td>9000, 9001</td>
+                        <td>Object storage</td>
+                        <td><a href="http://localhost:9001">Console</a></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-primary">Flink JobManager</span></td>
+                        <td>8081</td>
+                        <td>Stream processing UI</td>
+                        <td><a href="http://localhost:8081">Dashboard</a></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">Prometheus</span></td>
+                        <td>9091</td>
+                        <td>Metrics collection</td>
+                        <td><a href="http://localhost:9091">UI</a></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-warning">Grafana</span></td>
+                        <td>3000</td>
+                        <td>Dashboards</td>
+                        <td><a href="http://localhost:3000">UI</a> (admin/admin)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-danger">Jaeger</span></td>
+                        <td>16686, 4317</td>
+                        <td>Distributed tracing</td>
+                        <td><a href="http://localhost:16686">UI</a></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Kafka Topics</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Purpose</th>
+                        <th>Partition Key</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>tapline.tasks</code></td>
+                        <td>Task lifecycle events</td>
+                        <td>directory_key</td>
+                    </tr>
+                    <tr>
+                        <td><code>tapline.metrics</code></td>
+                        <td>Measurement events</td>
+                        <td>processor_name</td>
+                    </tr>
+                    <tr>
+                        <td><code>tapline.results</code></td>
+                        <td>Artifact references</td>
+                        <td>processor_name</td>
+                    </tr>
+                    <tr>
+                        <td><code>tapline.aggregates</code></td>
+                        <td>Windowed aggregations</td>
+                        <td>metric_name</td>
+                    </tr>
+                    <tr>
+                        <td><code>tapline.audit</code></td>
+                        <td>Immutable audit trail</td>
+                        <td>source_id</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>MinIO Buckets</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bucket</th>
+                        <th>Contents</th>
+                        <th>Path Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>artifacts</code></td>
+                        <td>Processor output files</td>
+                        <td><code>ab/cd/{full_hash}</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>inputs</code></td>
+                        <td>Archived input files</td>
+                        <td><code>ab/cd/{full_hash}</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>aggregates</code></td>
+                        <td>Windowed summaries</td>
+                        <td><code>ab/cd/{full_hash}</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Commands Section -->
+        <section id="commands">
+            <h2><span class="icon">&#9000;</span> Essential Commands</h2>
+
+            <h3>Pipeline Operations</h3>
+            <pre><code><span class="code-comment"># Full pipeline (spawns all 3 components)</span>
+pixi run pipeline
+
+<span class="code-comment"># Individual components (for development)</span>
+pixi run run              <span class="code-comment"># Main pipeline only</span>
+pixi run run-flink-agg    <span class="code-comment"># Python aggregation standalone</span>
+pixi run aggregate-sink   <span class="code-comment"># Metric values collector</span>
+
+<span class="code-comment"># Dashboard</span>
+pixi run dashboard        <span class="code-comment"># Flask dashboard at http://localhost:5007</span></code></pre>
+
+            <h3>Testing &amp; Quality</h3>
+            <pre><code><span class="code-comment"># Testing</span>
+pixi run test             <span class="code-comment"># Run tests with coverage</span>
+pixi run test-e2e         <span class="code-comment"># End-to-end tests</span>
+
+<span class="code-comment"># Code quality</span>
+pixi run lint             <span class="code-comment"># Ruff linting</span>
+pixi run format           <span class="code-comment"># Ruff formatting</span>
+pixi run typecheck        <span class="code-comment"># mypy type checking</span>
+
+<span class="code-comment"># Security</span>
+pixi run security-audit   <span class="code-comment"># pip-audit dependency scan</span>
+pixi run bandit-check     <span class="code-comment"># Code security analysis</span></code></pre>
+
+            <h3>Infrastructure</h3>
+            <pre><code><span class="code-comment"># Start all Docker services</span>
+docker-compose up -d
+
+<span class="code-comment"># View logs</span>
+docker-compose logs -f kafka
+docker-compose logs -f minio
+
+<span class="code-comment"># Stop services</span>
+docker-compose down</code></pre>
+
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>Tapline Architecture Guide | Generated for project documentation</p>
+            <p>For more details, see <a href="../README.md">README.md</a> and the rest of the docs in this directory.</p>
+        </footer>
+    </div>
+</body>
+</html>

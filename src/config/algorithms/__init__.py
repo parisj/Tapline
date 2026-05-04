@@ -1,0 +1,1 @@
+"""Per-algorithm configuration files."""

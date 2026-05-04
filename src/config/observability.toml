@@ -1,0 +1,57 @@
+# Observability configuration for Tapline pipeline
+# This file configures tracing, metrics, and logging behavior
+
+[tracing]
+# Enable/disable OpenTelemetry tracing
+enabled = true
+
+# Service name for traces
+service_name = "tapline"
+
+# Exporter type: "otlp", "jaeger", "console", "none"
+exporter = "otlp"
+
+# OTLP endpoint (used when exporter = "otlp")
+otlp_endpoint = "http://localhost:4317"
+
+# Sample rate (1.0 = 100%, 0.1 = 10%)
+sample_rate = 1.0
+
+[metrics]
+# Enable/disable Prometheus metrics
+enabled = true
+
+# Port for Prometheus metrics HTTP server
+port = 8000
+
+# Path for metrics endpoint
+path = "/metrics"
+
+# Include Python runtime metrics (gc, memory, etc.)
+include_runtime_metrics = true
+
+# Histogram buckets for duration metrics (in seconds)
+histogram_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+
+[logging]
+# Log format: "json" or "text"
+format = "json"
+
+# Include trace context (trace_id, span_id) in logs
+include_trace_context = true
+
+# Include correlation ID in logs
+include_correlation_id = true
+
+# Include caller info (file, line, function)
+include_caller_info = false
+
+[correlation]
+# HTTP header name for correlation ID
+header_name = "X-Correlation-ID"
+
+# Kafka header name for correlation ID
+kafka_header_name = "x-correlation-id"
+
+# Propagate correlation ID in Kafka messages
+propagate_to_kafka = true
