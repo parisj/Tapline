@@ -4,7 +4,7 @@
 
 1. Fork the repository
 2. Clone your fork
-3. Set up the development environment (see [DEVELOPMENT.md](DEVELOPMENT.md))
+3. Set up the development environment (see [development.md](development.md))
 4. Create a feature branch
 
 ## Branch Naming
@@ -61,9 +61,8 @@ Add outlier detection analyzer
 
 When reviewing, check for:
 
-- [ ] Code follows [code standards](.claude/docs/code_standards.md)
 - [ ] Tests cover new functionality
-- [ ] No security issues (see [security guidelines](.claude/docs/security.md))
+- [ ] No new security risks introduced (Bandit + Gitleaks pass)
 - [ ] Documentation updated if needed
 - [ ] No unnecessary dependencies added
 
@@ -71,7 +70,7 @@ When reviewing, check for:
 
 ### Processors
 
-New processor implementations. See [extending guide](.claude/docs/extending.md).
+New processor implementations conforming to the `Processor` interface.
 
 ### Analyzers
 

@@ -90,7 +90,10 @@ pixi run test
 
 ### Add a New Processor
 
-See [extending guide](.claude/docs/extending.md).
+1. Implement the `Processor` interface in `src/algorithms/`.
+2. Register it in `src/algorithms/registry.py`.
+3. Add a route in `src/config/routes.toml`.
+4. Drop matching settings under `src/config/algorithms/`.
 
 ### Add a New Test
 

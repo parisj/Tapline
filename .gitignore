@@ -71,6 +71,7 @@ cover/
 #claude
 CLAUDE.md
 .claude/
+.omc/
 
 # Django stuff:
 *.log
