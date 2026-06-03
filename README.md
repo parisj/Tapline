@@ -3,7 +3,6 @@
 # Tapline
 
 **Configuration-driven evaluation pipeline for continuous data ingestion, processing, and time-windowed analysis.**
-> Tapline was developed in a private repository and made public after the initial framework reached stability. The full development history is preserved in [PR #1]([https://github.com/parisj/Tapline/pull/X](https://github.com/parisj/Tapline/pull/1)).
 
 [![CI](https://github.com/parisj/Tapline/actions/workflows/tests.yml/badge.svg)](https://github.com/parisj/Tapline/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/parisj/Tapline/branch/master/graph/badge.svg)](https://codecov.io/gh/parisj/Tapline)
@@ -19,6 +18,8 @@
 </div>
 
 ---
+
+> Tapline was developed in a private repository and made public after the initial framework reached stability. Full history: [PR #1](https://github.com/parisj/Tapline/pull/1).
 
 ## What is Tapline
 
