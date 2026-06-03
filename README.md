@@ -19,6 +19,8 @@
 
 ---
 
+> Tapline was developed in a private repository and made public after the initial framework reached stability. Full history: [PR #1](https://github.com/parisj/Tapline/pull/1).
+
 ## What is Tapline
 
 Tapline is an opinionated framework for building **streaming evaluation pipelines** that
